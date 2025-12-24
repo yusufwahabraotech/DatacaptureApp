@@ -14,15 +14,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const ProfileScreen = ({ navigation }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    measurements: 0,
+    questionnaires: 0,
+    daysActive: 0
+  });
 
   useEffect(() => {
     fetchUserProfile();
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      fetchUserStats();
+    }
+  }, [user]);
+
   const fetchUserProfile = async () => {
     try {
       const token = await AsyncStorage.getItem('userToken');
-      console.log('Profile Token:', token);
       
       if (!token) {
         Alert.alert('Error', 'No authentication token found');
@@ -37,7 +47,6 @@ const ProfileScreen = ({ navigation }) => {
       });
 
       const data = await response.json();
-      console.log('Profile API response:', data);
       
       if (data.success) {
         setUser(data.data.user);
@@ -49,6 +58,46 @@ const ProfileScreen = ({ navigation }) => {
       Alert.alert('Error', 'Network error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserStats = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) return;
+
+      // Check if user is admin and fetch appropriate stats
+      const isAdmin = user?.role === 'admin';
+      const endpoint = isAdmin 
+        ? 'https://datacapture-backend.onrender.com/api/admin/dashboard/stats'
+        : 'https://datacapture-backend.onrender.com/api/user/stats';
+
+      const response = await fetch(endpoint, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        if (isAdmin) {
+          // Admin stats from dashboard
+          setStats({
+            measurements: data.data.totalMeasurements || 0,
+            questionnaires: data.data.totalQuestionnaires || 0,
+            daysActive: data.data.daysActive || 0
+          });
+        } else {
+          // Regular user stats
+          setStats({
+            measurements: data.data.measurementCount || 0,
+            questionnaires: data.data.questionnaireCount || 0,
+            daysActive: data.data.daysActive || 0
+          });
+        }
+      }
+    } catch (error) {
+      console.log('Stats fetch error:', error);
     }
   };
 
@@ -106,17 +155,17 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Ionicons name="body" size={24} color="#7C3AED" />
-            <Text style={styles.statNumber}>12</Text>
+            <Text style={styles.statNumber}>{stats.measurements}</Text>
             <Text style={styles.statLabel}>Measurements</Text>
           </View>
           <View style={styles.statCard}>
             <Ionicons name="document-text" size={24} color="#F59E0B" />
-            <Text style={styles.statNumber}>5</Text>
+            <Text style={styles.statNumber}>{stats.questionnaires}</Text>
             <Text style={styles.statLabel}>Questionnaires</Text>
           </View>
           <View style={styles.statCard}>
             <Ionicons name="time" size={24} color="#10B981" />
-            <Text style={styles.statNumber}>30</Text>
+            <Text style={styles.statNumber}>{stats.daysActive}</Text>
             <Text style={styles.statLabel}>Days Active</Text>
           </View>
         </View>

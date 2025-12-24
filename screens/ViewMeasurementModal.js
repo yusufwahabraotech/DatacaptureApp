@@ -32,65 +32,85 @@ const ViewMeasurementModal = ({ visible, onClose, measurementData }) => {
 
             {/* Modal Content */}
             <View style={styles.modalContent}>
-              {/* Name Section */}
-              <View style={styles.contentRow}>
-                <Text style={styles.contentLabel}>Name:</Text>
-                <Text style={styles.contentValue}>Emmanuel</Text>
-              </View>
-
-              {/* Method Section */}
-              <View style={styles.contentRow}>
-                <Text style={styles.contentLabel}>Method:</Text>
-                <Text style={[styles.contentValue, styles.methodValue]}>Manual</Text>
-              </View>
-
-              {/* Measurement Type Section */}
-              <View style={styles.contentRow}>
-                <Text style={styles.contentLabel}>Measurement Type:</Text>
-                <Text style={[styles.contentValue, styles.typeValue]}>Body</Text>
-              </View>
-
-              {/* Measurement Summary Section */}
-              <View style={styles.summarySection}>
-                <Text style={styles.summaryLabel}>Measurement Summary:</Text>
-                <View style={styles.summaryList}>
-                  <Text style={styles.summaryItem}>Head Section: Round size, 30cm Depth size</Text>
-                  <Text style={styles.summaryItem}>Head Section: Round size, 30cm Depth size</Text>
-                  <Text style={styles.summaryItem}>Head Section: Round size, 30cm Depth size</Text>
-                </View>
-              </View>
-
-              {/* Image Uploads Section */}
-              <View style={styles.imageSection}>
-                <View style={styles.imageSectionHeader}>
-                  <Text style={styles.imageLabel}>Image Uploads:</Text>
-                  <TouchableOpacity style={styles.downloadAllButton}>
-                    <Ionicons name="download-outline" size={16} color="#7C3AED" />
-                    <Text style={styles.downloadAllText}>Download All</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Image Items */}
-                <View style={styles.imageItem}>
-                  <View style={styles.imageThumbnail}>
-                    <Ionicons name="person" size={24} color="#9CA3AF" />
+              {measurementData ? (
+                <>
+                  {/* Name Section */}
+                  <View style={styles.contentRow}>
+                    <Text style={styles.contentLabel}>Name:</Text>
+                    <Text style={styles.contentValue}>
+                      {measurementData.firstName} {measurementData.lastName}
+                    </Text>
                   </View>
-                  <Text style={styles.imageFilename}>Emmanuel.jpg</Text>
-                  <TouchableOpacity style={styles.downloadIcon}>
-                    <Ionicons name="download-outline" size={20} color="#7C3AED" />
-                  </TouchableOpacity>
-                </View>
 
-                <View style={styles.imageItem}>
-                  <View style={styles.imageThumbnail}>
-                    <Ionicons name="person" size={24} color="#9CA3AF" />
+                  {/* Method Section */}
+                  <View style={styles.contentRow}>
+                    <Text style={styles.contentLabel}>Method:</Text>
+                    <Text style={[styles.contentValue, styles.methodValue]}>
+                      {measurementData.measurementType || 'Manual'}
+                    </Text>
                   </View>
-                  <Text style={styles.imageFilename}>Emmanuel.jpg</Text>
-                  <TouchableOpacity style={styles.downloadIcon}>
-                    <Ionicons name="download-outline" size={20} color="#7C3AED" />
-                  </TouchableOpacity>
+
+                  {/* Measurement Type Section */}
+                  <View style={styles.contentRow}>
+                    <Text style={styles.contentLabel}>Measurement Type:</Text>
+                    <Text style={[styles.contentValue, styles.typeValue]}>Body</Text>
+                  </View>
+
+                  {/* Measurement Summary Section */}
+                  <View style={styles.summarySection}>
+                    <Text style={styles.summaryLabel}>Measurement Summary:</Text>
+                    <View style={styles.summaryList}>
+                      {measurementData.sections?.map((section, index) => (
+                        <View key={index}>
+                          {section.measurements?.map((measurement, mIndex) => (
+                            <Text key={mIndex} style={styles.summaryItem}>
+                              {section.sectionName}: {measurement.bodyPartName}, {measurement.size}{measurement.unit || 'cm'}
+                            </Text>
+                          ))}
+                        </View>
+                      )) || (
+                        <Text style={styles.summaryItem}>No measurements available</Text>
+                      )}
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.noDataContainer}>
+                  <Ionicons name="document-outline" size={48} color="#9CA3AF" />
+                  <Text style={styles.noDataText}>No measurement data available</Text>
+                  <Text style={styles.noDataSubtext}>Please select a measurement to view details</Text>
                 </View>
-              </View>
+              )}
+
+              {measurementData && (
+                <View style={styles.imageSection}>
+                  <View style={styles.imageSectionHeader}>
+                    <Text style={styles.imageLabel}>Image Uploads:</Text>
+                    <TouchableOpacity style={styles.downloadAllButton}>
+                      <Ionicons name="download-outline" size={16} color="#7C3AED" />
+                      <Text style={styles.downloadAllText}>Download All</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {measurementData.images?.length > 0 ? (
+                    measurementData.images.map((image, index) => (
+                      <View key={index} style={styles.imageItem}>
+                        <View style={styles.imageThumbnail}>
+                          <Ionicons name="person" size={24} color="#9CA3AF" />
+                        </View>
+                        <Text style={styles.imageFilename}>
+                          {measurementData.firstName}_{index + 1}.jpg
+                        </Text>
+                        <TouchableOpacity style={styles.downloadIcon}>
+                          <Ionicons name="download-outline" size={20} color="#7C3AED" />
+                        </TouchableOpacity>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.noImagesText}>No images uploaded</Text>
+                  )}
+                </View>
+              )}
             </View>
           </ScrollView>
         </View>
@@ -233,6 +253,29 @@ const styles = StyleSheet.create({
   },
   downloadIcon: {
     padding: 4,
+  },
+  noDataContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noDataText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1F2937',
+    marginTop: 16,
+  },
+  noDataSubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  noImagesText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 20,
   },
 });
 

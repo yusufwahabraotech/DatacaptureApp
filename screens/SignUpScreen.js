@@ -13,8 +13,11 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { countries } from '../data/countries';
 
 const SignUpScreen = ({ navigation, route }) => {
   const [fullName, setFullName] = useState('');
@@ -22,6 +25,9 @@ const SignUpScreen = ({ navigation, route }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [showCountryModal, setShowCountryModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordMismatch, setPasswordMismatch] = useState(false);
@@ -30,7 +36,11 @@ const SignUpScreen = ({ navigation, route }) => {
   const [phoneNumberFocused, setPhoneNumberFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
+  const [organizationNameFocused, setOrganizationNameFocused] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const userRole = route?.params?.userRole || 'CUSTOMER';
+  const isAdmin = userRole === 'ORGANIZATION';
 
   const handleConfirmPasswordChange = (text) => {
     setConfirmPassword(text);
@@ -43,7 +53,12 @@ const SignUpScreen = ({ navigation, route }) => {
   };
 
   const handleSignUp = async () => {
-    if (!fullName || !email || !phoneNumber || !password || !confirmPassword) {
+    const requiredFields = [fullName, email, phoneNumber, password, confirmPassword];
+    if (isAdmin) {
+      requiredFields.push(organizationName, selectedCountry);
+    }
+
+    if (requiredFields.some(field => !field)) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -56,19 +71,25 @@ const SignUpScreen = ({ navigation, route }) => {
 
     setLoading(true);
     try {
-      const userRole = route?.params?.userRole || 'user';
+      const requestBody = {
+        email: email.toLowerCase(),
+        password,
+        fullName,
+        phoneNumber,
+        role: userRole,
+      };
+
+      if (isAdmin) {
+        requestBody.organizationName = organizationName;
+        requestBody.country = selectedCountry;
+      }
+
       const response = await fetch('https://datacapture-backend.onrender.com/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          email: email.toLowerCase(),
-          password,
-          fullName,
-          phoneNumber,
-          role: userRole.toUpperCase(),
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -84,6 +105,18 @@ const SignUpScreen = ({ navigation, route }) => {
       setLoading(false);
     }
   };
+
+  const renderCountryItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.countryItem}
+      onPress={() => {
+        setSelectedCountry(item);
+        setShowCountryModal(false);
+      }}
+    >
+      <Text style={styles.countryText}>{item}</Text>
+    </TouchableOpacity>
+  );
 
   return (
     <KeyboardAvoidingView
@@ -104,7 +137,9 @@ const SignUpScreen = ({ navigation, route }) => {
             {/* Header */}
             <View style={styles.headerContainer}>
               <Text style={styles.title}>Sign Up</Text>
-              <Text style={styles.subtitle}>Create an account with us and get started!</Text>
+              <Text style={styles.subtitle}>
+                Create {isAdmin ? 'an admin' : 'a customer'} account and get started!
+              </Text>
             </View>
 
             {/* Form */}
@@ -156,6 +191,40 @@ const SignUpScreen = ({ navigation, route }) => {
                   />
                 </View>
               </View>
+
+              {isAdmin && (
+                <>
+                  <View style={styles.inputContainer}>
+                    <View style={styles.inputWrapper}>
+                      <Text style={styles.floatingLabel}>Organization Name</Text>
+                      <TextInput
+                        style={[styles.input, organizationNameFocused && styles.inputFocused]}
+                        value={organizationName}
+                        onChangeText={setOrganizationName}
+                        onFocus={() => setOrganizationNameFocused(true)}
+                        onBlur={() => setOrganizationNameFocused(false)}
+                        placeholder="Enter your organization name"
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.inputContainer}>
+                    <View style={styles.inputWrapper}>
+                      <Text style={styles.floatingLabel}>Country</Text>
+                      <TouchableOpacity
+                        style={[styles.input, styles.countrySelector]}
+                        onPress={() => setShowCountryModal(true)}
+                      >
+                        <Text style={[styles.countryText, !selectedCountry && styles.placeholderText]}>
+                          {selectedCountry || 'Select your country'}
+                        </Text>
+                        <Ionicons name="chevron-down" size={20} color="#999" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </>
+              )}
 
               <View style={styles.inputContainer}>
                 <View style={styles.inputWrapper}>
@@ -244,6 +313,36 @@ const SignUpScreen = ({ navigation, route }) => {
           </View>
         </ScrollView>
       </TouchableWithoutFeedback>
+
+      {/* Country Selection Modal */}
+      <Modal
+        visible={showCountryModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCountryModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalOverlayTouch} 
+            onPress={() => setShowCountryModal(false)} 
+          />
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Country</Text>
+              <TouchableOpacity onPress={() => setShowCountryModal(false)}>
+                <Ionicons name="close" size={24} color="#1F2937" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={countries}
+              renderItem={renderCountryItem}
+              keyExtractor={(item) => item}
+              style={styles.countryList}
+              showsVerticalScrollIndicator={true}
+            />
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -386,6 +485,54 @@ const styles = StyleSheet.create({
   loginLink: {
     color: '#7C3AED',
     fontWeight: '500',
+  },
+  countrySelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: '#999',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalOverlayTouch: {
+    flex: 1,
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    minHeight: '50%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  countryList: {
+    flex: 1,
+  },
+  countryItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  countryText: {
+    fontSize: 16,
+    color: '#1F2937',
   },
 });
 

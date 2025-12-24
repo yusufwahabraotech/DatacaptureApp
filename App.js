@@ -12,9 +12,18 @@ import ProfileScreen from './screens/ProfileScreen';
 import RoleSelectionScreen from './screens/RoleSelectionScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import AdminDashboardScreen from './screens/AdminDashboardScreen';
+import SuperAdminDashboardScreen from './screens/SuperAdminDashboardScreen';
+import UserManagementScreen from './screens/UserManagementScreen';
+import UserDetailsScreen from './screens/UserDetailsScreen';
+import UserPermissionsScreen from './screens/UserPermissionsScreen';
+import OneTimeCodesScreen from './screens/OneTimeCodesScreen';
 import BodyMeasurementScreen from './screens/BodyMeasurementScreen';
 import ObjectMeasurementScreen from './screens/ObjectMeasurementScreen';
 import QuestionnaireScreen from './screens/QuestionnaireScreen';
+import AdminMeasurementsScreen from './screens/AdminMeasurementsScreen';
+import OrganizationManagementScreen from './screens/OrganizationManagementScreen';
+import CustomerManagementScreen from './screens/CustomerManagementScreen';
+import SubscriptionManagementScreen from './screens/SubscriptionManagementScreen';
 import TakeNewMeasurementScreen from './screens/TakeNewMeasurementScreen';
 import ExtendedFormScreen from './screens/ExtendedFormScreen';
 
@@ -34,6 +43,15 @@ export default function App() {
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
         <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+        <Stack.Screen name="SuperAdminDashboard" component={SuperAdminDashboardScreen} />
+        <Stack.Screen name="UserManagement" component={UserManagementScreen} />
+        <Stack.Screen name="UserDetails" component={UserDetailsScreen} />
+        <Stack.Screen name="UserPermissions" component={UserPermissionsScreen} />
+        <Stack.Screen name="OneTimeCodes" component={OneTimeCodesScreen} />
+        <Stack.Screen name="AdminMeasurements" component={AdminMeasurementsScreen} />
+        <Stack.Screen name="OrganizationManagement" component={OrganizationManagementScreen} />
+        <Stack.Screen name="CustomerManagement" component={CustomerManagementScreen} />
+        <Stack.Screen name="SubscriptionManagement" component={SubscriptionManagementScreen} />
         <Stack.Screen name="BodyMeasurement" component={BodyMeasurementScreen} />
         <Stack.Screen name="ObjectMeasurement" component={ObjectMeasurementScreen} />
         <Stack.Screen name="Questionnaire" component={QuestionnaireScreen} />

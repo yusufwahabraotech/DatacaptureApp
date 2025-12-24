@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import TutorialModal from './TutorialModal';
+import ViewMeasurementModal from './ViewMeasurementModal';
 import BottomNavigation from '../components/BottomNavigation';
 import { generateMeasurementsPDF, viewPDF } from '../utils/pdfGenerator';
 
@@ -34,10 +35,14 @@ const DashboardScreen = ({ navigation, route }) => {
   const [dashboardData, setDashboardData] = useState({
     bodyMeasurements: 0,
     objectMeasurements: 0,
-    questionnaires: 0
+    questionnaires: 0,
+    oneTimeCodes: 0
   });
   const [measurements, setMeasurements] = useState([]);
   const [tableColumns, setTableColumns] = useState([]);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedMeasurement, setSelectedMeasurement] = useState(null);
+  const [selectedRowIndex, setSelectedRowIndex] = useState(null);
 
   useEffect(() => {
     fetchUserProfile();
@@ -70,10 +75,28 @@ const DashboardScreen = ({ navigation, route }) => {
         
         const bodyCount = allMeasurements.filter(m => m.measurementType === 'Manual').length;
         
+        // Fetch one-time codes using exact same logic as OneTimeCodesScreen
+        let oneTimeCodesCount = 0;
+        try {
+          const codesResponse = await fetch('https://datacapture-backend.onrender.com/api/admin/one-time-codes', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          const codesData = await codesResponse.json();
+          if (codesData.success) {
+            oneTimeCodesCount = codesData.data.codes.length;
+          }
+        } catch (codesError) {
+          console.log('Error fetching codes:', codesError);
+        }
+        
         setDashboardData({
           bodyMeasurements: bodyCount,
           objectMeasurements: 0,
-          questionnaires: 0
+          questionnaires: 0,
+          oneTimeCodes: oneTimeCodesCount
         });
         
         // Get unique body parts for table columns
@@ -127,6 +150,13 @@ const DashboardScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.log('Error fetching dashboard data:', error);
+      // Set default values on error
+      setDashboardData({
+        bodyMeasurements: 0,
+        objectMeasurements: 0,
+        questionnaires: 0,
+        oneTimeCodes: 0
+      });
     }
   };
 
@@ -170,10 +200,19 @@ const DashboardScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleMenuPress = (event) => {
+  const handleMenuPress = (event, rowIndex) => {
     const { pageX, pageY } = event.nativeEvent;
     setModalPosition({ x: pageX - 90, y: pageY - 50 });
+    setSelectedRowIndex(rowIndex);
     setShowActionModal(true);
+  };
+
+  const handleViewMeasurement = () => {
+    if (selectedRowIndex !== null && measurements[selectedRowIndex]) {
+      setSelectedMeasurement(measurements[selectedRowIndex]);
+      setShowViewModal(true);
+      setShowActionModal(false);
+    }
   };
 
   const toggleCheckbox = (index) => {
@@ -290,6 +329,20 @@ const DashboardScreen = ({ navigation, route }) => {
               <Text style={styles.createNew}>Create New</Text>
             </View>
           </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.card, styles.codesCard]}
+            onPress={() => navigation.navigate('OneTimeCodes')}
+          >
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>One-Time Codes</Text>
+              <Ionicons name="key" size={24} color="#8B5CF6" />
+            </View>
+            <Text style={styles.cardValue}>{dashboardData.oneTimeCodes}</Text>
+            <View style={styles.createNewButton}>
+              <Text style={styles.createNew}>Generate New</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Total Summary */}
@@ -362,7 +415,7 @@ const DashboardScreen = ({ navigation, route }) => {
                     </View>
                   ))}
                   <View style={styles.actionColumn}>
-                    <TouchableOpacity onPress={handleMenuPress}>
+                    <TouchableOpacity onPress={(event) => handleMenuPress(event, index)}>
                       <Ionicons name="ellipsis-horizontal" size={16} color="#9CA3AF" />
                     </TouchableOpacity>
                   </View>
@@ -393,7 +446,7 @@ const DashboardScreen = ({ navigation, route }) => {
           onPress={() => setShowActionModal(false)}
         >
           <View style={[styles.actionMenu, { left: modalPosition.x - 120, top: modalPosition.y }]}>
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleViewMeasurement}>
               <Text style={styles.menuItemText}>View Measurement</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.menuItem}>
@@ -408,6 +461,13 @@ const DashboardScreen = ({ navigation, route }) => {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* View Measurement Modal */}
+      <ViewMeasurementModal 
+        visible={showViewModal}
+        onClose={() => setShowViewModal(false)}
+        measurementData={selectedMeasurement}
+      />
 
       {/* Tutorial Modal */}
       <TutorialModal 
@@ -521,6 +581,9 @@ const styles = StyleSheet.create({
   },
   questionnaireCard: {
     backgroundColor: '#FFF0F5',
+  },
+  codesCard: {
+    backgroundColor: '#F5F3FF',
   },
   cardHeader: {
     flexDirection: 'row',

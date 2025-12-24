@@ -39,7 +39,7 @@ const RoleSelectionScreen = ({ navigation }) => {
         <View style={styles.rolesContainer}>
           <TouchableOpacity 
             style={styles.roleCard}
-            onPress={() => navigation.navigate('Login', { userRole: 'user' })}
+            onPress={() => navigation.navigate('SignUp', { userRole: 'USER' })}
           >
             <View style={styles.roleIcon}>
               <Ionicons name="person" size={40} color="#7C3AED" />
@@ -52,14 +52,14 @@ const RoleSelectionScreen = ({ navigation }) => {
 
           <TouchableOpacity 
             style={styles.roleCard}
-            onPress={() => navigation.navigate('Login', { userRole: 'admin' })}
+            onPress={() => navigation.navigate('SignUp', { userRole: 'ORGANIZATION' })}
           >
             <View style={styles.roleIcon}>
-              <Ionicons name="shield-checkmark" size={40} color="#7C3AED" />
+              <Ionicons name="business" size={40} color="#7C3AED" />
             </View>
-            <Text style={styles.roleTitle}>Admin</Text>
+            <Text style={styles.roleTitle}>Admin/Organization</Text>
             <Text style={styles.roleDescription}>
-              Manage users, view all measurements, and oversee system operations
+              Manage users, view all measurements, and oversee organization operations
             </Text>
           </TouchableOpacity>
         </View>

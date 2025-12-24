@@ -56,7 +56,9 @@ const LoginScreen = ({ navigation, route }) => {
         console.log('Stored token:', storedToken);
         
         const userRole = data.data.user.role;
-        if (userRole === 'ADMIN') {
+        if (userRole === 'SUPER_ADMIN') {
+          navigation.replace('SuperAdminDashboard', { showTutorial: true });
+        } else if (userRole === 'ORGANIZATION' || userRole === 'ADMIN') {
           navigation.replace('AdminDashboard', { showTutorial: true });
         } else {
           navigation.replace('Dashboard', { showTutorial: true });
