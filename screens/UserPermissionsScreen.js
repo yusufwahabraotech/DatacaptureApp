@@ -5,216 +5,183 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+import ApiService from '../services/api';
 
 const UserPermissionsScreen = ({ navigation, route }) => {
   const { user } = route.params;
-  const [permissions, setPermissions] = useState([]);
+  const [availablePermissions, setAvailablePermissions] = useState([]);
   const [userPermissions, setUserPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [updateLoading, setUpdateLoading] = useState(false);
-
-  // API Endpoints:
-  // GET: https://datacapture-backend.onrender.com/api/admin/permissions
-  // GET: https://datacapture-backend.onrender.com/api/admin/users/${userId}/permissions
-  // PUT: https://datacapture-backend.onrender.com/api/admin/users/${userId}/permissions
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchPermissions();
-    fetchUserPermissions();
+    fetchAvailablePermissions();
   }, []);
 
-  const fetchUserPermissions = async () => {
-    try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`https://datacapture-backend.onrender.com/api/admin/users/${user.id}/permissions`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchUserPermissions();
+    }, [])
+  );
 
-      const data = await response.json();
-      if (data.success) {
-        setUserPermissions(data.data.permissions || []);
+  const fetchAvailablePermissions = async () => {
+    try {
+      const response = await ApiService.getAvailablePermissions();
+      if (response.success) {
+        setAvailablePermissions(response.data.permissions);
       }
     } catch (error) {
-      console.log('Error fetching user permissions:', error);
-      // Fallback to route params if API fails
-      setUserPermissions(user.permissions || []);
+      console.log('Error fetching available permissions:', error);
     }
   };
 
-  const fetchPermissions = async () => {
+  const fetchUserPermissions = async () => {
+    console.log('Fetching permissions for user:', user.id);
+    setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('https://datacapture-backend.onrender.com/api/admin/permissions', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setPermissions(data.data.permissions);
+      const response = await ApiService.getUserPermissions(user.id);
+      console.log('Fetch permissions response:', response);
+      
+      if (response.success) {
+        console.log('User permissions from backend:', response.data.permissions);
+        setUserPermissions(response.data.permissions || []);
+      } else {
+        console.log('Fetch failed:', response.message);
       }
     } catch (error) {
-      console.log('Error fetching permissions:', error);
+      console.log('Error fetching user permissions:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const togglePermission = (permissionKey) => {
-    if (userPermissions.includes(permissionKey)) {
-      setUserPermissions(userPermissions.filter(p => p !== permissionKey));
-    } else {
-      setUserPermissions([...userPermissions, permissionKey]);
-    }
+    setUserPermissions(prev => 
+      prev.includes(permissionKey)
+        ? prev.filter(p => p !== permissionKey)
+        : [...prev, permissionKey]
+    );
   };
 
   const savePermissions = async () => {
-    setUpdateLoading(true);
+    console.log('Saving permissions for user:', user.id);
+    console.log('Permissions to save:', userPermissions);
+    
+    setSaving(true);
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`https://datacapture-backend.onrender.com/api/admin/users/${user.id}/permissions`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ permissions: userPermissions }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
+      const response = await ApiService.updateUserPermissions(user.id, userPermissions);
+      console.log('Save permissions response:', response);
+      
+      if (response.success) {
         Alert.alert('Success', 'User permissions updated successfully');
-        navigation.goBack();
+        // Add small delay then refetch to ensure backend has processed the update
+        setTimeout(() => {
+          fetchUserPermissions();
+        }, 500);
       } else {
-        Alert.alert('Error', data.message);
+        console.log('Save failed with message:', response.message);
+        Alert.alert('Error', response.message || 'Failed to update permissions');
       }
     } catch (error) {
+      console.log('Save permissions error:', error);
       Alert.alert('Error', 'Failed to update permissions');
     } finally {
-      setUpdateLoading(false);
+      setSaving(false);
     }
   };
 
-  const getPermissionsByCategory = () => {
-    const categories = {
-      'Measurements': permissions.filter(p => p.key.includes('measurements')),
-      'Users': permissions.filter(p => p.key.includes('users') || p.key.includes('user_status')),
-      'One-Time Codes': permissions.filter(p => p.key.includes('one_time_codes')),
-      'System': permissions.filter(p => ['view_dashboard_stats', 'send_emails', 'export_data', 'manage_permissions'].includes(p.key))
+  const groupPermissions = (permissions) => {
+    const groups = {
+      'Measurements': permissions.filter(p => p.key.includes('measurement')),
+      'Users': permissions.filter(p => p.key.includes('user')),
+      'Codes': permissions.filter(p => p.key.includes('code')),
+      'System': permissions.filter(p => !p.key.includes('measurement') && !p.key.includes('user') && !p.key.includes('code'))
     };
-    return categories;
+    return groups;
   };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Manage Permissions</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#7C3AED" />
+          <Text style={styles.loadingText}>Loading permissions...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  const permissionGroups = groupPermissions(availablePermissions);
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>User Permissions</Text>
-        <TouchableOpacity 
-          onPress={savePermissions}
-          disabled={updateLoading}
-        >
-          {updateLoading ? (
+        <Text style={styles.headerTitle}>Manage Permissions</Text>
+        <TouchableOpacity onPress={savePermissions} disabled={saving}>
+          {saving ? (
             <ActivityIndicator size="small" color="#7C3AED" />
           ) : (
-            <Ionicons name="checkmark" size={24} color="#7C3AED" />
+            <Text style={styles.saveButton}>Save</Text>
           )}
         </TouchableOpacity>
       </View>
 
-      {/* User Info */}
-      <View style={styles.userInfo}>
-        <View style={styles.userAvatar}>
-          <Text style={styles.userAvatarText}>
-            {user.fullName.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View>
-          <Text style={styles.userName}>{user.fullName}</Text>
-          <Text style={styles.userEmail}>{user.email}</Text>
-        </View>
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#7C3AED" />
-            <Text style={styles.loadingText}>Loading permissions...</Text>
+      <ScrollView style={styles.content}>
+        <View style={styles.userInfo}>
+          <View style={styles.userAvatar}>
+            <Text style={styles.userAvatarText}>
+              {user.fullName.charAt(0).toUpperCase()}
+            </Text>
           </View>
-        ) : (
-          Object.entries(getPermissionsByCategory()).map(([category, categoryPermissions]) => (
-            categoryPermissions.length > 0 && (
-              <View key={category} style={styles.categorySection}>
-                <Text style={styles.categoryTitle}>{category}</Text>
-                {categoryPermissions.map((permission) => (
-                  <TouchableOpacity
-                    key={permission.key}
-                    style={styles.permissionItem}
-                    onPress={() => togglePermission(permission.key)}
-                  >
-                    <View style={styles.permissionInfo}>
-                      <Text style={styles.permissionName}>{permission.name}</Text>
-                      <Text style={styles.permissionDescription}>{permission.description}</Text>
-                    </View>
-                    <View style={styles.checkbox}>
-                      {userPermissions.includes(permission.key) ? (
-                        <View style={styles.checkedBox}>
-                          <Ionicons name="checkmark" size={16} color="white" />
-                        </View>
-                      ) : (
-                        <View style={styles.uncheckedBox} />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )
-          ))
-        )}
-
-        {/* Permission Summary */}
-        <View style={styles.summarySection}>
-          <Text style={styles.summaryTitle}>Selected Permissions ({userPermissions.length})</Text>
-          {userPermissions.length === 0 ? (
-            <Text style={styles.noPermissions}>No permissions selected</Text>
-          ) : (
-            userPermissions.map((permKey) => {
-              const perm = permissions.find(p => p.key === permKey);
-              return perm ? (
-                <View key={permKey} style={styles.selectedPermission}>
-                  <Text style={styles.selectedPermissionText}>{perm.name}</Text>
-                </View>
-              ) : null;
-            })
-          )}
+          <View>
+            <Text style={styles.userName}>{user.fullName}</Text>
+            <Text style={styles.userEmail}>{user.email}</Text>
+          </View>
         </View>
-      </ScrollView>
 
-      {/* Save Button */}
-      <View style={styles.saveContainer}>
-        <TouchableOpacity 
-          style={[styles.saveButton, updateLoading && styles.saveButtonDisabled]}
-          onPress={savePermissions}
-          disabled={updateLoading}
-        >
-          {updateLoading ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <Text style={styles.saveButtonText}>Save Permissions</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+        {Object.entries(permissionGroups).map(([groupName, permissions]) => (
+          permissions.length > 0 && (
+            <View key={groupName} style={styles.permissionGroup}>
+              <Text style={styles.groupTitle}>{groupName}</Text>
+              {permissions.map((permission) => (
+                <TouchableOpacity
+                  key={permission.key}
+                  style={styles.permissionItem}
+                  onPress={() => togglePermission(permission.key)}
+                >
+                  <View style={styles.permissionInfo}>
+                    <Text style={styles.permissionName}>{permission.name}</Text>
+                    <Text style={styles.permissionDescription}>{permission.description}</Text>
+                  </View>
+                  <View style={[
+                    styles.checkbox,
+                    userPermissions.includes(permission.key) && styles.checkboxChecked
+                  ]}>
+                    {userPermissions.includes(permission.key) && (
+                      <Ionicons name="checkmark" size={16} color="white" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )
+        ))}
+      </ScrollView>
     </View>
   );
 };
@@ -238,6 +205,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1F2937',
   },
+  headerSpacer: {
+    width: 24,
+  },
+  saveButton: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#7C3AED',
+  },
+  content: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+  },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -246,21 +234,21 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   userAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#7C3AED',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   userAvatarText: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 18,
+    fontSize: 20,
   },
   userName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
   },
@@ -269,35 +257,21 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
   },
-  content: {
-    flex: 1,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginTop: 12,
-  },
-  categorySection: {
+  permissionGroup: {
     backgroundColor: '#FFFFFF',
     marginBottom: 16,
-    paddingVertical: 16,
+    padding: 20,
   },
-  categoryTitle: {
+  groupTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
-    paddingHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   permissionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
@@ -307,86 +281,27 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   permissionName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
     color: '#1F2937',
   },
   permissionDescription: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: 4,
   },
   checkbox: {
     width: 24,
     height: 24,
-  },
-  checkedBox: {
-    width: 24,
-    height: 24,
-    backgroundColor: '#7C3AED',
     borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  uncheckedBox: {
-    width: 24,
-    height: 24,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    borderRadius: 4,
-  },
-  summarySection: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    marginBottom: 100,
-  },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 12,
-  },
-  noPermissions: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontStyle: 'italic',
-  },
-  selectedPermission: {
-    backgroundColor: '#F5F3FF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginBottom: 8,
-    alignSelf: 'flex-start',
-  },
-  selectedPermissionText: {
-    fontSize: 12,
-    color: '#7C3AED',
-    fontWeight: '500',
-  },
-  saveContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  saveButton: {
+  checkboxChecked: {
     backgroundColor: '#7C3AED',
-    borderRadius: 8,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'white',
+    borderColor: '#7C3AED',
   },
 });
 

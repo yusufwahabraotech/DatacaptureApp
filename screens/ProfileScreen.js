@@ -248,7 +248,10 @@ const ProfileScreen = ({ navigation }) => {
               <Text style={styles.actionLabel}>Edit Profile</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('UserSettings')}
+            >
               <View style={[styles.actionIcon, { backgroundColor: '#FEF3C7' }]}>
                 <Ionicons name="settings" size={24} color="#F59E0B" />
               </View>

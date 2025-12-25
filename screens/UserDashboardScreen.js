@@ -5,22 +5,19 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
-import BottomNavigation from '../components/BottomNavigation';
 
-const AdminDashboardScreen = ({ navigation }) => {
+const UserDashboardScreen = ({ navigation }) => {
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
-    pendingUsers: 0,
-    archivedUsers: 0,
     totalMeasurements: 0,
+    myMeasurements: 0,
     oneTimeCodesGenerated: 0,
     oneTimeCodesUsed: 0,
-    oneTimeCodesAvailable: 0
   });
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +29,7 @@ const AdminDashboardScreen = ({ navigation }) => {
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await ApiService.getDashboardStats();
+      const response = await ApiService.getUserDashboardStats();
       if (response.success) {
         setStats(response.data);
       }
@@ -70,25 +67,18 @@ const AdminDashboardScreen = ({ navigation }) => {
       bgColor: '#ECFDF5'
     },
     {
-      title: 'Pending Users',
-      value: stats.pendingUsers,
-      icon: 'time',
-      color: '#F59E0B',
-      bgColor: '#FFFBEB'
-    },
-    {
-      title: 'Archived Users',
-      value: stats.archivedUsers,
-      icon: 'archive',
-      color: '#6B7280',
-      bgColor: '#F9FAFB'
-    },
-    {
-      title: 'Total Measurements',
+      title: 'All Measurements',
       value: stats.totalMeasurements,
       icon: 'body',
       color: '#EF4444',
       bgColor: '#FEF2F2'
+    },
+    {
+      title: 'My Measurements',
+      value: stats.myMeasurements,
+      icon: 'person',
+      color: '#F59E0B',
+      bgColor: '#FFFBEB'
     },
     {
       title: 'Generated Codes',
@@ -96,82 +86,60 @@ const AdminDashboardScreen = ({ navigation }) => {
       icon: 'key',
       color: '#8B5CF6',
       bgColor: '#F3E8FF'
+    },
+    {
+      title: 'Used Codes',
+      value: stats.oneTimeCodesUsed,
+      icon: 'checkmark-done',
+      color: '#06B6D4',
+      bgColor: '#ECFEFF'
     }
   ];
 
-  const quickActions = [
-    {
-      title: 'Manage Users',
-      subtitle: 'Add, edit, and manage users',
-      icon: 'people',
-      onPress: () => navigation.navigate('UserManagement')
-    },
-    {
-      title: 'View Measurements',
-      subtitle: 'View all user measurements',
-      icon: 'body',
-      onPress: () => navigation.navigate('AdminMeasurements')
-    },
-    {
-      title: 'One-Time Codes',
-      subtitle: 'Generate access codes',
-      icon: 'key',
-      onPress: () => navigation.navigate('OneTimeCodes')
-    },
-    {
-      title: 'Permissions',
-      subtitle: 'Manage user permissions',
-      icon: 'shield-checkmark',
-      onPress: () => navigation.navigate('PermissionsManagement')
-    }
-  ];
-
-  const measurementActions = [
-    {
-      title: 'Body Measurement',
-      subtitle: 'Take body measurements',
-      icon: 'body',
-      onPress: () => navigation.navigate('BodyMeasurement')
-    },
-    {
-      title: 'Object Measurement',
-      subtitle: 'Measure objects',
-      icon: 'cube',
-      onPress: () => navigation.navigate('ObjectMeasurement')
-    },
-    {
-      title: 'Questionnaire',
-      subtitle: 'Fill questionnaire',
-      icon: 'document-text',
-      onPress: () => navigation.navigate('Questionnaire')
-    },
-    {
-      title: 'New Measurement',
-      subtitle: 'Create new measurement',
-      icon: 'add-circle',
-      onPress: () => navigation.navigate('TakeNewMeasurement')
-    }
-  ];
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Dashboard</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#7C3AED" />
+          <Text style={styles.loadingText}>Loading dashboard...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Hello, {user?.fullName || 'Admin'}</Text>
-          <Text style={styles.role}>Organization Admin</Text>
-        </View>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Dashboard</Text>
         <TouchableOpacity 
           style={styles.profileImage}
           onPress={() => navigation.navigate('Profile')}
         >
           <Text style={styles.profileText}>
-            {user?.fullName?.charAt(0)?.toUpperCase() || 'A'}
+            {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
           </Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Welcome Section */}
+        <View style={styles.welcomeSection}>
+          <Text style={styles.greeting}>Hello, {user?.fullName || 'User'}</Text>
+          <Text style={styles.role}>Organization Member</Text>
+          <Text style={styles.subtitle}>Here's your organization overview</Text>
+        </View>
+
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
           {statsCards.map((stat, index) => (
@@ -187,7 +155,7 @@ const AdminDashboardScreen = ({ navigation }) => {
 
         {/* One-Time Codes Summary */}
         <View style={styles.codesSection}>
-          <Text style={styles.sectionTitle}>One-Time Codes</Text>
+          <Text style={styles.sectionTitle}>One-Time Codes Overview</Text>
           <View style={styles.codesCard}>
             <View style={styles.codesStat}>
               <Text style={styles.codesValue}>{stats.oneTimeCodesGenerated}</Text>
@@ -198,56 +166,62 @@ const AdminDashboardScreen = ({ navigation }) => {
               <Text style={styles.codesLabel}>Used</Text>
             </View>
             <View style={styles.codesStat}>
-              <Text style={styles.codesValue}>{stats.oneTimeCodesAvailable || (stats.oneTimeCodesGenerated - stats.oneTimeCodesUsed)}</Text>
+              <Text style={styles.codesValue}>{stats.oneTimeCodesGenerated - stats.oneTimeCodesUsed}</Text>
               <Text style={styles.codesLabel}>Available</Text>
             </View>
           </View>
         </View>
 
-        {/* Organization Management */}
+        {/* Quick Actions */}
         <View style={styles.actionsSection}>
-          <Text style={styles.sectionTitle}>Organization Management</Text>
-          <Text style={styles.sectionSubtitle}>Manage users and organization settings</Text>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
-            {quickActions.map((action, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={styles.actionCard}
-                onPress={action.onPress}
-              >
-                <View style={styles.actionIcon}>
-                  <Ionicons name={action.icon} size={24} color="#7C3AED" />
-                </View>
-                <Text style={styles.actionTitle}>{action.title}</Text>
-                <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('UserMeasurements')}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="body" size={24} color="#7C3AED" />
+              </View>
+              <Text style={styles.actionTitle}>View Measurements</Text>
+              <Text style={styles.actionSubtitle}>Browse all measurements</Text>
+            </TouchableOpacity>
 
-        {/* My Measurements Section */}
-        <View style={styles.actionsSection}>
-          <Text style={styles.sectionTitle}>My Measurements</Text>
-          <Text style={styles.sectionSubtitle}>Create and manage your own measurements</Text>
-          <View style={styles.actionsGrid}>
-            {measurementActions.map((action, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={styles.actionCard}
-                onPress={action.onPress}
-              >
-                <View style={styles.actionIcon}>
-                  <Ionicons name={action.icon} size={24} color="#10B981" />
-                </View>
-                <Text style={styles.actionTitle}>{action.title}</Text>
-                <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
-              </TouchableOpacity>
-            ))}
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('UserOneTimeCodes')}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="key" size={24} color="#10B981" />
+              </View>
+              <Text style={styles.actionTitle}>Access Codes</Text>
+              <Text style={styles.actionSubtitle}>Manage one-time codes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('BodyMeasurement')}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="add-circle" size={24} color="#F59E0B" />
+              </View>
+              <Text style={styles.actionTitle}>New Measurement</Text>
+              <Text style={styles.actionSubtitle}>Take measurements</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('Profile')}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="person" size={24} color="#EF4444" />
+              </View>
+              <Text style={styles.actionTitle}>My Profile</Text>
+              <Text style={styles.actionSubtitle}>View profile settings</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
-
-      <BottomNavigation navigation={navigation} activeTab="Dashboard" />
     </View>
   );
 };
@@ -255,7 +229,7 @@ const AdminDashboardScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
@@ -264,6 +238,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  headerSpacer: {
+    width: 24,
+  },
+  profileImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#7C3AED',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  welcomeSection: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    marginBottom: 16,
   },
   greeting: {
     fontSize: 24,
@@ -275,21 +289,10 @@ const styles = StyleSheet.create({
     color: '#7C3AED',
     marginTop: 4,
   },
-  profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#7C3AED',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  scrollView: {
-    flex: 1,
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 8,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -300,7 +303,7 @@ const styles = StyleSheet.create({
   statCard: {
     width: '48%',
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     marginBottom: 12,
     marginRight: '2%',
   },
@@ -308,7 +311,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   statValue: {
     fontSize: 20,
@@ -329,15 +332,8 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 16,
   },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 20,
-    marginTop: 2,
-    lineHeight: 20,
-  },
   codesCard: {
-    backgroundColor: '#F5F3FF',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 20,
     flexDirection: 'row',
@@ -387,7 +383,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   actionTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 4,
@@ -399,4 +395,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AdminDashboardScreen;
+export default UserDashboardScreen;

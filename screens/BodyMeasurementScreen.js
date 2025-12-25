@@ -14,15 +14,38 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import BottomNavigation from '../components/BottomNavigation';
+import ApiService from '../services/api';
 
 const BodyMeasurementScreen = ({ navigation }) => {
+  const [user, setUser] = useState(null);
   const [measurements, setMeasurements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMeasurements, setSelectedMeasurements] = useState([]);
 
   useEffect(() => {
+    fetchUserProfile();
     fetchMeasurements();
   }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) return;
+
+      const response = await fetch('https://datacapture-backend.onrender.com/api/auth/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setUser(data.data.user);
+      }
+    } catch (error) {
+      console.log('Error fetching profile:', error);
+    }
+  };
 
   const fetchMeasurements = async () => {
     try {
@@ -53,6 +76,51 @@ const BodyMeasurementScreen = ({ navigation }) => {
   };
 
   const handleShare = async (measurement) => {
+    Alert.alert(
+      'Share Measurement',
+      'Choose how you want to share this measurement:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Share to Organization', onPress: () => shareToOrganization(measurement) },
+        { text: 'Share to Others', onPress: () => shareToOthers(measurement) }
+      ]
+    );
+  };
+
+  const shareToOrganization = (measurement) => {
+    Alert.prompt(
+      'Share to Organization',
+      'Enter the one-time code provided by the organization:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Share',
+          onPress: async (code) => {
+            if (!code || code.trim().length === 0) {
+              Alert.alert('Error', 'Please enter a valid code');
+              return;
+            }
+            
+            try {
+              const response = await ApiService.shareToOrganization(measurement.id, code.trim());
+              if (response.success) {
+                Alert.alert('Success', 'Measurement shared to organization successfully!');
+              } else {
+                Alert.alert('Error', response.message || 'Failed to share measurement');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Failed to share measurement. Please check your code and try again.');
+            }
+          }
+        }
+      ],
+      'plain-text',
+      '',
+      'numeric'
+    );
+  };
+
+  const shareToOthers = async (measurement) => {
     try {
       const allBodyParts = [];
       measurement.sections?.forEach(section => {
@@ -235,9 +303,14 @@ const BodyMeasurementScreen = ({ navigation }) => {
           <View style={styles.notificationContainer}>
             <Ionicons name="notifications-outline" size={20} color="#9CA3AF" />
           </View>
-          <View style={styles.profileImage}>
-            <Text style={styles.profileText}>U</Text>
-          </View>
+          <TouchableOpacity 
+            style={styles.profileImage}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Text style={styles.profileText}>
+              {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 

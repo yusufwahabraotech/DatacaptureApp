@@ -12,9 +12,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Clipboard from 'expo-clipboard';
+import ApiService from '../services/api';
+import { generateMeasurementsPDF, viewPDF } from '../utils/pdfGenerator';
 
 const UserDetailsScreen = ({ navigation, route }) => {
-  const { user } = route.params;
+  const { user: initialUser } = route.params;
+  const [user, setUser] = useState(initialUser);
   const [storedPassword, setStoredPassword] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -24,20 +28,28 @@ const UserDetailsScreen = ({ navigation, route }) => {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [userStatus, setUserStatus] = useState(user.status);
+  const [userStatus, setUserStatus] = useState(initialUser.status);
   const [editUser, setEditUser] = useState({
-    firstName: user.firstName || '',
-    lastName: user.lastName || '',
-    email: user.email || '',
-    phoneNumber: user.phoneNumber || ''
+    firstName: initialUser.firstName || '',
+    lastName: initialUser.lastName || '',
+    email: initialUser.email || '',
+    phoneNumber: initialUser.phoneNumber || ''
   });
   const [emailMessage, setEmailMessage] = useState('');
   const [generateNewPassword, setGenerateNewPassword] = useState(true);
+  const [userProfile, setUserProfile] = useState(null);
+  
+  // Implemented by VScode copilot
+  // State for user measurements
+  const [measurements, setMeasurements] = useState([]);
+  const [measurementsLoading, setMeasurementsLoading] = useState(false);
+  const [measurementsPage, setMeasurementsPage] = useState(1);
+  const [hasMoreMeasurements, setHasMoreMeasurements] = useState(false);
+  const [pdfGeneratingId, setPdfGeneratingId] = useState(null);
 
   const statusOptions = [
     { key: 'active', label: 'Active', color: '#10B981' },
     { key: 'pending', label: 'Pending', color: '#F59E0B' },
-    { key: 'disabled', label: 'Disabled', color: '#EF4444' },
     { key: 'archived', label: 'Archived', color: '#6B7280' }
   ];
 
@@ -48,8 +60,42 @@ const UserDetailsScreen = ({ navigation, route }) => {
   // POST: https://datacapture-backend.onrender.com/api/admin/users/${userId}/send-email
 
   useEffect(() => {
+    fetchUserProfile();
+    fetchUserDetails();
     fetchStoredPassword();
+    fetchUserMeasurements();
   }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await ApiService.getUserProfile();
+      if (response.success) {
+        setUserProfile(response.data.user);
+      }
+    } catch (error) {
+      console.log('Error fetching user profile:', error);
+    }
+  };
+
+  const fetchUserDetails = async () => {
+    try {
+      const response = userProfile?.role === 'ORGANIZATION'
+        ? await ApiService.getUserById(initialUser.id)
+        : await ApiService.getOrgUserById(initialUser.id);
+      if (response.success && response.data.user) {
+        setUser(response.data.user);
+        setUserStatus(response.data.user.status);
+        setEditUser({
+          firstName: response.data.user.firstName || '',
+          lastName: response.data.user.lastName || '',
+          email: response.data.user.email || '',
+          phoneNumber: response.data.user.phoneNumber || ''
+        });
+      }
+    } catch (error) {
+      console.log('Error fetching user details:', error);
+    }
+  };
 
   const fetchStoredPassword = async () => {
     try {
@@ -63,6 +109,52 @@ const UserDetailsScreen = ({ navigation, route }) => {
       console.log('Error fetching stored password:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Implemented by VScode copilot
+  // Fetch measurements for specific user using GET /api/admin/measurements?userId=<userId>&page=<page>&limit=<limit>
+  const fetchUserMeasurements = async (page = 1) => {
+    setMeasurementsLoading(true);
+    try {
+      console.log(`Fetching measurements for user (attempts) - id: ${user.id}, customUserId: ${user.customUserId}, _id: ${user._id}, page: ${page}`);
+
+      // First try with user.id
+      let response = await ApiService.getUserMeasurements(user.id, page, 20);
+      console.log(`Measurements API Response for id=${user.id}:`, response);
+
+      // Extract measurements if present
+      let newMeasurements = (response && response.success && response.data && Array.isArray(response.data.measurements))
+        ? response.data.measurements
+        : [];
+
+      // If none found, try alternate identifiers (customUserId, _id)
+      if (newMeasurements.length === 0) {
+        const altIds = [user.customUserId, user._id].filter(Boolean);
+        for (const altId of altIds) {
+          console.log(`No measurements with id=${user.id}, trying altId=${altId}`);
+          response = await ApiService.getUserMeasurements(altId, page, 20);
+          console.log(`Measurements API Response for altId=${altId}:`, response);
+          newMeasurements = (response && response.success && response.data && Array.isArray(response.data.measurements))
+            ? response.data.measurements
+            : [];
+          if (newMeasurements.length > 0) break;
+        }
+      }
+
+      if (response && response.success) {
+        console.log(`Successfully fetched ${newMeasurements.length} measurements`);
+        setMeasurements(prev => page === 1 ? newMeasurements : [...prev, ...newMeasurements]);
+        setMeasurementsPage(page);
+        setHasMoreMeasurements(newMeasurements.length === 20);
+      } else {
+        console.log('Error fetching measurements - API returned success: false or no response', response);
+      }
+    } catch (error) {
+      console.log('Error fetching user measurements - Exception:', error);
+      console.log('Error details:', error.message);
+    } finally {
+      setMeasurementsLoading(false);
     }
   };
 
@@ -102,38 +194,40 @@ const UserDetailsScreen = ({ navigation, route }) => {
   const sendEmail = async () => {
     setUpdateLoading(true);
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`https://datacapture-backend.onrender.com/api/admin/users/${user.id}/send-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ 
-          adminMessage: emailMessage,
-          generateNewPassword: generateNewPassword
-        }),
-      });
+      const response = userProfile?.role === 'ORGANIZATION'
+        ? await fetch(`https://datacapture-backend.onrender.com/api/admin/users/${user.id}/send-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${await AsyncStorage.getItem('userToken')}`,
+            },
+            body: JSON.stringify({ 
+              adminMessage: emailMessage,
+              generateNewPassword: true
+            }),
+          }).then(res => res.json())
+        : await ApiService.sendOrgUserEmail(user.id, {
+            adminMessage: emailMessage,
+            generateNewPassword: true
+          });
 
-      const data = await response.json();
-      if (data.success) {
-        // Store new password locally if generated
-        if (data.data.newPassword) {
+      if (response.success) {
+        if (response.data.newPassword) {
           const userPasswords = await AsyncStorage.getItem('userPasswords') || '{}';
           const passwordsObj = JSON.parse(userPasswords);
-          passwordsObj[user.id || user.customUserId] = data.data.newPassword;
+          passwordsObj[user.id || user.customUserId] = response.data.newPassword;
           await AsyncStorage.setItem('userPasswords', JSON.stringify(passwordsObj));
-          setStoredPassword(data.data.newPassword);
+          setStoredPassword(response.data.newPassword);
           
-          Alert.alert('Success', `${data.data.message}\nNew password: ${data.data.newPassword}`);
+          Alert.alert('Success', `${response.data.message}\nNew password: ${response.data.newPassword}`);
         } else {
-          Alert.alert('Success', data.data.message);
+          Alert.alert('Success', response.data.message);
         }
         setShowEmailModal(false);
         setEmailMessage('');
         setGenerateNewPassword(true);
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to send email');
@@ -150,19 +244,18 @@ const UserDetailsScreen = ({ navigation, route }) => {
 
     setUpdateLoading(true);
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`https://datacapture-backend.onrender.com/api/admin/users/${user.id}/password`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ password: newPassword }),
-      });
+      const response = userProfile?.role === 'ORGANIZATION'
+        ? await fetch(`https://datacapture-backend.onrender.com/api/admin/users/${user.id}/password`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${await AsyncStorage.getItem('userToken')}`,
+            },
+            body: JSON.stringify({ password: newPassword }),
+          }).then(res => res.json())
+        : await ApiService.resetOrgUserPassword(user.id, { password: newPassword });
 
-      const data = await response.json();
-      if (data.success) {
-        // Update stored password locally
+      if (response.success) {
         const userPasswords = await AsyncStorage.getItem('userPasswords') || '{}';
         const passwordsObj = JSON.parse(userPasswords);
         passwordsObj[user.id || user.customUserId] = newPassword;
@@ -173,7 +266,7 @@ const UserDetailsScreen = ({ navigation, route }) => {
         setNewPassword('');
         Alert.alert('Success', 'Password reset successfully');
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to reset password');
@@ -191,8 +284,16 @@ const UserDetailsScreen = ({ navigation, route }) => {
     setNewPassword(password);
   };
 
-  const copyToClipboard = (text) => {
-    Alert.alert('Copied', `${text} copied to clipboard`);
+  // Implemented by VScode copilot
+  // Fixed copyToClipboard function - Now actually copies text to clipboard using expo-clipboard
+  const copyToClipboard = async (text) => {
+    try {
+      await Clipboard.setStringAsync(text);
+      Alert.alert('Success', 'Copied to clipboard');
+    } catch (error) {
+      console.log('Error copying to clipboard:', error);
+      Alert.alert('Error', 'Failed to copy to clipboard');
+    }
   };
 
   const deleteUser = () => {
@@ -206,24 +307,50 @@ const UserDetailsScreen = ({ navigation, route }) => {
     );
   };
 
+  const updateUserStatus = async (newStatus) => {
+    const actionText = newStatus === 'archived' ? 'archive' : newStatus === 'pending' ? 'set to pending' : newStatus === 'active' ? (userStatus === 'pending' ? 'activate' : 'unarchive') : 'update';
+    const actionTitle = actionText.charAt(0).toUpperCase() + actionText.slice(1);
+    
+    Alert.alert(
+      `${actionTitle} User`,
+      `Are you sure you want to ${actionText} this user?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: actionTitle, style: newStatus === 'active' ? 'default' : 'destructive', onPress: () => confirmStatusUpdate(newStatus, actionText) }
+      ]
+    );
+  };
+
+  const confirmStatusUpdate = async (newStatus, actionText) => {
+    setUpdateLoading(true);
+    try {
+      const response = userProfile?.role === 'ORGANIZATION'
+        ? await ApiService.updateUserStatus(user._id || user.id, newStatus)
+        : await ApiService.updateOrgUserStatus(user._id || user.id, newStatus);
+      if (response.success) {
+        setUserStatus(newStatus);
+        setUser(prev => ({ ...prev, status: newStatus }));
+        Alert.alert('Success', `User ${actionText}d successfully`);
+      } else {
+        Alert.alert('Error', response.message);
+      }
+    } catch (error) {
+      Alert.alert('Error', `Failed to ${actionText} user`);
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
   const confirmDelete = async () => {
     setUpdateLoading(true);
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`https://datacapture-backend.onrender.com/api/admin/users/${user.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
+      const response = await ApiService.deleteUser(user.id);
+      if (response.success) {
         Alert.alert('Success', 'User deleted successfully', [
           { text: 'OK', onPress: () => navigation.goBack() }
         ]);
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to delete user');
@@ -420,6 +547,50 @@ const UserDetailsScreen = ({ navigation, route }) => {
             <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
           </TouchableOpacity>
           
+          {(userStatus === 'active' || userStatus === 'pending') && (
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => updateUserStatus('pending')}
+            >
+              <Ionicons name="ban-outline" size={20} color="#F59E0B" />
+              <Text style={styles.actionButtonText}>Set to Pending</Text>
+              <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
+          
+          {userStatus === 'pending' && (
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => updateUserStatus('active')}
+            >
+              <Ionicons name="checkmark-circle-outline" size={20} color="#10B981" />
+              <Text style={styles.actionButtonText}>Activate User</Text>
+              <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
+          
+          {(userStatus === 'active' || userStatus === 'pending') && (
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => updateUserStatus('archived')}
+            >
+              <Ionicons name="archive-outline" size={20} color="#6B7280" />
+              <Text style={styles.actionButtonText}>Archive User</Text>
+              <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
+          
+          {userStatus === 'archived' && (
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => updateUserStatus('active')}
+            >
+              <Ionicons name="refresh-outline" size={20} color="#10B981" />
+              <Text style={styles.actionButtonText}>Unarchive User</Text>
+              <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
+          
           <TouchableOpacity 
             style={[styles.actionButton, styles.dangerButton]}
             onPress={deleteUser}
@@ -428,6 +599,123 @@ const UserDetailsScreen = ({ navigation, route }) => {
             <Text style={[styles.actionButtonText, styles.dangerText]}>Delete User</Text>
             <Ionicons name="chevron-forward" size={16} color="#EF4444" />
           </TouchableOpacity>
+        </View>
+
+        {/* Implemented by VScode copilot - User Measurements Section */}
+        <View style={styles.measurementsSection}>
+          <View style={styles.measurementsSectionHeader}>
+            <Text style={styles.sectionTitle}>User Measurements</Text>
+            <View style={styles.measurementHeaderRight}>
+              <TouchableOpacity 
+                style={styles.refreshButton}
+                onPress={() => fetchUserMeasurements(1)}
+                disabled={measurementsLoading}
+              >
+                <Ionicons 
+                  name="refresh" 
+                  size={18} 
+                  color={measurementsLoading ? '#9CA3AF' : '#7C3AED'} 
+                />
+              </TouchableOpacity>
+              <Text style={styles.measurementCount}>{measurements.length}</Text>
+            </View>
+          </View>
+          
+          {measurementsLoading && measurements.length === 0 ? (
+            <View style={styles.loadingMeasurements}>
+              <ActivityIndicator size="small" color="#7C3AED" />
+              <Text style={styles.loadingText}>Loading measurements...</Text>
+            </View>
+          ) : measurements.length === 0 ? (
+            <View style={styles.noMeasurementsContainer}>
+              <Ionicons name="body-outline" size={24} color="#9CA3AF" />
+              <Text style={styles.noMeasurementsText}>No measurements yet</Text>
+              <Text style={styles.noMeasurementsSubtext}>This user hasn't created any measurements</Text>
+            </View>
+          ) : (
+            <>
+              <View>
+                {measurements.map((measurement) => (
+                  <View key={measurement.id} style={styles.measurementItem}>
+                    <View style={styles.measurementItemHeader}>
+                      <View>
+                        <Text style={styles.measurementItemType}>
+                          {measurement.submissionType || 'Manual'}
+                        </Text>
+                        <Text style={styles.measurementItemDate}>
+                          {measurement.createdAt ? new Date(measurement.createdAt).toLocaleDateString() : 'N/A'}
+                        </Text>
+                      </View>
+                      <View style={[
+                        styles.measurementItemBadge,
+                        {
+                          backgroundColor: measurement.submissionType === 'AI' 
+                            ? '#EDE9FE' 
+                            : '#FEF3C7'
+                        }
+                      ]}>
+                        <Text style={[
+                          styles.measurementItemBadgeText,
+                          {
+                            color: measurement.submissionType === 'AI' 
+                              ? '#7C3AED' 
+                              : '#F59E0B'
+                          }
+                        ]}>
+                          {measurement.submissionType || 'Manual'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.measurementItemPreview}>
+                      {measurement.sections && measurement.sections.length > 0 ? (
+                        measurement.sections.map((section, sIndex) => (
+                          <View key={`section-${sIndex}`} style={{ marginBottom: 6 }}>
+                            {section.measurements && section.measurements.slice(0, 3).map((m, mi) => (
+                              <Text key={`m-${mi}`} style={styles.measurementItemValue}>
+                                {m.bodyPartName || m.name || `${m.key || ''}`}: {m.size}{m.unit || 'cm'}
+                              </Text>
+                            ))}
+                          </View>
+                        ))
+                      ) : (
+                        Object.entries(measurement.measurements || {}).slice(0, 3).map(([key, value]) => (
+                          <Text key={key} style={styles.measurementItemValue}>
+                            {key}: {value}cm
+                          </Text>
+                        ))
+                      )}
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.measurementViewButton}
+                      onPress={() => {
+                        navigation.navigate('MeasurementDetails', {
+                          measurementId: measurement.id || measurement._id,
+                          measurement: measurement
+                        });
+                      }}
+                    >
+                      <Text style={styles.measurementViewButtonText}>View Full Details</Text>
+                      <Ionicons name="chevron-forward" size={14} color="#7C3AED" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+              
+              {hasMoreMeasurements && (
+                <TouchableOpacity 
+                  style={styles.loadMoreButton}
+                  onPress={() => fetchUserMeasurements(measurementsPage + 1)}
+                  disabled={measurementsLoading}
+                >
+                  {measurementsLoading ? (
+                    <ActivityIndicator size="small" color="#7C3AED" />
+                  ) : (
+                    <Text style={styles.loadMoreButtonText}>Load More Measurements</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </>
+          )}
         </View>
       </ScrollView>
 
@@ -592,23 +880,20 @@ const UserDetailsScreen = ({ navigation, route }) => {
                 <View style={styles.checkboxContainer}>
                   <TouchableOpacity 
                     style={styles.checkbox}
-                    onPress={() => setGenerateNewPassword(!generateNewPassword)}
+                    onPress={() => {
+                      // Implemented by VScode copilot
+                      // Prevent toggling and inform admin that password generation is enforced
+                      Alert.alert('Notice', 'A new password will always be generated and sent when using this admin email action.');
+                    }}
                   >
-                    {generateNewPassword ? (
-                      <View style={styles.checkedBox}>
-                        <Ionicons name="checkmark" size={12} color="white" />
-                      </View>
-                    ) : (
-                      <View style={styles.uncheckedBox} />
-                    )}
+                    <View style={styles.checkedBox}>
+                      <Ionicons name="checkmark" size={12} color="white" />
+                    </View>
                   </TouchableOpacity>
                   <Text style={styles.checkboxLabel}>Generate new password</Text>
                 </View>
                 <Text style={styles.checkboxNote}>
-                  {generateNewPassword 
-                    ? "A new password will be generated and sent to the user"
-                    : "Email will be sent without password (login instructions only)"
-                  }
+                  A new password will always be generated and sent to the user when using this action.
                 </Text>
               </View>
               
@@ -836,6 +1121,139 @@ const styles = StyleSheet.create({
   },
   dangerText: {
     color: '#EF4444',
+  },
+  // Implemented by VScode copilot - Measurements Section Styles
+  measurementsSection: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    marginBottom: 32,
+  },
+  measurementsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  // Implemented by VScode copilot - Refresh button for measurements
+  measurementHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  refreshButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  measurementCount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#7C3AED',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  loadingMeasurements: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  noMeasurementsContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  noMeasurementsText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1F2937',
+    marginTop: 8,
+  },
+  noMeasurementsSubtext: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  measurementItem: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  measurementItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  measurementItemType: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  measurementItemDate: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  measurementItemBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  measurementItemBadgeText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  measurementHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  actionIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  measurementViewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 6,
+    marginTop: 8,
+  },
+  measurementViewButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#7C3AED',
+    marginRight: 4,
+  },
+  measurementItemPreview: {
+    marginTop: 8,
+  },
+  measurementItemValue: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  loadMoreButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  loadMoreButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#7C3AED',
   },
   modalOverlay: {
     flex: 1,

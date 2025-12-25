@@ -12,13 +12,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiService from '../services/api';
 
 const UserManagementScreen = ({ navigation }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusLoading, setStatusLoading] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState('active');
+  const [selectedStatus, setSelectedStatus] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -34,9 +35,9 @@ const UserManagementScreen = ({ navigation }) => {
   const [showRoleSection, setShowRoleSection] = useState(false);
 
   const statusOptions = [
+    { key: 'all', label: 'All', color: '#6B7280' },
     { key: 'active', label: 'Active', color: '#10B981' },
     { key: 'pending', label: 'Pending', color: '#F59E0B' },
-    { key: 'disabled', label: 'Disabled', color: '#EF4444' },
     { key: 'archived', label: 'Archived', color: '#6B7280' }
   ];
 
@@ -67,11 +68,18 @@ const UserManagementScreen = ({ navigation }) => {
     }
   };
 
+  // Implemented by VScode copilot
+  // Fixed fetchUsers to properly clear and filter by status
   const fetchUsers = async () => {
     setStatusLoading(true);
+    setUsers([]); // Clear users immediately when status changes
     try {
       const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`https://datacapture-backend.onrender.com/api/admin/users/status/${selectedStatus}`, {
+      const endpoint = selectedStatus === 'all' 
+        ? 'https://datacapture-backend.onrender.com/api/admin/users?page=1&limit=50'
+        : `https://datacapture-backend.onrender.com/api/admin/users/status/${selectedStatus}`;
+      
+      const response = await fetch(endpoint, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -79,13 +87,52 @@ const UserManagementScreen = ({ navigation }) => {
 
       const data = await response.json();
       if (data.success) {
-        setUsers(data.data.users);
+        const allUsers = data.data.users;
+        // Filter users by status only if not 'all'
+        const filteredUsers = selectedStatus === 'all' 
+          ? allUsers 
+          : allUsers.filter(user => user.status === selectedStatus);
+        setUsers(filteredUsers);
+        console.log(`Fetched ${filteredUsers.length} ${selectedStatus === 'all' ? 'total' : selectedStatus} users`);
+      } else {
+        console.log('Error from API:', data.message);
+        setUsers([]);
       }
     } catch (error) {
       console.log('Error fetching users:', error);
+      setUsers([]);
     } finally {
       setLoading(false);
       setStatusLoading(false);
+    }
+  };
+
+  // Implemented by VScode copilot
+  // Fetch detailed user information using GET /api/admin/users/:userId endpoint
+  const fetchUserDetails = async (userId) => {
+    try {
+      const response = await ApiService.getUserById(userId);
+      if (response.success) {
+        return response.data.user;
+      } else {
+        Alert.alert('Error', response.message || 'Failed to fetch user details');
+        return null;
+      }
+    } catch (error) {
+      console.log('Error fetching user details:', error);
+      Alert.alert('Error', 'Failed to fetch user details');
+      return null;
+    }
+  };
+
+  // Implemented by VScode copilot
+  // Handle user card press - fetch full details before navigating
+  const handleUserPress = async (user) => {
+    const userDetails = await fetchUserDetails(user.id);
+    if (userDetails) {
+      navigation.navigate('UserDetails', { 
+        user: userDetails
+      });
     }
   };
 
@@ -238,12 +285,7 @@ const UserManagementScreen = ({ navigation }) => {
                   </View>
                   <TouchableOpacity 
                     style={styles.actionButton}
-                    onPress={() => navigation.navigate('UserDetails', { 
-                      user: {
-                        ...user,
-                        storedPassword: null // Will be fetched in UserDetails screen
-                      }
-                    })}
+                    onPress={() => handleUserPress(user)}
                   >
                     <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
                   </TouchableOpacity>

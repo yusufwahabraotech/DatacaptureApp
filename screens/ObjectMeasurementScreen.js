@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../components/BottomNavigation';
 
 const ObjectMeasurementScreen = ({ navigation }) => {
+  const [user, setUser] = useState(null);
   const [measurements, setMeasurements] = useState([
     { name: 'Package A', dimensions: '30x20x15 cm', weight: '2.5 kg', date: '2024-01-15' },
     { name: 'Furniture Item', dimensions: '120x80x45 cm', weight: '25 kg', date: '2024-01-14' },
@@ -20,6 +22,30 @@ const ObjectMeasurementScreen = ({ navigation }) => {
   ]);
 
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) return;
+
+      const response = await fetch('https://datacapture-backend.onrender.com/api/auth/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setUser(data.data.user);
+      }
+    } catch (error) {
+      console.log('Error fetching profile:', error);
+    }
+  };
 
   const filteredMeasurements = measurements.filter(item =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -38,9 +64,14 @@ const ObjectMeasurementScreen = ({ navigation }) => {
           <View style={styles.notificationContainer}>
             <Ionicons name="notifications-outline" size={20} color="#9CA3AF" />
           </View>
-          <View style={styles.profileImage}>
-            <Text style={styles.profileText}>U</Text>
-          </View>
+          <TouchableOpacity 
+            style={styles.profileImage}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Text style={styles.profileText}>
+              {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 

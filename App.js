@@ -26,6 +26,13 @@ import CustomerManagementScreen from './screens/CustomerManagementScreen';
 import SubscriptionManagementScreen from './screens/SubscriptionManagementScreen';
 import TakeNewMeasurementScreen from './screens/TakeNewMeasurementScreen';
 import ExtendedFormScreen from './screens/ExtendedFormScreen';
+import MeasurementDetailsScreen from './screens/MeasurementDetailsScreen';
+import UserSettingsScreen from './screens/UserSettingsScreen';
+import UserMeasurementsScreen from './screens/UserMeasurementsScreen';
+import UserDashboardScreen from './screens/UserDashboardScreen';
+import UserOneTimeCodesScreen from './screens/UserOneTimeCodesScreen';
+import CreateUserScreen from './screens/CreateUserScreen';
+import UsersListScreen from './screens/UsersListScreen';
 
 const Stack = createStackNavigator();
 
@@ -57,6 +64,13 @@ export default function App() {
         <Stack.Screen name="Questionnaire" component={QuestionnaireScreen} />
         <Stack.Screen name="TakeNewMeasurement" component={TakeNewMeasurementScreen} />
         <Stack.Screen name="ExtendedForm" component={ExtendedFormScreen} />
+        <Stack.Screen name="MeasurementDetails" component={MeasurementDetailsScreen} />
+        <Stack.Screen name="UserSettings" component={UserSettingsScreen} />
+        <Stack.Screen name="UserMeasurements" component={UserMeasurementsScreen} />
+        <Stack.Screen name="UserDashboard" component={UserDashboardScreen} />
+        <Stack.Screen name="UserOneTimeCodes" component={UserOneTimeCodesScreen} />
+        <Stack.Screen name="UsersList" component={UsersListScreen} />
+        <Stack.Screen name="CreateUser" component={CreateUserScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

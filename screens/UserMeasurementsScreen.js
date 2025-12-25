@@ -7,24 +7,42 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
 
-const AdminMeasurementsScreen = ({ navigation }) => {
+const UserMeasurementsScreen = ({ navigation }) => {
   const [measurements, setMeasurements] = useState([]);
+  const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchMeasurements();
+    fetchPermissions();
   }, []);
+
+  const fetchPermissions = async () => {
+    try {
+      const response = await ApiService.getMyPermissions();
+      if (response.success) {
+        setPermissions(response.data.permissions || []);
+      }
+    } catch (error) {
+      console.log('Error fetching permissions:', error);
+    }
+  };
+
+  const hasPermission = (permissionKey) => {
+    return permissions.some(p => p.key === permissionKey || p === permissionKey);
+  };
 
   const fetchMeasurements = async () => {
     try {
-      const response = await ApiService.getAdminMeasurements(1, 100);
+      const response = await ApiService.getMyMeasurements();
       if (response.success) {
-        setMeasurements(response.data.measurements);
+        setMeasurements(response.data.measurements || []);
       }
     } catch (error) {
       console.log('Error fetching measurements:', error);
@@ -42,9 +60,56 @@ const AdminMeasurementsScreen = ({ navigation }) => {
   };
 
   const filteredMeasurements = measurements.filter(measurement => {
-    const name = (measurement.userInfo?.fullName || measurement.userInfo?.email || measurement.userInfo?.customUserId || '').toString();
+    const name = (measurement.userInfo?.fullName || measurement.userInfo?.email || '').toString();
     return name.toLowerCase().includes((searchQuery || '').toLowerCase());
   });
+
+  const showMeasurementActions = (measurement) => {
+    const actions = [];
+    
+    if (hasPermission('edit_measurements')) {
+      actions.push({ text: 'Edit Measurement', onPress: () => editMeasurement(measurement) });
+    }
+    
+    if (hasPermission('delete_measurements')) {
+      actions.push({ text: 'Delete Measurement', style: 'destructive', onPress: () => confirmDeleteMeasurement(measurement) });
+    }
+    
+    actions.push({ text: 'Cancel', style: 'cancel' });
+    
+    Alert.alert('Measurement Actions', 'Select an action', actions);
+  };
+
+  const editMeasurement = (measurement) => {
+    // Navigate to edit screen or show edit modal
+    Alert.alert('Edit Measurement', 'Edit functionality would be implemented here');
+  };
+
+  const confirmDeleteMeasurement = (measurement) => {
+    Alert.alert(
+      'Delete Measurement',
+      'Are you sure you want to delete this measurement? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteMeasurement(measurement._id || measurement.id) }
+      ]
+    );
+  };
+
+  const deleteMeasurement = async (measurementId) => {
+    try {
+      const response = await ApiService.deleteOrgMeasurement(measurementId);
+      if (response.success) {
+        Alert.alert('Success', 'Measurement deleted successfully');
+        fetchMeasurements();
+      } else {
+        Alert.alert('Error', response.message || 'Failed to delete measurement');
+      }
+    } catch (error) {
+      console.log('Error deleting measurement:', error);
+      Alert.alert('Error', 'Failed to delete measurement');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -53,8 +118,12 @@ const AdminMeasurementsScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>All Measurements</Text>
-        <View style={styles.headerSpacer} />
+        <Text style={styles.headerTitle}>Measurements</Text>
+        {hasPermission('create_measurements') && (
+          <TouchableOpacity onPress={() => navigation.navigate('BodyMeasurement')}>
+            <Ionicons name="add" size={24} color="#7C3AED" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Search */}
@@ -79,8 +148,8 @@ const AdminMeasurementsScreen = ({ navigation }) => {
           <Text style={styles.statLabel}>AI Generated</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statValue}>{measurements.filter(m => m.submissionType === 'External').length}</Text>
-          <Text style={styles.statLabel}>External</Text>
+          <Text style={styles.statValue}>{measurements.filter(m => m.submissionType === 'Manual').length}</Text>
+          <Text style={styles.statLabel}>Manual</Text>
         </View>
       </View>
 
@@ -88,6 +157,14 @@ const AdminMeasurementsScreen = ({ navigation }) => {
       <ScrollView style={styles.measurementsList}>
         {loading ? (
           <ActivityIndicator size="large" color="#7C3AED" style={styles.loader} />
+        ) : filteredMeasurements.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="body" size={64} color="#D1D5DB" />
+            <Text style={styles.emptyTitle}>No measurements found</Text>
+            <Text style={styles.emptySubtitle}>
+              {searchQuery ? 'Try adjusting your search' : 'No measurements available'}
+            </Text>
+          </View>
         ) : (
           filteredMeasurements.map((measurement) => (
             <View key={measurement._id || measurement.id} style={styles.measurementCard}>
@@ -95,10 +172,7 @@ const AdminMeasurementsScreen = ({ navigation }) => {
                 <View style={styles.userInfo}>
                   <View style={styles.userAvatar}>
                     <Text style={styles.userAvatarText}>
-                      {(() => {
-                        const display = (measurement.userInfo?.fullName || measurement.userInfo?.email || '').toString();
-                        return display && display.length ? display.charAt(0).toUpperCase() : '?';
-                      })()}
+                      {(measurement.userInfo?.fullName || measurement.userInfo?.email || 'U').charAt(0).toUpperCase()}
                     </Text>
                   </View>
                   <View style={styles.userDetails}>
@@ -114,9 +188,7 @@ const AdminMeasurementsScreen = ({ navigation }) => {
                         ? '#EDE9FE' 
                         : measurement.submissionType === 'Manual' 
                           ? '#FEF3C7' 
-                          : measurement.submissionType === 'External'
-                            ? '#ECFDF5'
-                            : '#F3F4F6'
+                          : '#F3F4F6'
                     }
                   ]}>
                     <Text style={[
@@ -126,9 +198,7 @@ const AdminMeasurementsScreen = ({ navigation }) => {
                           ? '#7C3AED' 
                           : measurement.submissionType === 'Manual' 
                             ? '#F59E0B' 
-                            : measurement.submissionType === 'External'
-                              ? '#10B981'
-                              : '#6B7280'
+                            : '#6B7280'
                       }
                     ]}>
                       {measurement.submissionType}
@@ -140,21 +210,7 @@ const AdminMeasurementsScreen = ({ navigation }) => {
                 </View>
               </View>
 
-          {/* Debug info for external measurements */}
-          {__DEV__ && measurement.submissionType === 'External' && (
-            <View style={{ backgroundColor: '#f0f0f0', padding: 10, marginBottom: 10 }}>
-              <Text style={{ fontSize: 12, color: '#666' }}>External Debug:</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Has measurements: {measurement.measurements ? 'Yes' : 'No'}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Measurements keys: {Object.keys(measurement.measurements || {}).join(', ')}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Measurements count: {Object.keys(measurement.measurements || {}).length}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>User Email: {measurement.userEmail || 'N/A'}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Organization ID: {measurement.organizationId || 'N/A'}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Original ID: {measurement.originalMeasurementId || 'N/A'}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Raw data: {JSON.stringify(measurement.measurements).substring(0, 200)}...</Text>
-            </View>
-          )}
-
-          {/* Measurement Preview */}
+              {/* Measurement Preview */}
               <View style={styles.measurementPreview}>
                 {Object.entries(measurement.measurements || {}).slice(0, 4).map(([key, value], index) => (
                   <View key={`${measurement._id || measurement.id}-${key}-${index}`} style={styles.measurementItem}>
@@ -173,9 +229,19 @@ const AdminMeasurementsScreen = ({ navigation }) => {
                   });
                 }}
               >
-                <Text style={styles.viewButtonText}>View Full Details</Text>
+                <Text style={styles.viewButtonText}>View Details</Text>
                 <Ionicons name="chevron-forward" size={16} color="#7C3AED" />
               </TouchableOpacity>
+              
+              {(hasPermission('edit_measurements') || hasPermission('delete_measurements')) && (
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => showMeasurementActions(measurement)}
+                >
+                  <Ionicons name="ellipsis-horizontal" size={16} color="#7C3AED" />
+                  <Text style={styles.actionButtonText}>Actions</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ))
         )}
@@ -252,6 +318,22 @@ const styles = StyleSheet.create({
   loader: {
     marginTop: 50,
   },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 64,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginTop: 8,
+    textAlign: 'center',
+  },
   measurementCard: {
     backgroundColor: 'white',
     borderRadius: 12,
@@ -327,27 +409,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     width: '50%',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   measurementKey: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6B7280',
-    textTransform: 'capitalize',
+    marginRight: 4,
   },
   measurementValue: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: '#1F2937',
-    marginLeft: 4,
   },
   viewButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    paddingTop: 12,
   },
   viewButtonText: {
     fontSize: 14,
@@ -355,6 +433,21 @@ const styles = StyleSheet.create({
     color: '#7C3AED',
     marginRight: 4,
   },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    marginTop: 8,
+    backgroundColor: '#F5F3FF',
+    borderRadius: 6,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#7C3AED',
+    marginLeft: 4,
+  },
 });
 
-export default AdminMeasurementsScreen;
+export default UserMeasurementsScreen;

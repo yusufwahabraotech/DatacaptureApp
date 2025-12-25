@@ -161,9 +161,11 @@ const DashboardScreen = ({ navigation, route }) => {
   };
 
   const getBodyPartSize = (measurement, bodyPartName) => {
+    const target = (bodyPartName || '').toString();
     for (const section of measurement.sections || []) {
       for (const bodyPart of section.measurements || []) {
-        if (bodyPart.bodyPartName.toLowerCase().includes(bodyPartName.toLowerCase())) {
+        const bpName = (bodyPart?.bodyPartName || '').toString();
+        if (bpName.toLowerCase().includes(target.toLowerCase())) {
           return `${bodyPart.size}${bodyPart.unit || 'cm'}`;
         }
       }
