@@ -11,7 +11,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiService from '../services/api';
+import RoleGuard from '../components/RoleGuard';
 
 const CustomerManagementScreen = ({ navigation }) => {
   const [customers, setCustomers] = useState([]);
@@ -37,26 +38,29 @@ const CustomerManagementScreen = ({ navigation }) => {
   ];
 
   useEffect(() => {
+    checkUserRole();
     fetchCustomers();
   }, [selectedStatus]);
 
+  const checkUserRole = async () => {
+    try {
+      const response = await ApiService.getUserProfile();
+      if (response.success && response.data.user.role !== 'SUPER_ADMIN') {
+        Alert.alert('Access Denied', 'You do not have permission to access this screen.');
+        navigation.goBack();
+        return;
+      }
+    } catch (error) {
+      console.log('Error checking user role:', error);
+      navigation.goBack();
+    }
+  };
+
   const fetchCustomers = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      let url = 'https://datacapture-backend.onrender.com/api/super-admin/customers?page=1&limit=50';
-      if (selectedStatus !== 'all') {
-        url += `&status=${selectedStatus}`;
-      }
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setCustomers(data.data.customers);
+      const response = await ApiService.getSuperAdminCustomers(1, 50, selectedStatus === 'all' ? null : selectedStatus);
+      if (response.success) {
+        setCustomers(response.data.customers);
       }
     } catch (error) {
       console.log('Error fetching customers:', error);
@@ -72,24 +76,14 @@ const CustomerManagementScreen = ({ navigation }) => {
     }
 
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('https://datacapture-backend.onrender.com/api/super-admin/customers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(newCustomer),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        Alert.alert('Success', `Customer created successfully!\nAccount Number: ${data.data.customer.accountNumber}`);
+      const response = await ApiService.createSuperAdminCustomer(newCustomer);
+      if (response.success) {
+        Alert.alert('Success', `Customer created successfully!\nAccount Number: ${response.data.customer.accountNumber}`);
         setShowCreateModal(false);
         setNewCustomer({ customerName: '', email: '', phoneNumber: '', state: '', lga: '', address: '', customerId: '' });
         fetchCustomers();
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to create customer');
@@ -98,21 +92,11 @@ const CustomerManagementScreen = ({ navigation }) => {
 
   const updateCustomerStatus = async (customerId, newStatus) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`https://datacapture-backend.onrender.com/api/super-admin/customers/${customerId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
+      const response = await ApiService.updateSuperAdminCustomerStatus(customerId, newStatus);
+      if (response.success) {
         fetchCustomers();
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to update customer status');
@@ -121,19 +105,11 @@ const CustomerManagementScreen = ({ navigation }) => {
 
   const resetCustomerPassword = async (customerId) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`https://datacapture-backend.onrender.com/api/super-admin/customers/${customerId}/reset-password`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        Alert.alert('Success', `Password reset successfully!\nNew Password: ${data.data.newPassword}`);
+      const response = await ApiService.resetSuperAdminCustomerPassword(customerId);
+      if (response.success) {
+        Alert.alert('Success', `Password reset successfully!\nNew Password: ${response.data.newPassword}`);
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to reset password');
@@ -141,10 +117,10 @@ const CustomerManagementScreen = ({ navigation }) => {
   };
 
   const filteredCustomers = customers.filter(customer => 
-    customer.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.customerId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.state?.toLowerCase().includes(searchQuery.toLowerCase())
+    (customer.customerName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (customer.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (customer.customerId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (customer.state || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const formatDate = (dateString) => {
@@ -211,7 +187,7 @@ const CustomerManagementScreen = ({ navigation }) => {
                 <View style={styles.customerInfo}>
                   <View style={styles.customerAvatar}>
                     <Text style={styles.customerAvatarText}>
-                      {customer.customerName.charAt(0).toUpperCase()}
+                      {(customer.customerName || 'C').charAt(0).toUpperCase()}
                     </Text>
                   </View>
                   <View style={styles.customerDetails}>

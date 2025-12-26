@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiService from '../services/api';
 
 const OrganizationManagementScreen = ({ navigation }) => {
   const [organizations, setOrganizations] = useState([]);
@@ -35,26 +35,29 @@ const OrganizationManagementScreen = ({ navigation }) => {
   ];
 
   useEffect(() => {
+    checkUserRole();
     fetchOrganizations();
   }, [selectedStatus]);
 
+  const checkUserRole = async () => {
+    try {
+      const response = await ApiService.getUserProfile();
+      if (response.success && response.data.user.role !== 'SUPER_ADMIN') {
+        Alert.alert('Access Denied', 'You do not have permission to access this screen.');
+        navigation.goBack();
+        return;
+      }
+    } catch (error) {
+      console.log('Error checking user role:', error);
+      navigation.goBack();
+    }
+  };
+
   const fetchOrganizations = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      let url = 'https://datacapture-backend.onrender.com/api/super-admin/organizations?page=1&limit=50';
-      if (selectedStatus !== 'all') {
-        url += `&status=${selectedStatus}`;
-      }
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setOrganizations(data.data.organizations);
+      const response = await ApiService.getSuperAdminOrganizations(1, 50, selectedStatus === 'all' ? null : selectedStatus);
+      if (response.success) {
+        setOrganizations(response.data.organizations);
       }
     } catch (error) {
       console.log('Error fetching organizations:', error);
@@ -70,24 +73,14 @@ const OrganizationManagementScreen = ({ navigation }) => {
     }
 
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('https://datacapture-backend.onrender.com/api/super-admin/organizations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(newOrg),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        Alert.alert('Success', `Organization created successfully!\nAccount Number: ${data.data.organization.accountNumber}`);
+      const response = await ApiService.createSuperAdminOrganization(newOrg);
+      if (response.success) {
+        Alert.alert('Success', `Organization created successfully!\nAccount Number: ${response.data.organization.accountNumber}`);
         setShowCreateModal(false);
         setNewOrg({ organizationName: '', email: '', phoneNumber: '', address: '', contactPerson: '' });
         fetchOrganizations();
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to create organization');
@@ -96,21 +89,11 @@ const OrganizationManagementScreen = ({ navigation }) => {
 
   const updateOrganizationStatus = async (orgId, newStatus) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`https://datacapture-backend.onrender.com/api/super-admin/organizations/${orgId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
+      const response = await ApiService.updateSuperAdminOrganizationStatus(orgId, newStatus);
+      if (response.success) {
         fetchOrganizations();
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to update organization status');

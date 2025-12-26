@@ -16,6 +16,7 @@ import SuperAdminDashboardScreen from './screens/SuperAdminDashboardScreen';
 import UserManagementScreen from './screens/UserManagementScreen';
 import UserDetailsScreen from './screens/UserDetailsScreen';
 import UserPermissionsScreen from './screens/UserPermissionsScreen';
+import PermissionsManagementScreen from './screens/PermissionsManagementScreen';
 import OneTimeCodesScreen from './screens/OneTimeCodesScreen';
 import BodyMeasurementScreen from './screens/BodyMeasurementScreen';
 import ObjectMeasurementScreen from './screens/ObjectMeasurementScreen';
@@ -24,6 +25,12 @@ import AdminMeasurementsScreen from './screens/AdminMeasurementsScreen';
 import OrganizationManagementScreen from './screens/OrganizationManagementScreen';
 import CustomerManagementScreen from './screens/CustomerManagementScreen';
 import SubscriptionManagementScreen from './screens/SubscriptionManagementScreen';
+import SystemUsersScreen from './screens/SystemUsersScreen';
+import SystemAnalyticsScreen from './screens/SystemAnalyticsScreen';
+import SystemSettingsScreen from './screens/SystemSettingsScreen';
+import SubscriptionDetailsScreen from './screens/SubscriptionDetailsScreen';
+import OrganizationSubscriptionScreen from './screens/OrganizationSubscriptionScreen';
+import BillingHistoryScreen from './screens/BillingHistoryScreen';
 import TakeNewMeasurementScreen from './screens/TakeNewMeasurementScreen';
 import ExtendedFormScreen from './screens/ExtendedFormScreen';
 import MeasurementDetailsScreen from './screens/MeasurementDetailsScreen';
@@ -54,11 +61,22 @@ export default function App() {
         <Stack.Screen name="UserManagement" component={UserManagementScreen} />
         <Stack.Screen name="UserDetails" component={UserDetailsScreen} />
         <Stack.Screen name="UserPermissions" component={UserPermissionsScreen} />
+        <Stack.Screen name="PermissionsManagement" component={PermissionsManagementScreen} />
         <Stack.Screen name="OneTimeCodes" component={OneTimeCodesScreen} />
         <Stack.Screen name="AdminMeasurements" component={AdminMeasurementsScreen} />
+        
+        {/* Super Admin Only Screens */}
         <Stack.Screen name="OrganizationManagement" component={OrganizationManagementScreen} />
         <Stack.Screen name="CustomerManagement" component={CustomerManagementScreen} />
         <Stack.Screen name="SubscriptionManagement" component={SubscriptionManagementScreen} />
+        <Stack.Screen name="SystemUsers" component={SystemUsersScreen} />
+        <Stack.Screen name="SystemAnalytics" component={SystemAnalyticsScreen} />
+        <Stack.Screen name="SystemSettings" component={SystemSettingsScreen} />
+        <Stack.Screen name="SubscriptionDetails" component={SubscriptionDetailsScreen} />
+        
+        {/* Organization Subscription Screens */}
+        <Stack.Screen name="OrganizationSubscription" component={OrganizationSubscriptionScreen} />
+        <Stack.Screen name="BillingHistory" component={BillingHistoryScreen} />
         <Stack.Screen name="BodyMeasurement" component={BodyMeasurementScreen} />
         <Stack.Screen name="ObjectMeasurement" component={ObjectMeasurementScreen} />
         <Stack.Screen name="Questionnaire" component={QuestionnaireScreen} />

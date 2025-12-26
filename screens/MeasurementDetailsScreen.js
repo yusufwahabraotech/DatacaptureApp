@@ -241,20 +241,6 @@ const MeasurementDetailsScreen = ({ navigation, route }) => {
             </View>
           </View>
           
-          {/* Debug info - Enhanced for external measurements */}
-          {__DEV__ && (
-            <View style={{ backgroundColor: '#f0f0f0', padding: 10, marginBottom: 10 }}>
-              <Text style={{ fontSize: 12, color: '#666' }}>Debug Info:</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Submission Type: {measurement.submissionType}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Has Sections: {measurement.sections ? 'Yes' : 'No'}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Has Measurements: {measurement.measurements ? 'Yes' : 'No'}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Measurements Keys: {Object.keys(measurement.measurements || {}).join(', ')}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Full measurements object: {JSON.stringify(measurement.measurements, null, 2)}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>User Email: {measurement.userEmail || 'N/A'}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Organization ID: {measurement.organizationId || 'N/A'}</Text>
-            </View>
-          )}
-          
           {measurement.sections && measurement.sections.length > 0 ? (
             measurement.sections.map((section, sIndex) => (
               <View key={`section-${sIndex}`} style={styles.sectionGroup}>

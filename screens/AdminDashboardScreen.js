@@ -123,6 +123,12 @@ const AdminDashboardScreen = ({ navigation }) => {
       subtitle: 'Manage user permissions',
       icon: 'shield-checkmark',
       onPress: () => navigation.navigate('PermissionsManagement')
+    },
+    {
+      title: 'Subscription',
+      subtitle: 'Manage your subscription',
+      icon: 'card',
+      onPress: () => navigation.navigate('OrganizationSubscription')
     }
   ];
 

@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiService from '../services/api';
 
 const SubscriptionManagementScreen = ({ navigation }) => {
   const [subscriptions, setSubscriptions] = useState([]);
@@ -37,26 +37,29 @@ const SubscriptionManagementScreen = ({ navigation }) => {
   ];
 
   useEffect(() => {
+    checkUserRole();
     fetchSubscriptions();
   }, [selectedStatus]);
 
+  const checkUserRole = async () => {
+    try {
+      const response = await ApiService.getUserProfile();
+      if (response.success && response.data.user.role !== 'SUPER_ADMIN') {
+        Alert.alert('Access Denied', 'You do not have permission to access this screen.');
+        navigation.goBack();
+        return;
+      }
+    } catch (error) {
+      console.log('Error checking user role:', error);
+      navigation.goBack();
+    }
+  };
+
   const fetchSubscriptions = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      let url = 'https://datacapture-backend.onrender.com/api/super-admin/subscriptions?page=1&limit=50';
-      if (selectedStatus !== 'all') {
-        url += `&status=${selectedStatus}`;
-      }
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setSubscriptions(data.data.packages);
+      const response = await ApiService.getSuperAdminSubscriptions(1, 50, selectedStatus === 'all' ? null : selectedStatus);
+      if (response.success) {
+        setSubscriptions(response.data.packages);
       }
     } catch (error) {
       console.log('Error fetching subscriptions:', error);
@@ -72,7 +75,6 @@ const SubscriptionManagementScreen = ({ navigation }) => {
     }
 
     try {
-      const token = await AsyncStorage.getItem('userToken');
       const packageData = {
         ...newPackage,
         monthlyPrice: parseFloat(newPackage.monthlyPrice),
@@ -80,17 +82,8 @@ const SubscriptionManagementScreen = ({ navigation }) => {
         yearlyPrice: parseFloat(newPackage.yearlyPrice) || 0,
       };
 
-      const response = await fetch('https://datacapture-backend.onrender.com/api/super-admin/subscriptions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(packageData),
-      });
-
-      const data = await response.json();
-      if (data.success) {
+      const response = await ApiService.createSuperAdminSubscription(packageData);
+      if (response.success) {
         Alert.alert('Success', 'Subscription package created successfully!');
         setShowCreateModal(false);
         setNewPackage({
@@ -105,7 +98,7 @@ const SubscriptionManagementScreen = ({ navigation }) => {
         });
         fetchSubscriptions();
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to create subscription package');
@@ -114,21 +107,11 @@ const SubscriptionManagementScreen = ({ navigation }) => {
 
   const updateSubscriptionStatus = async (subscriptionId, newStatus) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`https://datacapture-backend.onrender.com/api/super-admin/subscriptions/${subscriptionId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
+      const response = await ApiService.updateSuperAdminSubscriptionStatus(subscriptionId, newStatus);
+      if (response.success) {
         fetchSubscriptions();
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to update subscription status');
@@ -137,20 +120,12 @@ const SubscriptionManagementScreen = ({ navigation }) => {
 
   const duplicatePackage = async (subscriptionId) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`https://datacapture-backend.onrender.com/api/super-admin/subscriptions/${subscriptionId}/duplicate`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
+      const response = await ApiService.duplicateSuperAdminSubscription(subscriptionId);
+      if (response.success) {
         Alert.alert('Success', 'Package duplicated successfully!');
         fetchSubscriptions();
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to duplicate package');
@@ -442,13 +417,16 @@ const styles = StyleSheet.create({
   },
   statusButton: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingVertical: 0,
+    borderRadius: 12,
     backgroundColor: '#F3F4F6',
-    marginRight: 12,
+    marginRight: 6,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: '#6B7280',
   },

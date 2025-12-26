@@ -140,20 +140,6 @@ const AdminMeasurementsScreen = ({ navigation }) => {
                 </View>
               </View>
 
-          {/* Debug info for external measurements */}
-          {__DEV__ && measurement.submissionType === 'External' && (
-            <View style={{ backgroundColor: '#f0f0f0', padding: 10, marginBottom: 10 }}>
-              <Text style={{ fontSize: 12, color: '#666' }}>External Debug:</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Has measurements: {measurement.measurements ? 'Yes' : 'No'}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Measurements keys: {Object.keys(measurement.measurements || {}).join(', ')}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Measurements count: {Object.keys(measurement.measurements || {}).length}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>User Email: {measurement.userEmail || 'N/A'}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Organization ID: {measurement.organizationId || 'N/A'}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Original ID: {measurement.originalMeasurementId || 'N/A'}</Text>
-              <Text style={{ fontSize: 10, color: '#666' }}>Raw data: {JSON.stringify(measurement.measurements).substring(0, 200)}...</Text>
-            </View>
-          )}
-
           {/* Measurement Preview */}
               <View style={styles.measurementPreview}>
                 {Object.entries(measurement.measurements || {}).slice(0, 4).map(([key, value], index) => (

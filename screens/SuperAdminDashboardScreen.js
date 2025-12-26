@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiService from '../services/api';
 import BottomNavigation from '../components/BottomNavigation';
 
 const SuperAdminDashboardScreen = ({ navigation }) => {
@@ -22,22 +22,30 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    checkUserRole();
     fetchSuperAdminStats();
     fetchUserProfile();
   }, []);
 
+  const checkUserRole = async () => {
+    try {
+      const response = await ApiService.getUserProfile();
+      if (response.success && response.data.user.role !== 'SUPER_ADMIN') {
+        Alert.alert('Access Denied', 'You do not have permission to access this screen.');
+        navigation.goBack();
+        return;
+      }
+    } catch (error) {
+      console.log('Error checking user role:', error);
+      navigation.goBack();
+    }
+  };
+
   const fetchSuperAdminStats = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('https://datacapture-backend.onrender.com/api/super-admin/dashboard/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setStats(data.data);
+      const response = await ApiService.getSuperAdminDashboardStats();
+      if (response.success) {
+        setStats(response.data);
       }
     } catch (error) {
       console.log('Error fetching super admin stats:', error);
@@ -48,16 +56,9 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
 
   const fetchUserProfile = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('https://datacapture-backend.onrender.com/api/auth/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setUser(data.data.user);
+      const response = await ApiService.getUserProfile();
+      if (response.success) {
+        setUser(response.data.user);
       }
     } catch (error) {
       console.log('Error fetching profile:', error);

@@ -312,6 +312,238 @@ class ApiService {
   static async getOriginalMeasurementForExternal(measurementId) {
     return this.apiCall(`/admin/measurements/${measurementId}/original`);
   }
+
+  // ========== SUPER ADMIN ENDPOINTS ==========
+  
+  // 👥 Super Admin User Management (System-Wide)
+  static async getSuperAdminUsers(page = 1, limit = 50) {
+    return this.apiCall(`/super-admin/users?page=${page}&limit=${limit}`);
+  }
+
+  static async getSuperAdminUserById(userId) {
+    return this.apiCall(`/super-admin/users/${userId}`);
+  }
+
+  static async updateSuperAdminUser(userId, userData) {
+    return this.apiCall(`/super-admin/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  static async updateSuperAdminUserStatus(userId, status) {
+    return this.apiCall(`/super-admin/users/${userId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  static async resetSuperAdminUserPassword(userId) {
+    return this.apiCall(`/super-admin/users/${userId}/reset-password`, {
+      method: 'PUT',
+    });
+  }
+
+  static async getSuperAdminOrganizationUsers(orgId) {
+    return this.apiCall(`/super-admin/organizations/${orgId}/users`);
+  }
+
+  static async exportSuperAdminUsers(format = 'csv') {
+    return this.apiCall(`/super-admin/users/export/${format}`);
+  }
+
+  static async deleteSuperAdminUser(userId) {
+    return this.apiCall(`/super-admin/users/${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // 🏢 Super Admin Organization Management
+  static async getSuperAdminOrganizations(page = 1, limit = 50, status = null) {
+    let url = `/super-admin/organizations?page=${page}&limit=${limit}`;
+    if (status) url += `&status=${status}`;
+    return this.apiCall(url);
+  }
+
+  static async createSuperAdminOrganization(orgData) {
+    return this.apiCall('/super-admin/organizations', {
+      method: 'POST',
+      body: JSON.stringify(orgData),
+    });
+  }
+
+  static async getSuperAdminOrganizationById(orgId) {
+    return this.apiCall(`/super-admin/organizations/${orgId}`);
+  }
+
+  static async updateSuperAdminOrganization(orgId, orgData) {
+    return this.apiCall(`/super-admin/organizations/${orgId}`, {
+      method: 'PUT',
+      body: JSON.stringify(orgData),
+    });
+  }
+
+  static async deleteSuperAdminOrganization(orgId) {
+    return this.apiCall(`/super-admin/organizations/${orgId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async updateSuperAdminOrganizationStatus(orgId, status) {
+    return this.apiCall(`/super-admin/organizations/${orgId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  static async exportSuperAdminOrganizations(format = 'csv') {
+    return this.apiCall(`/super-admin/organizations/export/${format}`);
+  }
+
+  // 👤 Super Admin Customer Management
+  static async getSuperAdminCustomers(page = 1, limit = 50, status = null) {
+    let url = `/super-admin/customers?page=${page}&limit=${limit}`;
+    if (status) url += `&status=${status}`;
+    return this.apiCall(url);
+  }
+
+  static async createSuperAdminCustomer(customerData) {
+    return this.apiCall('/super-admin/customers', {
+      method: 'POST',
+      body: JSON.stringify(customerData),
+    });
+  }
+
+  static async getSuperAdminCustomerById(customerId) {
+    return this.apiCall(`/super-admin/customers/${customerId}`);
+  }
+
+  static async updateSuperAdminCustomer(customerId, customerData) {
+    return this.apiCall(`/super-admin/customers/${customerId}`, {
+      method: 'PUT',
+      body: JSON.stringify(customerData),
+    });
+  }
+
+  static async deleteSuperAdminCustomer(customerId) {
+    return this.apiCall(`/super-admin/customers/${customerId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async updateSuperAdminCustomerStatus(customerId, status) {
+    return this.apiCall(`/super-admin/customers/${customerId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  static async resetSuperAdminCustomerPassword(customerId) {
+    return this.apiCall(`/super-admin/customers/${customerId}/reset-password`, {
+      method: 'PUT',
+    });
+  }
+
+  static async exportSuperAdminCustomers(format = 'csv') {
+    return this.apiCall(`/super-admin/customers/export/${format}`);
+  }
+
+  // 📦 Super Admin Subscription Management
+  static async getSuperAdminSubscriptions(page = 1, limit = 50, status = null) {
+    let url = `/super-admin/subscriptions?page=${page}&limit=${limit}`;
+    if (status) url += `&status=${status}`;
+    return this.apiCall(url);
+  }
+
+  static async createSuperAdminSubscription(subscriptionData) {
+    return this.apiCall('/super-admin/subscriptions', {
+      method: 'POST',
+      body: JSON.stringify(subscriptionData),
+    });
+  }
+
+  static async getSuperAdminSubscriptionById(subscriptionId) {
+    return this.apiCall(`/super-admin/subscriptions/${subscriptionId}`);
+  }
+
+  static async updateSuperAdminSubscription(subscriptionId, subscriptionData) {
+    return this.apiCall(`/super-admin/subscriptions/${subscriptionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(subscriptionData),
+    });
+  }
+
+  static async deleteSuperAdminSubscription(subscriptionId) {
+    return this.apiCall(`/super-admin/subscriptions/${subscriptionId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async updateSuperAdminSubscriptionStatus(subscriptionId, status) {
+    return this.apiCall(`/super-admin/subscriptions/${subscriptionId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  static async duplicateSuperAdminSubscription(subscriptionId) {
+    return this.apiCall(`/super-admin/subscriptions/${subscriptionId}/duplicate`, {
+      method: 'POST',
+    });
+  }
+
+  static async getSuperAdminSubscriptionSubscribers(subscriptionId) {
+    return this.apiCall(`/super-admin/subscriptions/${subscriptionId}/subscribers`);
+  }
+
+  static async exportSuperAdminSubscriptions(format = 'csv') {
+    return this.apiCall(`/super-admin/subscriptions/export/${format}`);
+  }
+
+  // 📊 Super Admin Dashboard & Analytics
+  static async getSuperAdminDashboardStats() {
+    return this.apiCall('/super-admin/dashboard/stats');
+  }
+
+  static async getSuperAdminAnalytics() {
+    return this.apiCall('/super-admin/dashboard/analytics');
+  }
+
+  // 🔧 Super Admin Utility Endpoints
+  static async getSuperAdminCountries() {
+    return this.apiCall('/super-admin/countries');
+  }
+
+  // ========== ORGANIZATION SUBSCRIPTION ENDPOINTS ==========
+  
+  // Organization subscription management
+  static async getOrganizationSubscription() {
+    return this.apiCall('/organization/subscription');
+  }
+
+  static async subscribeToPackage(packageId, billingCycle) {
+    return this.apiCall('/organization/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ packageId, billingCycle }),
+    });
+  }
+
+  static async cancelOrganizationSubscription() {
+    return this.apiCall('/organization/subscription/cancel', {
+      method: 'PUT',
+    });
+  }
+
+  static async getOrganizationBillingHistory() {
+    return this.apiCall('/organization/billing/history');
+  }
+
+  static async updatePaymentMethod(paymentData) {
+    return this.apiCall('/organization/payment-method', {
+      method: 'PUT',
+      body: JSON.stringify(paymentData),
+    });
+  }
 }
 
 export default ApiService;
