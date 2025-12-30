@@ -32,18 +32,11 @@ const OneTimeCodesScreen = ({ navigation }) => {
 
   const fetchCodes = async (page = 1) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`https://datacapture-backend.onrender.com/api/admin/one-time-codes?page=${page}&limit=50`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setCodes(data.data.codes || []);
-        setCurrentPage(data.data.currentPage || 1);
-        setTotalPages(data.data.totalPages || 1);
+      const response = await ApiService.getOneTimeCodes();
+      if (response.success) {
+        setCodes(response.data.codes || []);
+        setCurrentPage(response.data.currentPage || 1);
+        setTotalPages(response.data.totalPages || 1);
       }
     } catch (error) {
       console.log('Error fetching codes:', error);
@@ -59,27 +52,18 @@ const OneTimeCodesScreen = ({ navigation }) => {
     }
 
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('https://datacapture-backend.onrender.com/api/admin/one-time-codes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          userEmail: newCode.userEmail,
-          expirationHours: parseInt(newCode.expirationHours)
-        }),
+      const response = await ApiService.generateOneTimeCode({
+        userEmail: newCode.userEmail,
+        expirationHours: parseInt(newCode.expirationHours)
       });
 
-      const data = await response.json();
-      if (data.success) {
-        Alert.alert('Success', `One-time code generated: ${data.data.code}\nFor: ${data.data.userEmail}\n\nClick the "Send Email" button to send instructions to the user.`);
+      if (response.success) {
+        Alert.alert('Success', `One-time code generated: ${response.data.code}\nFor: ${response.data.userEmail}\n\nClick the "Send Email" button to send instructions to the user.`);
         setShowCreateModal(false);
         setNewCode({ userEmail: '', expirationHours: '24' });
         fetchCodes();
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to generate code');

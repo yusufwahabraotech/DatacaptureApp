@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiService from '../services/api';
 
 const ExtendedFormScreen = ({ navigation, route }) => {
   const [sections, setSections] = useState([
@@ -170,18 +171,9 @@ const ExtendedFormScreen = ({ navigation, route }) => {
         sections: formattedSections
       };
 
-      const response = await fetch('https://datacapture-backend.onrender.com/api/manual-measurements/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(measurementData),
-      });
+      const response = await ApiService.saveMeasurement(measurementData);
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         Alert.alert('Success', 'Measurement saved successfully!', [
           {
             text: 'OK',
@@ -189,7 +181,7 @@ const ExtendedFormScreen = ({ navigation, route }) => {
           },
         ]);
       } else {
-        Alert.alert('Error', data.message || 'Failed to save measurement');
+        Alert.alert('Error', response.message || 'Failed to save measurement');
       }
     } catch (error) {
       Alert.alert('Error', 'Network error. Please try again.');

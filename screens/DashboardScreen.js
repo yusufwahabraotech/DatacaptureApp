@@ -15,6 +15,7 @@ import TutorialModal from './TutorialModal';
 import ViewMeasurementModal from './ViewMeasurementModal';
 import BottomNavigation from '../components/BottomNavigation';
 import { generateMeasurementsPDF, viewPDF } from '../utils/pdfGenerator';
+import ApiService from '../services/api';
 
 const DashboardScreen = ({ navigation, route }) => {
   const [quickActions, setQuickActions] = useState([]);
@@ -62,31 +63,20 @@ const DashboardScreen = ({ navigation, route }) => {
       const token = await AsyncStorage.getItem('userToken');
       if (!token) return;
 
-      const measurementsResponse = await fetch('https://datacapture-backend.onrender.com/api/manual-measurements', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const measurementsResponse = await ApiService.getManualMeasurements();
 
-      const measurementsData = await measurementsResponse.json();
-      if (measurementsData.success) {
-        const allMeasurements = measurementsData.data.measurements || [];
+      if (measurementsResponse.success) {
+        const allMeasurements = measurementsResponse.data.measurements || [];
         setMeasurements(allMeasurements);
         
         const bodyCount = allMeasurements.filter(m => m.measurementType === 'Manual').length;
         
-        // Fetch one-time codes using exact same logic as OneTimeCodesScreen
+        // Fetch one-time codes using ApiService
         let oneTimeCodesCount = 0;
         try {
-          const codesResponse = await fetch('https://datacapture-backend.onrender.com/api/admin/one-time-codes', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-
-          const codesData = await codesResponse.json();
-          if (codesData.success) {
-            oneTimeCodesCount = codesData.data.codes.length;
+          const codesResponse = await ApiService.getOneTimeCodes();
+          if (codesResponse.success) {
+            oneTimeCodesCount = codesResponse.data?.codes?.length || 0;
           }
         } catch (codesError) {
           console.log('Error fetching codes:', codesError);
@@ -183,19 +173,13 @@ const DashboardScreen = ({ navigation, route }) => {
         return;
       }
 
-      const response = await fetch('https://datacapture-backend.onrender.com/api/auth/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      console.log('Profile response:', data);
+      const response = await ApiService.getUserProfile();
+      console.log('Profile response:', response);
       
-      if (data.success) {
-        setUser(data.data.user);
+      if (response.success) {
+        setUser(response.data.user);
       } else {
-        console.log('Profile fetch failed:', data.message);
+        console.log('Profile fetch failed:', response.message);
       }
     } catch (error) {
       console.log('Error fetching profile:', error);
@@ -340,7 +324,7 @@ const DashboardScreen = ({ navigation, route }) => {
               <Text style={styles.cardTitle}>One-Time Codes</Text>
               <Ionicons name="key" size={24} color="#8B5CF6" />
             </View>
-            <Text style={styles.cardValue}>{dashboardData.oneTimeCodes}</Text>
+            <Text style={styles.cardValue}>{dashboardData.oneTimeCodes || 0}</Text>
             <View style={styles.createNewButton}>
               <Text style={styles.createNew}>Generate New</Text>
             </View>

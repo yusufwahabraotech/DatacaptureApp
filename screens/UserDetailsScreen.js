@@ -113,46 +113,46 @@ const UserDetailsScreen = ({ navigation, route }) => {
   };
 
   // Implemented by VScode copilot
-  // Fetch measurements for specific user using GET /api/admin/measurements?userId=<userId>&page=<page>&limit=<limit>
+  // Fetch measurements for specific user using role-based routing
   const fetchUserMeasurements = async (page = 1) => {
     setMeasurementsLoading(true);
     try {
-      console.log(`Fetching measurements for user (attempts) - id: ${user.id}, customUserId: ${user.customUserId}, _id: ${user._id}, page: ${page}`);
+      console.log(`=== FRONTEND DEBUG: fetchUserMeasurements ===`);
+      console.log(`User ID: ${user.id}`);
+      console.log(`Custom User ID: ${user.customUserId}`);
+      console.log(`Page: ${page}`);
+      console.log(`Current measurements count: ${measurements.length}`);
 
-      // First try with user.id
-      let response = await ApiService.getUserMeasurements(user.id, page, 20);
-      console.log(`Measurements API Response for id=${user.id}:`, response);
-
-      // Extract measurements if present
-      let newMeasurements = (response && response.success && response.data && Array.isArray(response.data.measurements))
-        ? response.data.measurements
-        : [];
-
-      // If none found, try alternate identifiers (customUserId, _id)
-      if (newMeasurements.length === 0) {
-        const altIds = [user.customUserId, user._id].filter(Boolean);
-        for (const altId of altIds) {
-          console.log(`No measurements with id=${user.id}, trying altId=${altId}`);
-          response = await ApiService.getUserMeasurements(altId, page, 20);
-          console.log(`Measurements API Response for altId=${altId}:`, response);
-          newMeasurements = (response && response.success && response.data && Array.isArray(response.data.measurements))
-            ? response.data.measurements
-            : [];
-          if (newMeasurements.length > 0) break;
-        }
-      }
+      const response = await ApiService.getUserMeasurements(user.id, page, 20);
+      console.log(`API Response:`, {
+        success: response?.success,
+        measurementsCount: response?.data?.measurements?.length || 0,
+        totalCount: response?.data?.total || 0,
+        currentPage: response?.data?.currentPage || 0
+      });
 
       if (response && response.success) {
-        console.log(`Successfully fetched ${newMeasurements.length} measurements`);
-        setMeasurements(prev => page === 1 ? newMeasurements : [...prev, ...newMeasurements]);
+        const newMeasurements = response.data?.measurements || [];
+        console.log(`Processing ${newMeasurements.length} measurements`);
+        
+        if (page === 1) {
+          console.log('Replacing measurements (page 1)');
+          setMeasurements(newMeasurements);
+        } else {
+          console.log('Appending measurements (page > 1)');
+          setMeasurements(prev => [...prev, ...newMeasurements]);
+        }
+        
         setMeasurementsPage(page);
         setHasMoreMeasurements(newMeasurements.length === 20);
+        console.log(`Final measurements count: ${page === 1 ? newMeasurements.length : measurements.length + newMeasurements.length}`);
       } else {
-        console.log('Error fetching measurements - API returned success: false or no response', response);
+        console.log('API returned success: false or no response');
+        setMeasurements([]);
       }
     } catch (error) {
-      console.log('Error fetching user measurements - Exception:', error);
-      console.log('Error details:', error.message);
+      console.log('Exception in fetchUserMeasurements:', error);
+      setMeasurements([]);
     } finally {
       setMeasurementsLoading(false);
     }
@@ -167,22 +167,13 @@ const UserDetailsScreen = ({ navigation, route }) => {
     setUpdateLoading(true);
     try {
       const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch(`https://datacapture-backend.onrender.com/api/admin/users/${user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(editUser),
-      });
-
-      const data = await response.json();
-      if (data.success) {
+      const response = await ApiService.updateUser(user.id, editUser);
+      if (response.success) {
         Alert.alert('Success', 'User information updated successfully');
         setShowEditModal(false);
         Object.assign(user, editUser, { fullName: `${editUser.firstName} ${editUser.lastName}` });
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to update user information');
@@ -195,17 +186,10 @@ const UserDetailsScreen = ({ navigation, route }) => {
     setUpdateLoading(true);
     try {
       const response = userProfile?.role === 'ORGANIZATION'
-        ? await fetch(`https://datacapture-backend.onrender.com/api/admin/users/${user.id}/send-email`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${await AsyncStorage.getItem('userToken')}`,
-            },
-            body: JSON.stringify({ 
-              adminMessage: emailMessage,
-              generateNewPassword: true
-            }),
-          }).then(res => res.json())
+        ? await ApiService.sendAdminUserEmail(user.id, {
+            adminMessage: emailMessage,
+            generateNewPassword: true
+          })
         : await ApiService.sendOrgUserEmail(user.id, {
             adminMessage: emailMessage,
             generateNewPassword: true
@@ -245,14 +229,7 @@ const UserDetailsScreen = ({ navigation, route }) => {
     setUpdateLoading(true);
     try {
       const response = userProfile?.role === 'ORGANIZATION'
-        ? await fetch(`https://datacapture-backend.onrender.com/api/admin/users/${user.id}/password`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${await AsyncStorage.getItem('userToken')}`,
-            },
-            body: JSON.stringify({ password: newPassword }),
-          }).then(res => res.json())
+        ? await ApiService.resetAdminUserPassword(user.id, { password: newPassword })
         : await ApiService.resetOrgUserPassword(user.id, { password: newPassword });
 
       if (response.success) {
@@ -513,10 +490,13 @@ const UserDetailsScreen = ({ navigation, route }) => {
           
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => navigation.navigate('UserPermissions', { user })}
+            onPress={() => navigation.navigate('UserPermissions', { 
+              userId: user.id || user._id, 
+              userName: user.fullName 
+            })}
           >
             <Ionicons name="shield-checkmark-outline" size={20} color="#7C3AED" />
-            <Text style={styles.actionButtonText}>Manage Permissions</Text>
+            <Text style={styles.actionButtonText}>Manage Roles</Text>
             <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
           </TouchableOpacity>
           
@@ -606,6 +586,38 @@ const UserDetailsScreen = ({ navigation, route }) => {
           <View style={styles.measurementsSectionHeader}>
             <Text style={styles.sectionTitle}>User Measurements</Text>
             <View style={styles.measurementHeaderRight}>
+              <TouchableOpacity 
+                style={styles.debugButton}
+                onPress={async () => {
+                  console.log('=== DEBUG: Testing measurements filtering ===');
+                  console.log('User ID:', user.id);
+                  console.log('Custom User ID:', user.customUserId);
+                  
+                  try {
+                    const structureResult = await ApiService.debugMeasurementsStructure(user.id);
+                    console.log('Structure Debug:', structureResult);
+                    
+                    const filterResult = await ApiService.debugMeasurementsFilter(user.id, 1, 20);
+                    console.log('Filter Debug:', filterResult);
+                    
+                    // FORCE REFRESH WITH CORRECT API - call debugMeasurementsFilter instead
+                    console.log('=== FORCING CORRECT API CALL ===');
+                    const correctResult = filterResult; // Use the debug result that works
+                    console.log('Correct API Result:', correctResult);
+                    if (correctResult.success) {
+                      setMeasurements(correctResult.data?.measurements || []);
+                      console.log('Updated measurements state to:', correctResult.data?.measurements?.length || 0);
+                    }
+                    
+                    Alert.alert('Debug Results', `Backend: ${filterResult?.data?.total || 0} measurements. UI updated to: ${correctResult?.data?.measurements?.length || 0} measurements.`);
+                  } catch (error) {
+                    console.log('Debug Error:', error);
+                    Alert.alert('Debug Error', error.message);
+                  }
+                }}
+              >
+                <Ionicons name="bug" size={16} color="#EF4444" />
+              </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.refreshButton}
                 onPress={() => fetchUserMeasurements(1)}
@@ -1139,6 +1151,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  debugButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   refreshButton: {
     width: 32,

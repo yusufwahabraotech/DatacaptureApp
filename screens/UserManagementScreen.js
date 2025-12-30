@@ -29,9 +29,9 @@ const UserManagementScreen = ({ navigation }) => {
     email: '',
     phoneNumber: '',
     password: '',
-    permissions: []
+    roleId: null
   });
-  const [availablePermissions, setAvailablePermissions] = useState([]);
+  const [availableRoles, setAvailableRoles] = useState([]);
   const [showRoleSection, setShowRoleSection] = useState(false);
 
   const statusOptions = [
@@ -48,23 +48,17 @@ const UserManagementScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchUsers();
-    fetchPermissions();
+    fetchRoles();
   }, [selectedStatus]);
 
-  const fetchPermissions = async () => {
+  const fetchRoles = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('https://datacapture-backend.onrender.com/api/admin/permissions', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (data.success) {
-        setAvailablePermissions(data.data.permissions);
+      const response = await ApiService.getRoles(1, 50);
+      if (response.success) {
+        setAvailableRoles(response.data.roles || []);
       }
     } catch (error) {
-      console.log('Error fetching permissions:', error);
+      console.log('Error fetching roles:', error);
     }
   };
 
@@ -74,20 +68,9 @@ const UserManagementScreen = ({ navigation }) => {
     setStatusLoading(true);
     setUsers([]); // Clear users immediately when status changes
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const endpoint = selectedStatus === 'all' 
-        ? 'https://datacapture-backend.onrender.com/api/admin/users?page=1&limit=50'
-        : `https://datacapture-backend.onrender.com/api/admin/users/status/${selectedStatus}`;
-      
-      const response = await fetch(endpoint, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        const allUsers = data.data.users;
+      const response = await ApiService.getUsers();
+      if (response.success) {
+        const allUsers = response.data.users;
         // Filter users by status only if not 'all'
         const filteredUsers = selectedStatus === 'all' 
           ? allUsers 
@@ -95,7 +78,7 @@ const UserManagementScreen = ({ navigation }) => {
         setUsers(filteredUsers);
         console.log(`Fetched ${filteredUsers.length} ${selectedStatus === 'all' ? 'total' : selectedStatus} users`);
       } else {
-        console.log('Error from API:', data.message);
+        console.log('Error from API:', response.message);
         setUsers([]);
       }
     } catch (error) {
@@ -154,31 +137,22 @@ const UserManagementScreen = ({ navigation }) => {
     setCreateLoading(true);
     try {
       const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('https://datacapture-backend.onrender.com/api/admin/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(newUser),
-      });
-
-      const data = await response.json();
-      if (data.success) {
+      const response = await ApiService.createOrgUser(newUser);
+      if (response.success) {
         // Store password locally for viewing in UserDetails
-        const finalPassword = newUser.password || data.data.generatedPassword;
+        const finalPassword = newUser.password || response.data.generatedPassword;
         const userPasswords = await AsyncStorage.getItem('userPasswords') || '{}';
         const passwordsObj = JSON.parse(userPasswords);
-        passwordsObj[data.data.id || data.data.customUserId] = finalPassword;
+        passwordsObj[response.data.id || response.data.customUserId] = finalPassword;
         await AsyncStorage.setItem('userPasswords', JSON.stringify(passwordsObj));
         
-        Alert.alert('Success', `User created successfully!\nCustom ID: ${data.data.customUserId}${data.data.generatedPassword ? `\nPassword: ${data.data.generatedPassword}` : ''}`);
+        Alert.alert('Success', `User created successfully!\nCustom ID: ${response.data.customUserId}${response.data.generatedPassword ? `\nPassword: ${response.data.generatedPassword}` : ''}`);
         setShowCreateModal(false);
-        setNewUser({ firstName: '', lastName: '', email: '', phoneNumber: '', password: '', permissions: [] });
+        setNewUser({ firstName: '', lastName: '', email: '', phoneNumber: '', password: '', roleId: null });
         setShowRoleSection(false);
         fetchUsers();
       } else {
-        Alert.alert('Error', data.message);
+        Alert.alert('Error', response.message);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to create user');
@@ -391,36 +365,48 @@ const UserManagementScreen = ({ navigation }) => {
                 </TouchableOpacity>
                 
                 {showRoleSection && (
-                  <View style={styles.permissionsContainer}>
-                    <Text style={styles.permissionsTitle}>Select Permissions:</Text>
-                    <ScrollView style={styles.permissionsList} nestedScrollEnabled>
-                      {availablePermissions.map((permission, index) => (
-                        <TouchableOpacity
-                          key={permission.id || `permission-${index}`}
-                          style={styles.permissionItem}
-                          onPress={() => {
-                            const permissionId = permission.id || index;
-                            const isSelected = newUser.permissions.includes(permissionId);
-                            const updatedPermissions = isSelected
-                              ? newUser.permissions.filter(p => p !== permissionId)
-                              : [...newUser.permissions, permissionId];
-                            setNewUser({...newUser, permissions: updatedPermissions});
-                          }}
-                        >
-                          <View style={styles.permissionInfo}>
-                            <Text style={styles.permissionName}>{permission.name}</Text>
-                            <Text style={styles.permissionDescription}>{permission.description}</Text>
-                          </View>
-                          <View style={[
-                            styles.checkbox,
-                            newUser.permissions.includes(permission.id || index) && styles.checkboxActive
-                          ]}>
-                            {newUser.permissions.includes(permission.id || index) && (
-                              <Ionicons name="checkmark" size={16} color="white" />
-                            )}
-                          </View>
-                        </TouchableOpacity>
-                      ))}
+                  <View style={styles.rolesContainer}>
+                    <Text style={styles.rolesTitle}>Select Role:</Text>
+                    <Text style={styles.rolesSubtitle}>
+                      Choose a role for this user
+                    </Text>
+                    <ScrollView style={styles.rolesList} nestedScrollEnabled>
+                      {availableRoles.length === 0 ? (
+                        <View style={styles.emptyRoles}>
+                          <Text style={styles.emptyRolesText}>No roles available</Text>
+                          <Text style={styles.emptyRolesSubtext}>Create roles first to assign them</Text>
+                        </View>
+                      ) : (
+                        availableRoles.map((role) => (
+                          <TouchableOpacity
+                            key={role.id || role._id}
+                            style={[
+                              styles.roleItem,
+                              newUser.roleId === (role.id || role._id) && styles.roleItemSelected
+                            ]}
+                            onPress={() => {
+                              const roleId = role.id || role._id;
+                              setNewUser({...newUser, roleId: newUser.roleId === roleId ? null : roleId});
+                            }}
+                          >
+                            <View style={styles.roleInfo}>
+                              <Text style={styles.roleName}>{role.name}</Text>
+                              <Text style={styles.roleDescription}>{role.description}</Text>
+                              <Text style={styles.rolePermissions}>
+                                {role.permissions?.length || 0} permissions
+                              </Text>
+                            </View>
+                            <View style={[
+                              styles.radioButton,
+                              newUser.roleId === (role.id || role._id) && styles.radioButtonActive
+                            ]}>
+                              {newUser.roleId === (role.id || role._id) && (
+                                <View style={styles.radioButtonInner} />
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        ))
+                      )}
                     </ScrollView>
                   </View>
                 )}
@@ -729,54 +715,90 @@ const styles = StyleSheet.create({
     color: '#7C3AED',
     marginRight: 8,
   },
-  permissionsContainer: {
+  rolesContainer: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 8,
     padding: 16,
   },
-  permissionsTitle: {
+  rolesTitle: {
     fontSize: 14,
     fontWeight: '500',
     color: '#1F2937',
+    marginBottom: 8,
+  },
+  rolesSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
     marginBottom: 12,
   },
-  permissionsList: {
+  rolesList: {
     maxHeight: 200,
   },
-  permissionItem: {
+  emptyRoles: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  emptyRolesText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  emptyRolesSubtext: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 4,
+  },
+  roleItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    marginBottom: 8,
   },
-  permissionInfo: {
+  roleItemSelected: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  roleInfo: {
     flex: 1,
     marginRight: 12,
   },
-  permissionName: {
+  roleName: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#1F2937',
   },
-  permissionDescription: {
+  roleDescription: {
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
   },
-  checkbox: {
+  rolePermissions: {
+    fontSize: 11,
+    color: '#7C3AED',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  radioButton: {
     width: 24,
     height: 24,
-    borderRadius: 4,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxActive: {
-    backgroundColor: '#7C3AED',
+  radioButtonActive: {
     borderColor: '#7C3AED',
+  },
+  radioButtonInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#7C3AED',
   },
   modalActions: {
     flexDirection: 'row',

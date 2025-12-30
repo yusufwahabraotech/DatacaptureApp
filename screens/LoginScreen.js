@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiService from '../services/api';
 
 const LoginScreen = ({ navigation, route }) => {
   const [email, setEmail] = useState('');
@@ -32,30 +33,19 @@ const LoginScreen = ({ navigation, route }) => {
 
     setLoading(true);
     try {
-      const response = await fetch('https://datacapture-backend.onrender.com/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email.toLowerCase(),
-          password,
-        }),
-      });
+      const response = await ApiService.login(email, password);
 
-      const data = await response.json();
-
-      if (data.success) {
-        console.log('Login response:', data);
-        console.log('JWT Token:', data.data.jwtToken);
+      if (response.success) {
+        console.log('Login response:', response);
+        console.log('JWT Token:', response.data.jwtToken);
         
-        await AsyncStorage.setItem('userToken', data.data.jwtToken);
+        await AsyncStorage.setItem('userToken', response.data.jwtToken);
         
         // Verify token was stored
         const storedToken = await AsyncStorage.getItem('userToken');
         console.log('Stored token:', storedToken);
         
-        const userRole = data.data.user.role;
+        const userRole = response.data.user.role;
         if (userRole === 'SUPER_ADMIN') {
           navigation.replace('SuperAdminDashboard', { showTutorial: true });
         } else if (userRole === 'ORGANIZATION' || userRole === 'ADMIN') {
@@ -64,8 +54,8 @@ const LoginScreen = ({ navigation, route }) => {
           navigation.replace('Dashboard', { showTutorial: true });
         }
       } else {
-        if (data.code === 'EMAIL_NOT_VERIFIED') {
-          Alert.alert('Email Not Verified', data.message, [
+        if (response.code === 'EMAIL_NOT_VERIFIED') {
+          Alert.alert('Email Not Verified', response.message, [
             {
               text: 'Verify Now',
               onPress: () => navigation.navigate('VerifyOTP', { email: email.toLowerCase() }),
@@ -73,7 +63,7 @@ const LoginScreen = ({ navigation, route }) => {
             { text: 'Cancel', style: 'cancel' },
           ]);
         } else {
-          Alert.alert('Login Failed', data.message || 'Invalid credentials');
+          Alert.alert('Login Failed', response.message || 'Invalid credentials');
         }
       }
     } catch (error) {

@@ -107,6 +107,18 @@ const AdminDashboardScreen = ({ navigation }) => {
       onPress: () => navigation.navigate('UserManagement')
     },
     {
+      title: 'Manage Roles',
+      subtitle: 'Create and manage user roles',
+      icon: 'shield',
+      onPress: () => navigation.navigate('Roles')
+    },
+    {
+      title: 'Manage Groups',
+      subtitle: 'Create and manage user groups',
+      icon: 'people-circle',
+      onPress: () => navigation.navigate('Groups')
+    },
+    {
       title: 'View Measurements',
       subtitle: 'View all user measurements',
       icon: 'body',
@@ -129,6 +141,12 @@ const AdminDashboardScreen = ({ navigation }) => {
       subtitle: 'Manage your subscription',
       icon: 'card',
       onPress: () => navigation.navigate('OrganizationSubscription')
+    },
+    {
+      title: 'Debug API',
+      subtitle: 'Test API connections',
+      icon: 'bug',
+      onPress: () => navigation.navigate('Debug')
     }
   ];
 
@@ -204,7 +222,7 @@ const AdminDashboardScreen = ({ navigation }) => {
               <Text style={styles.codesLabel}>Used</Text>
             </View>
             <View style={styles.codesStat}>
-              <Text style={styles.codesValue}>{stats.oneTimeCodesAvailable || (stats.oneTimeCodesGenerated - stats.oneTimeCodesUsed)}</Text>
+              <Text style={styles.codesValue}>{stats.oneTimeCodesAvailable || (stats.oneTimeCodesGenerated - stats.oneTimeCodesUsed) || 0}</Text>
               <Text style={styles.codesLabel}>Available</Text>
             </View>
           </View>

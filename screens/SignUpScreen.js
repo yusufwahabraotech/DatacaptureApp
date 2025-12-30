@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { countries } from '../data/countries';
+import ApiService from '../services/api';
 
 const SignUpScreen = ({ navigation, route }) => {
   const [fullName, setFullName] = useState('');
@@ -84,20 +85,12 @@ const SignUpScreen = ({ navigation, route }) => {
         requestBody.country = selectedCountry;
       }
 
-      const response = await fetch('https://datacapture-backend.onrender.com/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await ApiService.register(requestBody);
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         navigation.navigate('VerifyOTP', { email: email.toLowerCase() });
       } else {
-        Alert.alert('Registration Failed', data.message || 'Failed to create account');
+        Alert.alert('Registration Failed', response.message || 'Failed to create account');
       }
     } catch (error) {
       Alert.alert('Error', 'Network error. Please try again.');

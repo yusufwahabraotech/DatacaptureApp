@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,18 +11,49 @@ import {
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import ApiService from '../services/api';
 
 const CreateUserScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [generatePassword, setGeneratePassword] = useState(true);
+  const [roles, setRoles] = useState([]);
+  const [userProfile, setUserProfile] = useState(null);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phoneNumber: '',
     password: '',
+    roleId: '',
   });
+
+  useEffect(() => {
+    fetchUserProfile();
+    fetchRoles();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await ApiService.getUserProfile();
+      if (response.success) {
+        setUserProfile(response.data.user);
+      }
+    } catch (error) {
+      console.log('Error fetching user profile:', error);
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const response = await ApiService.getRoles(1, 50);
+      if (response.success) {
+        setRoles(response.data.roles || []);
+      }
+    } catch (error) {
+      console.log('Error fetching roles:', error);
+    }
+  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -46,6 +77,10 @@ const CreateUserScreen = ({ navigation }) => {
     }
     if (!formData.email.includes('@')) {
       Alert.alert('Error', 'Please enter a valid email');
+      return false;
+    }
+    if (!formData.roleId) {
+      Alert.alert('Error', 'Please select a role');
       return false;
     }
     return true;
@@ -147,6 +182,29 @@ const CreateUserScreen = ({ navigation }) => {
               placeholder="Enter phone number"
               keyboardType="phone-pad"
             />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Role *</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={formData.roleId}
+                onValueChange={(value) => handleInputChange('roleId', value)}
+                style={styles.picker}
+              >
+                <Picker.Item label="Select a role" value="" />
+                {roles.map((role) => (
+                  <Picker.Item 
+                    key={role.id || role._id} 
+                    label={role.name} 
+                    value={role.id || role._id} 
+                  />
+                ))}
+              </Picker>
+            </View>
+            <Text style={styles.helpText}>
+              Select a role to assign permissions to this user
+            </Text>
           </View>
 
           <View style={styles.inputGroup}>
@@ -276,6 +334,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  picker: {
+    height: 50,
+    color: '#1F2937',
   },
 });
 

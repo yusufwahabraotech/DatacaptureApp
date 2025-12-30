@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiService from '../services/api';
 
 const PermissionsManagementScreen = ({ navigation }) => {
   const [permissions, setPermissions] = useState([]);
@@ -20,16 +21,9 @@ const PermissionsManagementScreen = ({ navigation }) => {
 
   const fetchPermissions = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('https://datacapture-backend.onrender.com/api/admin/permissions', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setPermissions(data.data.permissions);
+      const response = await ApiService.getPermissions();
+      if (response.success) {
+        setPermissions(response.data.permissions);
       }
     } catch (error) {
       console.log('Error fetching permissions:', error);

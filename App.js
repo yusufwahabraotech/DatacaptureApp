@@ -40,6 +40,11 @@ import UserDashboardScreen from './screens/UserDashboardScreen';
 import UserOneTimeCodesScreen from './screens/UserOneTimeCodesScreen';
 import CreateUserScreen from './screens/CreateUserScreen';
 import UsersListScreen from './screens/UsersListScreen';
+import RolesScreen from './screens/RolesScreen';
+import CreateRoleScreen from './screens/CreateRoleScreen';
+import GroupsScreen from './screens/GroupsScreen';
+import CreateGroupScreen from './screens/CreateGroupScreen';
+import DebugScreen from './screens/DebugScreen';
 
 const Stack = createStackNavigator();
 
@@ -89,6 +94,11 @@ export default function App() {
         <Stack.Screen name="UserOneTimeCodes" component={UserOneTimeCodesScreen} />
         <Stack.Screen name="UsersList" component={UsersListScreen} />
         <Stack.Screen name="CreateUser" component={CreateUserScreen} />
+        <Stack.Screen name="Roles" component={RolesScreen} />
+        <Stack.Screen name="CreateRole" component={CreateRoleScreen} />
+        <Stack.Screen name="Groups" component={GroupsScreen} />
+        <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
+        <Stack.Screen name="Debug" component={DebugScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

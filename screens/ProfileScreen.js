@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiService from '../services/api';
 
 const ProfileScreen = ({ navigation }) => {
   const [user, setUser] = useState(null);
@@ -32,26 +33,12 @@ const ProfileScreen = ({ navigation }) => {
 
   const fetchUserProfile = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
+      const response = await ApiService.getUserProfile();
       
-      if (!token) {
-        Alert.alert('Error', 'No authentication token found');
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch('https://datacapture-backend.onrender.com/api/auth/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        setUser(data.data.user);
+      if (response.success) {
+        setUser(response.data.user);
       } else {
-        Alert.alert('Error', data.message || 'Failed to load profile');
+        Alert.alert('Error', response.message || 'Failed to load profile');
       }
     } catch (error) {
       console.log('Profile fetch error:', error);
@@ -63,38 +50,13 @@ const ProfileScreen = ({ navigation }) => {
 
   const fetchUserStats = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      if (!token) return;
-
-      // Check if user is admin and fetch appropriate stats
-      const isAdmin = user?.role === 'admin';
-      const endpoint = isAdmin 
-        ? 'https://datacapture-backend.onrender.com/api/admin/dashboard/stats'
-        : 'https://datacapture-backend.onrender.com/api/user/stats';
-
-      const response = await fetch(endpoint, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        if (isAdmin) {
-          // Admin stats from dashboard
-          setStats({
-            measurements: data.data.totalMeasurements || 0,
-            questionnaires: data.data.totalQuestionnaires || 0,
-            daysActive: data.data.daysActive || 0
-          });
-        } else {
-          // Regular user stats
-          setStats({
-            measurements: data.data.measurementCount || 0,
-            questionnaires: data.data.questionnaireCount || 0,
-            daysActive: data.data.daysActive || 0
-          });
-        }
+      const response = await ApiService.getDashboardStats();
+      if (response.success) {
+        setStats({
+          measurements: response.data.totalMeasurements || 0,
+          questionnaires: response.data.totalQuestionnaires || 0,
+          daysActive: response.data.daysActive || 0
+        });
       }
     } catch (error) {
       console.log('Stats fetch error:', error);

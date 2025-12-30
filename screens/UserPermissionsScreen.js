@@ -5,104 +5,130 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
+  ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/api';
 
 const UserPermissionsScreen = ({ navigation, route }) => {
-  const { user } = route.params;
-  const [availablePermissions, setAvailablePermissions] = useState([]);
-  const [userPermissions, setUserPermissions] = useState([]);
+  const { userId, userName } = route.params;
+  const [roles, setRoles] = useState([]);
+  const [selectedRoleId, setSelectedRoleId] = useState('');
+  const [currentRole, setCurrentRole] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    fetchAvailablePermissions();
+    loadData();
   }, []);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchUserPermissions();
-    }, [])
-  );
+  const loadData = async () => {
+    await fetchRoles();
+    await fetchUserRole();
+    setLoading(false);
+  };
 
-  const fetchAvailablePermissions = async () => {
+  const fetchRoles = async () => {
     try {
-      const response = await ApiService.getAvailablePermissions();
+      const response = await ApiService.getAvailableRoles();
       if (response.success) {
-        setAvailablePermissions(response.data.permissions);
+        setRoles(response.data.roles || []);
       }
     } catch (error) {
-      console.log('Error fetching available permissions:', error);
+      console.log('Error fetching roles:', error);
     }
   };
 
-  const fetchUserPermissions = async () => {
-    console.log('Fetching permissions for user:', user.id);
-    setLoading(true);
-    try {
-      const response = await ApiService.getUserPermissions(user.id);
-      console.log('Fetch permissions response:', response);
-      
-      if (response.success) {
-        console.log('User permissions from backend:', response.data.permissions);
-        setUserPermissions(response.data.permissions || []);
-      } else {
-        console.log('Fetch failed:', response.message);
-      }
-    } catch (error) {
-      console.log('Error fetching user permissions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const togglePermission = (permissionKey) => {
-    setUserPermissions(prev => 
-      prev.includes(permissionKey)
-        ? prev.filter(p => p !== permissionKey)
-        : [...prev, permissionKey]
-    );
-  };
-
-  const savePermissions = async () => {
-    console.log('Saving permissions for user:', user.id);
-    console.log('Permissions to save:', userPermissions);
+  const fetchUserRole = async () => {
+    if (!userId) return;
     
-    setSaving(true);
     try {
-      const response = await ApiService.updateUserPermissions(user.id, userPermissions);
-      console.log('Save permissions response:', response);
-      
-      if (response.success) {
-        Alert.alert('Success', 'User permissions updated successfully');
-        // Add small delay then refetch to ensure backend has processed the update
-        setTimeout(() => {
-          fetchUserPermissions();
-        }, 500);
+      const response = await ApiService.getUserRole(userId);
+      if (response.success && response.data.role) {
+        setCurrentRole(response.data.role);
+        setSelectedRoleId(response.data.role._id);
       } else {
-        console.log('Save failed with message:', response.message);
-        Alert.alert('Error', response.message || 'Failed to update permissions');
+        setCurrentRole(null);
+        setSelectedRoleId('');
       }
     } catch (error) {
-      console.log('Save permissions error:', error);
-      Alert.alert('Error', 'Failed to update permissions');
-    } finally {
-      setSaving(false);
+      console.log('Error fetching user role:', error);
     }
   };
 
-  const groupPermissions = (permissions) => {
-    const groups = {
-      'Measurements': permissions.filter(p => p.key.includes('measurement')),
-      'Users': permissions.filter(p => p.key.includes('user')),
-      'Codes': permissions.filter(p => p.key.includes('code')),
-      'System': permissions.filter(p => !p.key.includes('measurement') && !p.key.includes('user') && !p.key.includes('code'))
-    };
-    return groups;
+  const handleRoleSelect = (roleId) => {
+    setSelectedRoleId(selectedRoleId === roleId ? '' : roleId);
+  };
+
+  const handleAssignRole = async () => {
+    if (!selectedRoleId) {
+      Alert.alert('Error', 'Please select a role');
+      return;
+    }
+    
+    setUpdating(true);
+    try {
+      const response = await ApiService.assignUserRole(userId, selectedRoleId);
+      if (response.success) {
+        Alert.alert('Success', 'Role assigned successfully');
+        await fetchUserRole();
+      } else {
+        Alert.alert('Error', response.message || 'Failed to assign role');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to assign role');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const renderRoleCard = ({ item }) => {
+    const isSelected = selectedRoleId === item._id;
+    const isCurrent = currentRole?._id === item._id;
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.roleCard,
+          isSelected && styles.roleCardSelected,
+          isCurrent && styles.roleCardCurrent
+        ]}
+        onPress={() => handleRoleSelect(item._id)}
+        disabled={updating}
+      >
+        <View style={styles.roleHeader}>
+          <View style={styles.roleIconContainer}>
+            <Ionicons name="shield" size={20} color="#7C3AED" />
+          </View>
+          <View style={styles.checkboxContainer}>
+            <View style={[
+              styles.checkbox,
+              isSelected && styles.checkboxSelected
+            ]}>
+              {isSelected && (
+                <Ionicons name="checkmark" size={16} color="white" />
+              )}
+            </View>
+          </View>
+        </View>
+        
+        <Text style={styles.roleName}>{item.name}</Text>
+        <Text style={styles.roleDescription} numberOfLines={2}>
+          {item.description}
+        </Text>
+        <Text style={styles.rolePermissions}>
+          {item.permissions?.length || 0} permissions
+        </Text>
+        
+        {isCurrent && (
+          <View style={styles.currentBadge}>
+            <Text style={styles.currentBadgeText}>Current</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
   };
 
   if (loading) {
@@ -112,76 +138,61 @@ const UserPermissionsScreen = ({ navigation, route }) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Manage Permissions</Text>
+          <Text style={styles.headerTitle}>Assign Role</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#7C3AED" />
-          <Text style={styles.loadingText}>Loading permissions...</Text>
+          <Text style={styles.loadingText}>Loading roles...</Text>
         </View>
       </View>
     );
   }
 
-  const permissionGroups = groupPermissions(availablePermissions);
-
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Manage Permissions</Text>
-        <TouchableOpacity onPress={savePermissions} disabled={saving}>
-          {saving ? (
-            <ActivityIndicator size="small" color="#7C3AED" />
+        <Text style={styles.headerTitle}>Assign Role</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <View style={styles.content}>
+        {/* User Info */}
+        <View style={styles.userCard}>
+          <Text style={styles.userName}>{userName}</Text>
+          <Text style={styles.userSubtitle}>Select a role to assign</Text>
+        </View>
+
+        {/* Roles List */}
+        <FlatList
+          key="single-column"
+          data={roles}
+          renderItem={renderRoleCard}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+        />
+
+        {/* Assign Button */}
+        <TouchableOpacity
+          style={[
+            styles.assignButton,
+            (!selectedRoleId || updating) && styles.assignButtonDisabled
+          ]}
+          onPress={handleAssignRole}
+          disabled={!selectedRoleId || updating}
+        >
+          {updating ? (
+            <ActivityIndicator color="white" size="small" />
           ) : (
-            <Text style={styles.saveButton}>Save</Text>
+            <Text style={styles.assignButtonText}>Assign Selected Role</Text>
           )}
         </TouchableOpacity>
       </View>
-
-      <ScrollView style={styles.content}>
-        <View style={styles.userInfo}>
-          <View style={styles.userAvatar}>
-            <Text style={styles.userAvatarText}>
-              {user.fullName.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-          <View>
-            <Text style={styles.userName}>{user.fullName}</Text>
-            <Text style={styles.userEmail}>{user.email}</Text>
-          </View>
-        </View>
-
-        {Object.entries(permissionGroups).map(([groupName, permissions]) => (
-          permissions.length > 0 && (
-            <View key={groupName} style={styles.permissionGroup}>
-              <Text style={styles.groupTitle}>{groupName}</Text>
-              {permissions.map((permission) => (
-                <TouchableOpacity
-                  key={permission.key}
-                  style={styles.permissionItem}
-                  onPress={() => togglePermission(permission.key)}
-                >
-                  <View style={styles.permissionInfo}>
-                    <Text style={styles.permissionName}>{permission.name}</Text>
-                    <Text style={styles.permissionDescription}>{permission.description}</Text>
-                  </View>
-                  <View style={[
-                    styles.checkbox,
-                    userPermissions.includes(permission.key) && styles.checkboxChecked
-                  ]}>
-                    {userPermissions.includes(permission.key) && (
-                      <Ionicons name="checkmark" size={16} color="white" />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )
-        ))}
-      </ScrollView>
     </View>
   );
 };
@@ -189,7 +200,7 @@ const UserPermissionsScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -198,7 +209,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 20,
-    backgroundColor: '#FFFFFF',
   },
   headerTitle: {
     fontSize: 18,
@@ -207,14 +217,6 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 24,
-  },
-  saveButton: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#7C3AED',
-  },
-  content: {
-    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -226,82 +228,125 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
   },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    marginBottom: 16,
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
   },
-  userAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#7C3AED',
-    justifyContent: 'center',
+  userCard: {
+    backgroundColor: '#F5F3FF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
     alignItems: 'center',
-    marginRight: 16,
-  },
-  userAvatarText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 20,
   },
   userName: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
   },
-  userEmail: {
+  userSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#7C3AED',
     marginTop: 2,
   },
-  permissionGroup: {
-    backgroundColor: '#FFFFFF',
-    marginBottom: 16,
-    padding: 20,
+  listContainer: {
+    paddingBottom: 20,
   },
-  groupTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 16,
+  roleCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  permissionItem: {
+  roleCardSelected: {
+    borderColor: '#7C3AED',
+    backgroundColor: '#F5F3FF',
+  },
+  roleCardCurrent: {
+    borderColor: '#10B981',
+  },
+  roleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    marginBottom: 12,
   },
-  permissionInfo: {
-    flex: 1,
-    marginRight: 16,
-  },
-  permissionName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1F2937',
-  },
-  permissionDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
+  roleIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F5F3FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  checkboxChecked: {
+  checkboxContainer: {
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
     backgroundColor: '#7C3AED',
     borderColor: '#7C3AED',
+  },
+  roleName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  roleDescription: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 8,
+    lineHeight: 16,
+  },
+  rolePermissions: {
+    fontSize: 11,
+    color: '#7C3AED',
+    fontWeight: '500',
+  },
+  currentBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  currentBadgeText: {
+    fontSize: 10,
+    color: 'white',
+    fontWeight: '600',
+  },
+  assignButton: {
+    backgroundColor: '#7C3AED',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  assignButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  assignButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

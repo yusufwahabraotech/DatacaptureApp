@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import ApiService from '../services/api';
 
 const VerifyOTPScreen = ({ navigation, route }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -47,20 +48,9 @@ const VerifyOTPScreen = ({ navigation, route }) => {
 
     setLoading(true);
     try {
-      const response = await fetch('https://datacapture-backend.onrender.com/api/auth/verify-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          otp: otpCode,
-        }),
-      });
+      const response = await ApiService.verifyOTP(email, otpCode);
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         Alert.alert('Success', 'Account verified successfully!', [
           {
             text: 'OK',
@@ -68,7 +58,7 @@ const VerifyOTPScreen = ({ navigation, route }) => {
           },
         ]);
       } else {
-        Alert.alert('Verification Failed', data.message || 'Invalid OTP');
+        Alert.alert('Verification Failed', response.message || 'Invalid OTP');
       }
     } catch (error) {
       Alert.alert('Error', 'Network error. Please try again.');
@@ -80,22 +70,14 @@ const VerifyOTPScreen = ({ navigation, route }) => {
   const handleResendOTP = async () => {
     setResendLoading(true);
     try {
-      const response = await fetch('https://datacapture-backend.onrender.com/api/auth/resend-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
+      const response = await ApiService.resendOTP(email);
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         Alert.alert('Success', 'OTP sent successfully!');
         setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
       } else {
-        Alert.alert('Error', data.message || 'Failed to resend OTP');
+        Alert.alert('Error', response.message || 'Failed to resend OTP');
       }
     } catch (error) {
       Alert.alert('Error', 'Network error. Please try again.');

@@ -96,6 +96,30 @@ const UserSettingsScreen = ({ navigation }) => {
       });
     }
 
+    // Role Management permissions
+    if (hasPermission('view_roles')) {
+      cards.push({
+        title: 'Roles Management',
+        subtitle: 'Manage user roles',
+        icon: 'shield-checkmark',
+        color: '#7C3AED',
+        bgColor: '#F5F3FF',
+        onPress: () => navigation.navigate('Roles')
+      });
+    }
+
+    // Group Management permissions
+    if (hasPermission('view_groups')) {
+      cards.push({
+        title: 'Groups Management',
+        subtitle: 'Manage user groups',
+        icon: 'layers',
+        color: '#EC4899',
+        bgColor: '#FDF2F8',
+        onPress: () => navigation.navigate('Groups')
+      });
+    }
+
     // Measurements permissions
     if (hasPermission('view_measurements')) {
       cards.push({

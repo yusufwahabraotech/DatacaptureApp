@@ -1,14 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'https://datacapture-backend.onrender.com/api';
+const BASE_URL = 'http://192.168.1.183:3000/api';
 
 class ApiService {
-  // Get auth token
   static async getToken() {
     return await AsyncStorage.getItem('userToken');
   }
 
-  // Generic API call method
   static async apiCall(endpoint, options = {}) {
     const token = await this.getToken();
     const url = `${BASE_URL}${endpoint}`;
@@ -24,7 +22,6 @@ class ApiService {
 
     const response = await fetch(url, config);
     
-    // Implemented by VScode copilot - Better error handling
     if (!response.ok) {
       console.log(`API Error - Status: ${response.status}, URL: ${url}`);
       const error = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -38,7 +35,30 @@ class ApiService {
     return await response.json();
   }
 
-  // Auth endpoints
+  static async getUserRole() {
+    try {
+      const profileResponse = await this.getUserProfile();
+      const role = profileResponse.success ? profileResponse.data.user.role : null;
+      console.log('=== ROLE DEBUG ===');
+      console.log('Profile response:', profileResponse.success);
+      console.log('Detected role:', role);
+      return role;
+    } catch (error) {
+      console.log('Error getting user role:', error);
+      return null;
+    }
+  }
+
+  static async getBaseUrl() {
+    try {
+      const userRole = await this.getUserRole();
+      return userRole === 'ORGANIZATION' ? '/admin' : '/org-user';
+    } catch (error) {
+      return '/org-user';
+    }
+  }
+
+  // AUTH
   static async login(email, password) {
     return this.apiCall('/auth/login', {
       method: 'POST',
@@ -46,24 +66,14 @@ class ApiService {
     });
   }
 
+  static async getUserProfile() {
+    return this.apiCall('/auth/profile');
+  }
+
   static async register(userData) {
-    const requestBody = {
-      email: userData.email.toLowerCase(),
-      password: userData.password,
-      fullName: userData.fullName,
-      phoneNumber: userData.phoneNumber,
-      role: userData.role,
-    };
-
-    // Add organization-specific fields for ORGANIZATION role
-    if (userData.role === 'ORGANIZATION') {
-      requestBody.organizationName = userData.organizationName;
-      requestBody.country = userData.country;
-    }
-
     return this.apiCall('/auth/register', {
       method: 'POST',
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(userData),
     });
   }
 
@@ -74,154 +84,33 @@ class ApiService {
     });
   }
 
-  static async getUserProfile() {
-    return this.apiCall('/auth/profile');
-  }
-
-  // Measurement endpoints
-  static async getMeasurements() {
-    return this.apiCall('/manual-measurements');
-  }
-
-  static async createMeasurement(measurementData) {
-    return this.apiCall('/manual-measurements', {
+  static async resendOTP(email) {
+    return this.apiCall('/auth/resend-otp', {
       method: 'POST',
-      body: JSON.stringify(measurementData),
+      body: JSON.stringify({ email }),
     });
   }
 
-  static async getAdminMeasurements(page = 1, limit = 50) {
-    return this.apiCall(`/admin/measurements?page=${page}&limit=${limit}`);
-  }
-
-  // Get individual measurement details
-  static async getMeasurementById(measurementId) {
-    return this.apiCall(`/admin/measurements/${measurementId}`);
-  }
-
-  // Dashboard stats endpoint
-  static async getDashboardStats() {
-    return this.apiCall('/admin/dashboard/stats');
-  }
-
-  // Update user status
-  static async updateUserStatus(userId, status) {
-    return this.apiCall(`/admin/users/${userId}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    });
-  }
-
-  // Permissions management
-  static async getAvailablePermissions() {
-    return this.apiCall('/admin/permissions');
-  }
-
-  static async getUserPermissions(userId) {
-    return this.apiCall(`/admin/users/${userId}/permissions`);
-  }
-
-  static async updateUserPermissions(userId, permissions) {
-    return this.apiCall(`/admin/users/${userId}/permissions`, {
-      method: 'PUT',
-      body: JSON.stringify({ permissions }),
-    });
-  }
-
-  // One-time codes management
-  static async generateOneTimeCode(userEmail, expirationHours = 24) {
-    return this.apiCall('/admin/one-time-codes', {
-      method: 'POST',
-      body: JSON.stringify({ userEmail, expirationHours }),
-    });
-  }
-
-  static async sendOneTimeCodeEmail(code) {
-    return this.apiCall('/admin/one-time-codes/send-email', {
-      method: 'POST',
-      body: JSON.stringify({ code }),
-    });
-  }
-
-  static async shareToOrganization(measurementId, oneTimeCode) {
-    return this.apiCall('/measurements/share-to-organization', {
-      method: 'POST',
-      body: JSON.stringify({ measurementId, oneTimeCode }),
-    });
-  }
-
-  // Implemented by VScode copilot
-  // Fetch measurements for a specific user with pagination
-  // GET /api/admin/measurements?userId=<userId>&page=<page>&limit=<limit>
-  static async getUserMeasurements(userId, page = 1, limit = 20) {
-    const endpoint = `/admin/measurements?userId=${userId}&page=${page}&limit=${limit}`;
-    console.log(`Calling endpoint: ${endpoint}`);
-    return this.apiCall(endpoint);
-  }
-
-  // User management endpoints
+  // USERS
   static async getUsers() {
     return this.apiCall('/admin/users');
   }
 
-  // Implemented by VScode copilot
-  // Fetch user details by userId - GET /api/admin/users/:userId
-  // Requires: admin auth and view_users permission
   static async getUserById(userId) {
+    if (!userId || userId === 'undefined') {
+      return { success: false, message: 'User ID is required' };
+    }
     return this.apiCall(`/admin/users/${userId}`);
   }
 
-  static async updateUser(userId, userData) {
-    return this.apiCall(`/admin/users/${userId}`, {
-      method: 'PUT',
-      body: JSON.stringify(userData),
-    });
-  }
-
-  static async deleteUser(userId) {
-    return this.apiCall(`/admin/users/${userId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Organization endpoints
-  static async getOrganizations() {
-    return this.apiCall('/admin/organizations');
-  }
-
-  static async createOrganization(orgData) {
-    return this.apiCall('/admin/organizations', {
-      method: 'POST',
-      body: JSON.stringify(orgData),
-    });
-  }
-
-  // User permissions endpoints
-  static async getMyPermissions() {
-    return this.apiCall('/org-user/my-permissions');
-  }
-
-  // User measurements endpoint
-  static async getMyMeasurements() {
-    return this.apiCall('/org-user/measurements');
-  }
-
-  // User dashboard stats
-  static async getUserDashboardStats() {
-    return this.apiCall('/org-user/dashboard/stats');
-  }
-
-  // User one-time codes
-  static async getMyOneTimeCodes() {
-    return this.apiCall('/org-user/one-time-codes');
-  }
-
-  // Organization user management (permission-based)
   static async getOrgUsers(page = 1, limit = 10) {
     return this.apiCall(`/org-user/users?page=${page}&limit=${limit}`);
   }
 
   static async getOrgUserById(userId) {
+    if (!userId || userId === 'undefined') {
+      return { success: false, message: 'User ID is required' };
+    }
     return this.apiCall(`/org-user/users/${userId}`);
   }
 
@@ -246,302 +135,288 @@ class ApiService {
     });
   }
 
-  static async updateOrgUserPermissions(userId, permissions) {
-    return this.apiCall(`/org-user/users/${userId}/permissions`, {
+  // ROLES
+  static async getRoles(page = 1, limit = 10) {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/roles?page=${page}&limit=${limit}`);
+  }
+
+  static async getOrgRoles(page = 1, limit = 10) {
+    return this.apiCall('/org-user/roles?page=1&limit=10');
+  }
+
+  static async createRole(roleData) {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/roles`, {
+      method: 'POST',
+      body: JSON.stringify(roleData),
+    });
+  }
+
+  static async getRoleById(roleId) {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/roles/${roleId}`);
+  }
+
+  static async updateRole(roleId, roleData) {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/roles/${roleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(roleData),
+    });
+  }
+
+  static async deleteRole(roleId) {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/roles/${roleId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async getAvailableRoles() {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/roles`);
+  }
+
+  static async assignRoleToMultipleUsers(roleId, userIds) {
+    return this.apiCall(`/admin/roles/${roleId}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ userIds }),
+    });
+  }
+
+  static async assignUserRole(userId, roleId) {
+    if (!userId || userId === 'undefined') {
+      return { success: false, message: 'User ID is required' };
+    }
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ roleId }),
+    });
+  }
+
+  static async getUserRole(userId) {
+    if (!userId || userId === 'undefined') {
+      return { success: false, message: 'User ID is required' };
+    }
+    
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success && profileResponse.data.user.role === 'ORGANIZATION') {
+      const response = await this.apiCall(`/admin/users/${userId}`);
+      if (response.success && response.data.user) {
+        return {
+          success: true,
+          data: {
+            role: response.data.user.roleId ? { _id: response.data.user.roleId } : null
+          }
+        };
+      }
+      return response;
+    } else {
+      const response = await this.apiCall(`/org-user/users/${userId}`);
+      if (response.success && response.data.user) {
+        return {
+          success: true,
+          data: {
+            role: response.data.user.roleId ? { _id: response.data.user.roleId } : null
+          }
+        };
+      }
+      return response;
+    }
+  }
+
+  // PERMISSIONS
+  static async getAvailablePermissions() {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/permissions`);
+  }
+
+  static async getPermissions() {
+    return this.apiCall('/admin/permissions');
+  }
+
+  static async getMyPermissions() {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/permissions`);
+  }
+
+  static async getPermissionsByCategory(categoryName) {
+    return this.apiCall(`/admin/permissions/category/${categoryName}`);
+  }
+
+  static async getUserPermissions(userId) {
+    return this.apiCall(`/admin/users/${userId}/permissions`);
+  }
+
+  static async updateUserPermissions(userId, permissions) {
+    return this.apiCall(`/admin/users/${userId}/permissions`, {
       method: 'PUT',
       body: JSON.stringify({ permissions }),
     });
   }
 
-  static async resetOrgUserPassword(userId, passwordData) {
-    return this.apiCall(`/org-user/users/${userId}/password`, {
-      method: 'PUT',
-      body: JSON.stringify(passwordData),
-    });
+  // GROUPS
+  static async getGroups() {
+    const userRole = await this.getUserRole();
+    if (userRole !== 'ORGANIZATION') {
+      return { success: false, message: 'Groups management only available for organization admins' };
+    }
+    return this.apiCall('/admin/groups');
   }
 
-  static async sendOrgUserEmail(userId, emailData) {
-    return this.apiCall(`/org-user/users/${userId}/send-email`, {
-      method: 'POST',
-      body: JSON.stringify(emailData),
-    });
+  // DASHBOARD
+  static async getDashboardStats() {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/dashboard/stats`);
   }
 
-  static async deleteOrgUser(userId) {
-    return this.apiCall(`/org-user/users/${userId}`, {
-      method: 'DELETE',
-    });
+  static async getUserDashboardStats() {
+    return this.getDashboardStats();
   }
 
-  static async generateOrgOneTimeCode(userEmail, expirationHours = 24) {
-    return this.apiCall('/org-user/one-time-codes', {
-      method: 'POST',
-      body: JSON.stringify({ userEmail, expirationHours }),
-    });
+  // MEASUREMENTS
+  static async getMeasurements(page = 1, limit = 10, userId = null) {
+    const baseUrl = await this.getBaseUrl();
+    let endpoint = `${baseUrl}/measurements?page=${page}&limit=${limit}`;
+    
+    if (userId) {
+      endpoint += `&userId=${userId}`;
+    }
+    
+    return this.apiCall(endpoint);
   }
 
-  static async sendOrgOneTimeCodeEmail(code) {
-    return this.apiCall('/org-user/one-time-codes/send-email', {
-      method: 'POST',
-      body: JSON.stringify({ code }),
-    });
+  static async getUserMeasurements(userId, page = 1, limit = 10) {
+    // Call the exact same endpoint that works in debug
+    return this.apiCall(`/admin/measurements?userId=${userId}&page=${page}&limit=${limit}`);
   }
 
-  // Organization measurement management
-  static async createOrgMeasurement(measurementData) {
-    return this.apiCall('/org-user/measurements', {
+  static async getAdminMeasurements(page = 1, limit = 10, userId = null) {
+    let endpoint = `/admin/measurements?page=${page}&limit=${limit}`;
+    
+    if (userId) {
+      endpoint += `&userId=${userId}`;
+    }
+    
+    return this.apiCall(endpoint);
+  }
+
+  static async getAllMeasurements(page = 1, limit = 10, userId = null) {
+    return this.getAdminMeasurements(page, limit, userId);
+  }
+
+  static async getAdminMeasurement(measurementId) {
+    return this.apiCall(`/admin/measurements/${measurementId}`);
+  }
+
+  static async getMeasurementById(measurementId) {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/measurements/${measurementId}`);
+  }
+
+  static async createMeasurement(measurementData) {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/measurements`, {
       method: 'POST',
       body: JSON.stringify(measurementData),
     });
   }
 
-  static async updateOrgMeasurement(measurementId, measurementData) {
-    return this.apiCall(`/org-user/measurements/${measurementId}`, {
+  static async createAdminMeasurement(measurementData) {
+    return this.apiCall('/admin/measurements', {
+      method: 'POST',
+      body: JSON.stringify(measurementData),
+    });
+  }
+
+  // DEBUG METHODS
+  static async debugMeasurementsStructure(userId) {
+    return this.apiCall(`/admin/debug/measurements-structure/${userId}`);
+  }
+
+  static async debugMeasurementsFilter(userId, page = 1, limit = 20) {
+    return this.apiCall(`/admin/measurements?userId=${userId}&page=${page}&limit=${limit}&debug=true`);
+  }
+
+  static async updateMeasurement(id, measurementData) {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/measurements/${id}`, {
       method: 'PUT',
       body: JSON.stringify(measurementData),
     });
   }
 
-  static async deleteOrgMeasurement(measurementId) {
-    return this.apiCall(`/org-user/measurements/${measurementId}`, {
+  static async updateAdminMeasurement(measurementId, measurementData) {
+    return this.apiCall(`/admin/measurements/${measurementId}`, {
+      method: 'PUT',
+      body: JSON.stringify(measurementData),
+    });
+  }
+
+  static async deleteMeasurement(id) {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/measurements/${id}`, {
       method: 'DELETE',
     });
   }
 
-  // Get original measurement for external measurements
-  static async getOriginalMeasurementForExternal(measurementId) {
-    return this.apiCall(`/admin/measurements/${measurementId}/original`);
-  }
-
-  // ========== SUPER ADMIN ENDPOINTS ==========
-  
-  // 👥 Super Admin User Management (System-Wide)
-  static async getSuperAdminUsers(page = 1, limit = 50) {
-    return this.apiCall(`/super-admin/users?page=${page}&limit=${limit}`);
-  }
-
-  static async getSuperAdminUserById(userId) {
-    return this.apiCall(`/super-admin/users/${userId}`);
-  }
-
-  static async updateSuperAdminUser(userId, userData) {
-    return this.apiCall(`/super-admin/users/${userId}`, {
-      method: 'PUT',
-      body: JSON.stringify(userData),
-    });
-  }
-
-  static async updateSuperAdminUserStatus(userId, status) {
-    return this.apiCall(`/super-admin/users/${userId}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    });
-  }
-
-  static async resetSuperAdminUserPassword(userId) {
-    return this.apiCall(`/super-admin/users/${userId}/reset-password`, {
-      method: 'PUT',
-    });
-  }
-
-  static async getSuperAdminOrganizationUsers(orgId) {
-    return this.apiCall(`/super-admin/organizations/${orgId}/users`);
-  }
-
-  static async exportSuperAdminUsers(format = 'csv') {
-    return this.apiCall(`/super-admin/users/export/${format}`);
-  }
-
-  static async deleteSuperAdminUser(userId) {
-    return this.apiCall(`/super-admin/users/${userId}`, {
+  static async deleteAdminMeasurement(measurementId) {
+    return this.apiCall(`/admin/measurements/${measurementId}`, {
       method: 'DELETE',
     });
   }
 
-  // 🏢 Super Admin Organization Management
-  static async getSuperAdminOrganizations(page = 1, limit = 50, status = null) {
-    let url = `/super-admin/organizations?page=${page}&limit=${limit}`;
-    if (status) url += `&status=${status}`;
-    return this.apiCall(url);
+  // MANUAL MEASUREMENTS
+  static async getManualMeasurements() {
+    return this.apiCall('/manual-measurements');
   }
 
-  static async createSuperAdminOrganization(orgData) {
-    return this.apiCall('/super-admin/organizations', {
+  static async saveMeasurement(measurementData) {
+    return this.apiCall('/manual-measurements/save', {
       method: 'POST',
-      body: JSON.stringify(orgData),
+      body: JSON.stringify(measurementData),
     });
   }
 
-  static async getSuperAdminOrganizationById(orgId) {
-    return this.apiCall(`/super-admin/organizations/${orgId}`);
+  // ONE-TIME CODES
+  static async getOneTimeCodes() {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/one-time-codes`);
   }
 
-  static async updateSuperAdminOrganization(orgId, orgData) {
-    return this.apiCall(`/super-admin/organizations/${orgId}`, {
-      method: 'PUT',
-      body: JSON.stringify(orgData),
-    });
-  }
-
-  static async deleteSuperAdminOrganization(orgId) {
-    return this.apiCall(`/super-admin/organizations/${orgId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  static async updateSuperAdminOrganizationStatus(orgId, status) {
-    return this.apiCall(`/super-admin/organizations/${orgId}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    });
-  }
-
-  static async exportSuperAdminOrganizations(format = 'csv') {
-    return this.apiCall(`/super-admin/organizations/export/${format}`);
-  }
-
-  // 👤 Super Admin Customer Management
-  static async getSuperAdminCustomers(page = 1, limit = 50, status = null) {
-    let url = `/super-admin/customers?page=${page}&limit=${limit}`;
-    if (status) url += `&status=${status}`;
-    return this.apiCall(url);
-  }
-
-  static async createSuperAdminCustomer(customerData) {
-    return this.apiCall('/super-admin/customers', {
+  static async generateOneTimeCode(codeData) {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/one-time-codes`, {
       method: 'POST',
-      body: JSON.stringify(customerData),
+      body: JSON.stringify(codeData),
     });
   }
 
-  static async getSuperAdminCustomerById(customerId) {
-    return this.apiCall(`/super-admin/customers/${customerId}`);
-  }
-
-  static async updateSuperAdminCustomer(customerId, customerData) {
-    return this.apiCall(`/super-admin/customers/${customerId}`, {
-      method: 'PUT',
-      body: JSON.stringify(customerData),
-    });
-  }
-
-  static async deleteSuperAdminCustomer(customerId) {
-    return this.apiCall(`/super-admin/customers/${customerId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  static async updateSuperAdminCustomerStatus(customerId, status) {
-    return this.apiCall(`/super-admin/customers/${customerId}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    });
-  }
-
-  static async resetSuperAdminCustomerPassword(customerId) {
-    return this.apiCall(`/super-admin/customers/${customerId}/reset-password`, {
-      method: 'PUT',
-    });
-  }
-
-  static async exportSuperAdminCustomers(format = 'csv') {
-    return this.apiCall(`/super-admin/customers/export/${format}`);
-  }
-
-  // 📦 Super Admin Subscription Management
-  static async getSuperAdminSubscriptions(page = 1, limit = 50, status = null) {
-    let url = `/super-admin/subscriptions?page=${page}&limit=${limit}`;
-    if (status) url += `&status=${status}`;
-    return this.apiCall(url);
-  }
-
-  static async createSuperAdminSubscription(subscriptionData) {
-    return this.apiCall('/super-admin/subscriptions', {
+  static async sendOneTimeCodeEmail(emailData) {
+    let payload;
+    
+    if (typeof emailData === 'string') {
+      payload = { code: emailData };
+    } else if (emailData && typeof emailData === 'object') {
+      payload = emailData;
+    } else {
+      return { success: false, message: 'Valid email data is required' };
+    }
+    
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/one-time-codes/send-email`, {
       method: 'POST',
-      body: JSON.stringify(subscriptionData),
+      body: JSON.stringify(payload),
     });
   }
 
-  static async getSuperAdminSubscriptionById(subscriptionId) {
-    return this.apiCall(`/super-admin/subscriptions/${subscriptionId}`);
-  }
-
-  static async updateSuperAdminSubscription(subscriptionId, subscriptionData) {
-    return this.apiCall(`/super-admin/subscriptions/${subscriptionId}`, {
-      method: 'PUT',
-      body: JSON.stringify(subscriptionData),
-    });
-  }
-
-  static async deleteSuperAdminSubscription(subscriptionId) {
-    return this.apiCall(`/super-admin/subscriptions/${subscriptionId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  static async updateSuperAdminSubscriptionStatus(subscriptionId, status) {
-    return this.apiCall(`/super-admin/subscriptions/${subscriptionId}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    });
-  }
-
-  static async duplicateSuperAdminSubscription(subscriptionId) {
-    return this.apiCall(`/super-admin/subscriptions/${subscriptionId}/duplicate`, {
+  // SHARING
+  static async shareToOrganization(measurementId, code) {
+    return this.apiCall('/measurements/share-to-organization', {
       method: 'POST',
-    });
-  }
-
-  static async getSuperAdminSubscriptionSubscribers(subscriptionId) {
-    return this.apiCall(`/super-admin/subscriptions/${subscriptionId}/subscribers`);
-  }
-
-  static async exportSuperAdminSubscriptions(format = 'csv') {
-    return this.apiCall(`/super-admin/subscriptions/export/${format}`);
-  }
-
-  // 📊 Super Admin Dashboard & Analytics
-  static async getSuperAdminDashboardStats() {
-    return this.apiCall('/super-admin/dashboard/stats');
-  }
-
-  static async getSuperAdminAnalytics() {
-    return this.apiCall('/super-admin/dashboard/analytics');
-  }
-
-  // 🔧 Super Admin Utility Endpoints
-  static async getSuperAdminCountries() {
-    return this.apiCall('/super-admin/countries');
-  }
-
-  // ========== ORGANIZATION SUBSCRIPTION ENDPOINTS ==========
-  
-  // Organization subscription management
-  static async getOrganizationSubscription() {
-    return this.apiCall('/organization/subscription');
-  }
-
-  static async subscribeToPackage(packageId, billingCycle) {
-    return this.apiCall('/organization/subscribe', {
-      method: 'POST',
-      body: JSON.stringify({ packageId, billingCycle }),
-    });
-  }
-
-  static async cancelOrganizationSubscription() {
-    return this.apiCall('/organization/subscription/cancel', {
-      method: 'PUT',
-    });
-  }
-
-  static async getOrganizationBillingHistory() {
-    return this.apiCall('/organization/billing/history');
-  }
-
-  static async updatePaymentMethod(paymentData) {
-    return this.apiCall('/organization/payment-method', {
-      method: 'PUT',
-      body: JSON.stringify(paymentData),
+      body: JSON.stringify({ measurementId, code }),
     });
   }
 }

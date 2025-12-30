@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BottomNavigation from '../components/BottomNavigation';
+import ApiService from '../services/api';
 
 const QuestionnaireScreen = ({ navigation }) => {
   const [user, setUser] = useState(null);
@@ -60,18 +61,9 @@ const QuestionnaireScreen = ({ navigation }) => {
 
   const fetchUserProfile = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      if (!token) return;
-
-      const response = await fetch('https://datacapture-backend.onrender.com/api/auth/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setUser(data.data.user);
+      const response = await ApiService.getUserProfile();
+      if (response.success) {
+        setUser(response.data.user);
       }
     } catch (error) {
       console.log('Error fetching profile:', error);
