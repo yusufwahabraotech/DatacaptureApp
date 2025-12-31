@@ -51,20 +51,34 @@ const RolesScreen = ({ navigation }) => {
   const fetchRoleDetails = async (role) => {
     setLoadingUsers(true);
     try {
-      console.log('Fetching role details for:', role.id || role._id);
-      const response = await ApiService.getRoleById(role.id || role._id);
+      console.log('=== FETCHING ROLE DETAILS ===');
+      console.log('Role object:', JSON.stringify(role, null, 2));
+      console.log('Role ID:', role.id || role._id);
+      console.log('Role _id:', role._id);
+      console.log('Role id:', role.id);
+      console.log('Role name:', role.name);
       
+      // Try both IDs to see which one returns assigned users
+      const roleId = role._id; // Use _id first since that's what the assignment uses
+      console.log('Using role ID for fetch:', roleId);
+      
+      const response = await ApiService.getRoleById(roleId);
       console.log('Role details response:', JSON.stringify(response, null, 2));
       
       if (response.success) {
         const roleData = response.data.role;
+        console.log('Role data keys:', Object.keys(roleData));
+        console.log('Role assignedUsers:', roleData.assignedUsers?.length || 0);
+        console.log('Role userCount:', roleData.userCount);
+        
         setSelectedRole({
           ...role,
           permissions: roleData.permissions || [],
-          assignedUsers: roleData.assignedUsers || []
+          assignedUsers: roleData.assignedUsers || [],
+          userCount: roleData.userCount || 0
         });
         setAssignedUsers(roleData.assignedUsers || []);
-        console.log('Assigned users:', roleData.assignedUsers?.length || 0);
+        console.log('Final assigned users count:', roleData.assignedUsers?.length || 0);
       }
     } catch (error) {
       console.log('Error fetching role details:', error);

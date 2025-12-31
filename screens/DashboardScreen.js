@@ -33,6 +33,7 @@ const DashboardScreen = ({ navigation, route }) => {
   const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
   const [showTutorial, setShowTutorial] = useState(false);
   const [user, setUser] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     bodyMeasurements: 0,
     objectMeasurements: 0,
@@ -58,36 +59,45 @@ const DashboardScreen = ({ navigation, route }) => {
     }
   }, [route.params]);
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchDashboardData();
+    await fetchUserProfile();
+    setRefreshing(false);
+  };
+
   const fetchDashboardData = async () => {
     try {
       const token = await AsyncStorage.getItem('userToken');
       if (!token) return;
 
-      const measurementsResponse = await ApiService.getManualMeasurements();
+      console.log('=== DASHBOARD DEBUG ===');
+      // Use dashboard stats endpoint that includes one-time codes data
+      const statsResponse = await ApiService.getDashboardStats();
+      console.log('Dashboard stats response:', statsResponse);
+      
+      if (statsResponse.success) {
+        const stats = statsResponse.data;
+        console.log('Dashboard stats data:', stats);
+        console.log('One-time codes generated:', stats.oneTimeCodesGenerated);
+        
+        setDashboardData({
+          bodyMeasurements: stats.totalMeasurements || 0,
+          objectMeasurements: 0,
+          questionnaires: 0,
+          oneTimeCodes: stats.oneTimeCodesGenerated || 0
+        });
+        
+        console.log('Set dashboard data with oneTimeCodes:', stats.oneTimeCodesGenerated || 0);
+      } else {
+        console.log('Dashboard stats failed:', statsResponse.message);
+      }
 
+      // Still fetch measurements for table display
+      const measurementsResponse = await ApiService.getManualMeasurements();
       if (measurementsResponse.success) {
         const allMeasurements = measurementsResponse.data.measurements || [];
         setMeasurements(allMeasurements);
-        
-        const bodyCount = allMeasurements.filter(m => m.measurementType === 'Manual').length;
-        
-        // Fetch one-time codes using ApiService
-        let oneTimeCodesCount = 0;
-        try {
-          const codesResponse = await ApiService.getOneTimeCodes();
-          if (codesResponse.success) {
-            oneTimeCodesCount = codesResponse.data?.codes?.length || 0;
-          }
-        } catch (codesError) {
-          console.log('Error fetching codes:', codesError);
-        }
-        
-        setDashboardData({
-          bodyMeasurements: bodyCount,
-          objectMeasurements: 0,
-          questionnaires: 0,
-          oneTimeCodes: oneTimeCodesCount
-        });
         
         // Get unique body parts for table columns
         const bodyPartsSet = new Set();
@@ -99,7 +109,7 @@ const DashboardScreen = ({ navigation, route }) => {
           });
         });
         
-        const uniqueBodyParts = Array.from(bodyPartsSet).slice(0, 3); // Limit to 3 columns
+        const uniqueBodyParts = Array.from(bodyPartsSet).slice(0, 3);
         setTableColumns(uniqueBodyParts);
         
         const tableRows = allMeasurements.map(measurement => {
@@ -109,7 +119,6 @@ const DashboardScreen = ({ navigation, route }) => {
             checked: false
           };
           
-          // Add dynamic body part measurements
           uniqueBodyParts.forEach(bodyPartName => {
             row[bodyPartName] = getBodyPartSize(measurement, bodyPartName);
           });
@@ -119,7 +128,7 @@ const DashboardScreen = ({ navigation, route }) => {
         
         setTableData(tableRows);
         
-        // Update quick actions with latest measurement data
+        // Update quick actions
         if (allMeasurements.length > 0) {
           const latestMeasurement = allMeasurements[0];
           const actions = [];
@@ -140,7 +149,6 @@ const DashboardScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.log('Error fetching dashboard data:', error);
-      // Set default values on error
       setDashboardData({
         bodyMeasurements: 0,
         objectMeasurements: 0,
@@ -247,6 +255,17 @@ const DashboardScreen = ({ navigation, route }) => {
       <View style={styles.header}>
         <Text style={styles.greeting}>Hello, {user?.fullName || 'User'}</Text>
         <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.refreshButton}
+            onPress={handleRefresh}
+            disabled={refreshing}
+          >
+            <Ionicons 
+              name="refresh" 
+              size={20} 
+              color={refreshing ? '#9CA3AF' : '#7C3AED'} 
+            />
+          </TouchableOpacity>
           <View style={styles.notificationContainer}>
             <Ionicons name="notifications-outline" size={20} color="#9CA3AF" />
           </View>
@@ -485,6 +504,15 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
   notificationContainer: {
     width: 40,

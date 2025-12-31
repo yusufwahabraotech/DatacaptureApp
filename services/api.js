@@ -52,9 +52,9 @@ class ApiService {
   static async getBaseUrl() {
     try {
       const userRole = await this.getUserRole();
-      return userRole === 'ORGANIZATION' ? '/admin' : '/org-user';
+      return userRole === 'ORGANIZATION' ? '/admin' : '/user';
     } catch (error) {
-      return '/org-user';
+      return '/user';
     }
   }
 
@@ -137,16 +137,30 @@ class ApiService {
 
   // ROLES
   static async getRoles(page = 1, limit = 10) {
-    const baseUrl = await this.getBaseUrl();
-    return this.apiCall(`${baseUrl}/roles?page=${page}&limit=${limit}`);
+    console.log('=== getRoles called ===');
+    const profileResponse = await this.getUserProfile();
+    const isOrgAdmin = profileResponse.success && profileResponse.data.user.role === 'ORGANIZATION';
+    const baseUrl = isOrgAdmin ? '/admin' : '/user';
+    console.log('getRoles - isOrgAdmin:', isOrgAdmin);
+    console.log('getRoles - baseUrl:', baseUrl);
+    console.log('getRoles - calling:', `${baseUrl}/roles?page=${page}&limit=${limit}&includeUsers=true`);
+    return this.apiCall(`${baseUrl}/roles?page=${page}&limit=${limit}&includeUsers=true`);
   }
 
   static async getOrgRoles(page = 1, limit = 10) {
-    return this.apiCall('/org-user/roles?page=1&limit=10');
+    console.log('=== getOrgRoles called ===');
+    console.log('getOrgRoles - calling:', `/admin/roles?page=${page}&limit=${limit}&includeUsers=true`);
+    return this.apiCall(`/admin/roles?page=${page}&limit=${limit}&includeUsers=true`);
   }
 
   static async createRole(roleData) {
-    const baseUrl = await this.getBaseUrl();
+    console.log('=== createRole called ===');
+    const profileResponse = await this.getUserProfile();
+    const isOrgAdmin = profileResponse.success && profileResponse.data.user.role === 'ORGANIZATION';
+    const baseUrl = isOrgAdmin ? '/admin' : '/user';
+    console.log('createRole - isOrgAdmin:', isOrgAdmin);
+    console.log('createRole - baseUrl:', baseUrl);
+    console.log('createRole - calling:', `${baseUrl}/roles`);
     return this.apiCall(`${baseUrl}/roles`, {
       method: 'POST',
       body: JSON.stringify(roleData),
@@ -154,12 +168,23 @@ class ApiService {
   }
 
   static async getRoleById(roleId) {
-    const baseUrl = await this.getBaseUrl();
-    return this.apiCall(`${baseUrl}/roles/${roleId}`);
+    const profileResponse = await this.getUserProfile();
+    const isOrgAdmin = profileResponse.success && profileResponse.data.user.role === 'ORGANIZATION';
+    const baseUrl = isOrgAdmin ? '/admin' : '/user';
+    return this.apiCall(`${baseUrl}/roles/${roleId}?includeUsers=true`);
+  }
+
+  static async getRoleUsers(roleId) {
+    const profileResponse = await this.getUserProfile();
+    const isOrgAdmin = profileResponse.success && profileResponse.data.user.role === 'ORGANIZATION';
+    const baseUrl = isOrgAdmin ? '/admin' : '/user';
+    return this.apiCall(`${baseUrl}/roles/${roleId}/users`);
   }
 
   static async updateRole(roleId, roleData) {
-    const baseUrl = await this.getBaseUrl();
+    const profileResponse = await this.getUserProfile();
+    const isOrgAdmin = profileResponse.success && profileResponse.data.user.role === 'ORGANIZATION';
+    const baseUrl = isOrgAdmin ? '/admin' : '/user';
     return this.apiCall(`${baseUrl}/roles/${roleId}`, {
       method: 'PUT',
       body: JSON.stringify(roleData),
@@ -167,14 +192,28 @@ class ApiService {
   }
 
   static async deleteRole(roleId) {
-    const baseUrl = await this.getBaseUrl();
+    console.log('=== DELETE ROLE DEBUG ===');
+    const profileResponse = await this.getUserProfile();
+    console.log('Profile response:', JSON.stringify(profileResponse, null, 2));
+    const isOrgAdmin = profileResponse.success && profileResponse.data.user.role === 'ORGANIZATION';
+    console.log('Is org admin:', isOrgAdmin);
+    console.log('User role:', profileResponse.data?.user?.role);
+    const baseUrl = isOrgAdmin ? '/admin' : '/user';
+    console.log('Base URL:', baseUrl);
+    console.log('Delete endpoint:', `${baseUrl}/roles/${roleId}`);
     return this.apiCall(`${baseUrl}/roles/${roleId}`, {
       method: 'DELETE',
     });
   }
 
   static async getAvailableRoles() {
-    const baseUrl = await this.getBaseUrl();
+    console.log('=== getAvailableRoles called ===');
+    const profileResponse = await this.getUserProfile();
+    const isOrgAdmin = profileResponse.success && profileResponse.data.user.role === 'ORGANIZATION';
+    const baseUrl = isOrgAdmin ? '/admin' : '/user';
+    console.log('getAvailableRoles - isOrgAdmin:', isOrgAdmin);
+    console.log('getAvailableRoles - baseUrl:', baseUrl);
+    console.log('getAvailableRoles - calling:', `${baseUrl}/roles`);
     return this.apiCall(`${baseUrl}/roles`);
   }
 
@@ -189,11 +228,21 @@ class ApiService {
     if (!userId || userId === 'undefined') {
       return { success: false, message: 'User ID is required' };
     }
-    const baseUrl = await this.getBaseUrl();
-    return this.apiCall(`${baseUrl}/users/${userId}/role`, {
-      method: 'PUT',
-      body: JSON.stringify({ roleId }),
+    console.log('=== ASSIGNING ROLE ===');
+    console.log('User ID:', userId);
+    console.log('Role ID:', roleId);
+    
+    // Use the admin assign endpoint for individual user
+    const endpoint = `/admin/roles/${roleId}/assign`;
+    console.log('Assignment endpoint:', endpoint);
+    
+    const response = await this.apiCall(endpoint, {
+      method: 'POST',
+      body: JSON.stringify({ userIds: [userId] }),
     });
+    
+    console.log('Assignment response:', JSON.stringify(response, null, 2));
+    return response;
   }
 
   static async getUserRole(userId) {
@@ -201,36 +250,62 @@ class ApiService {
       return { success: false, message: 'User ID is required' };
     }
     
-    const profileResponse = await this.getUserProfile();
-    if (profileResponse.success && profileResponse.data.user.role === 'ORGANIZATION') {
-      const response = await this.apiCall(`/admin/users/${userId}`);
-      if (response.success && response.data.user) {
-        return {
-          success: true,
-          data: {
-            role: response.data.user.roleId ? { _id: response.data.user.roleId } : null
-          }
-        };
+    console.log('=== API getUserRole DEBUG ===');
+    console.log('Fetching role for user ID:', userId);
+    
+    // Always use admin endpoint to get user data with role info
+    const userEndpoint = `/admin/users/${userId}`;
+    console.log('User endpoint:', `${BASE_URL}${userEndpoint}`);
+    
+    const response = await this.apiCall(userEndpoint);
+    console.log('User data response:', JSON.stringify(response, null, 2));
+    
+    if (response.success && response.data.user) {
+      const user = response.data.user;
+      console.log('User roleId field:', user.roleId);
+      
+      if (user.roleId) {
+        // Fetch the full role details
+        const roleDetailsResponse = await this.apiCall(`/admin/roles/${user.roleId}`);
+        console.log('Role details response:', JSON.stringify(roleDetailsResponse, null, 2));
+        
+        if (roleDetailsResponse.success && roleDetailsResponse.data.role) {
+          return {
+            success: true,
+            data: {
+              role: roleDetailsResponse.data.role
+            }
+          };
+        }
       }
-      return response;
-    } else {
-      const response = await this.apiCall(`/org-user/users/${userId}`);
-      if (response.success && response.data.user) {
-        return {
-          success: true,
-          data: {
-            role: response.data.user.roleId ? { _id: response.data.user.roleId } : null
-          }
-        };
-      }
-      return response;
+      
+      return {
+        success: true,
+        data: {
+          role: null
+        }
+      };
     }
+    
+    return response;
   }
 
   // PERMISSIONS
   static async getAvailablePermissions() {
-    const baseUrl = await this.getBaseUrl();
+    console.log('=== getAvailablePermissions called ===');
+    const profileResponse = await this.getUserProfile();
+    const isOrgAdmin = profileResponse.success && profileResponse.data.user.role === 'ORGANIZATION';
+    const baseUrl = isOrgAdmin ? '/admin' : '/user';
+    console.log('getAvailablePermissions - isOrgAdmin:', isOrgAdmin);
+    console.log('getAvailablePermissions - baseUrl:', baseUrl);
+    console.log('getAvailablePermissions - calling:', `${baseUrl}/permissions`);
     return this.apiCall(`${baseUrl}/permissions`);
+  }
+
+  static async getOrgAvailablePermissions() {
+    console.log('=== getOrgAvailablePermissions called ===');
+    console.log('getOrgAvailablePermissions - calling:', '/admin/permissions');
+    return this.apiCall('/admin/permissions');
   }
 
   static async getPermissions() {
@@ -338,6 +413,17 @@ class ApiService {
 
   static async debugMeasurementsFilter(userId, page = 1, limit = 20) {
     return this.apiCall(`/admin/measurements?userId=${userId}&page=${page}&limit=${limit}&debug=true`);
+  }
+
+  // ONE-TIME CODES
+  static async getOneTimeCodes(page = 1, limit = 10) {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/one-time-codes?page=${page}&limit=${limit}`);
+  }
+
+  static async getManualMeasurements(page = 1, limit = 10) {
+    const baseUrl = await this.getBaseUrl();
+    return this.apiCall(`${baseUrl}/measurements?page=${page}&limit=${limit}`);
   }
 
   static async updateMeasurement(id, measurementData) {

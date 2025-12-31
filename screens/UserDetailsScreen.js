@@ -587,38 +587,6 @@ const UserDetailsScreen = ({ navigation, route }) => {
             <Text style={styles.sectionTitle}>User Measurements</Text>
             <View style={styles.measurementHeaderRight}>
               <TouchableOpacity 
-                style={styles.debugButton}
-                onPress={async () => {
-                  console.log('=== DEBUG: Testing measurements filtering ===');
-                  console.log('User ID:', user.id);
-                  console.log('Custom User ID:', user.customUserId);
-                  
-                  try {
-                    const structureResult = await ApiService.debugMeasurementsStructure(user.id);
-                    console.log('Structure Debug:', structureResult);
-                    
-                    const filterResult = await ApiService.debugMeasurementsFilter(user.id, 1, 20);
-                    console.log('Filter Debug:', filterResult);
-                    
-                    // FORCE REFRESH WITH CORRECT API - call debugMeasurementsFilter instead
-                    console.log('=== FORCING CORRECT API CALL ===');
-                    const correctResult = filterResult; // Use the debug result that works
-                    console.log('Correct API Result:', correctResult);
-                    if (correctResult.success) {
-                      setMeasurements(correctResult.data?.measurements || []);
-                      console.log('Updated measurements state to:', correctResult.data?.measurements?.length || 0);
-                    }
-                    
-                    Alert.alert('Debug Results', `Backend: ${filterResult?.data?.total || 0} measurements. UI updated to: ${correctResult?.data?.measurements?.length || 0} measurements.`);
-                  } catch (error) {
-                    console.log('Debug Error:', error);
-                    Alert.alert('Debug Error', error.message);
-                  }
-                }}
-              >
-                <Ionicons name="bug" size={16} color="#EF4444" />
-              </TouchableOpacity>
-              <TouchableOpacity 
                 style={styles.refreshButton}
                 onPress={() => fetchUserMeasurements(1)}
                 disabled={measurementsLoading}
@@ -1151,14 +1119,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  debugButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#FEF2F2',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   refreshButton: {
     width: 32,

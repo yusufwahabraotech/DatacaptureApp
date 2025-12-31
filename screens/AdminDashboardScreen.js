@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Animated,
+  Vibration,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
@@ -24,20 +26,54 @@ const AdminDashboardScreen = ({ navigation }) => {
   });
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const rotateAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     fetchDashboardStats();
     fetchUserProfile();
   }, []);
 
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    
+    setRefreshing(true);
+    Vibration.vibrate(50); // Light haptic feedback
+    
+    // Start rotation animation
+    Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      })
+    ).start();
+    
+    await fetchDashboardStats();
+    await fetchUserProfile();
+    
+    // Stop animation and reset
+    rotateAnim.stopAnimation();
+    rotateAnim.setValue(0);
+    setRefreshing(false);
+  };
+
   const fetchDashboardStats = async () => {
     try {
-      const response = await ApiService.getDashboardStats();
+      console.log('=== ADMIN DASHBOARD DEBUG ===');
+      // Force admin endpoint for AdminDashboardScreen
+      const response = await ApiService.apiCall('/admin/dashboard/stats');
+      console.log('Admin dashboard stats response:', response);
+      
       if (response.success) {
+        console.log('Admin dashboard stats data:', response.data);
+        console.log('One-time codes - Generated:', response.data.oneTimeCodesGenerated, 'Used:', response.data.oneTimeCodesUsed);
         setStats(response.data);
+      } else {
+        console.log('Admin dashboard stats failed:', response.message);
       }
     } catch (error) {
-      console.log('Error fetching dashboard stats:', error);
+      console.log('Error fetching admin dashboard stats:', error);
     } finally {
       setLoading(false);
     }
@@ -185,14 +221,39 @@ const AdminDashboardScreen = ({ navigation }) => {
           <Text style={styles.greeting}>Hello, {user?.fullName || 'Admin'}</Text>
           <Text style={styles.role}>Organization Admin</Text>
         </View>
-        <TouchableOpacity 
-          style={styles.profileImage}
-          onPress={() => navigation.navigate('Profile')}
-        >
-          <Text style={styles.profileText}>
-            {user?.fullName?.charAt(0)?.toUpperCase() || 'A'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={[styles.refreshButton, refreshing && styles.refreshButtonActive]}
+            onPress={handleRefresh}
+            disabled={refreshing}
+            activeOpacity={0.7}
+          >
+            <Animated.View
+              style={{
+                transform: [{
+                  rotate: rotateAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '360deg'],
+                  })
+                }]
+              }}
+            >
+              <Ionicons 
+                name="refresh" 
+                size={20} 
+                color={refreshing ? '#7C3AED' : '#7C3AED'} 
+              />
+            </Animated.View>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.profileImage}
+            onPress={() => navigation.navigate('Profile')}
+          >
+            <Text style={styles.profileText}>
+              {user?.fullName?.charAt(0)?.toUpperCase() || 'A'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -298,6 +359,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#7C3AED',
     marginTop: 4,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  refreshButtonActive: {
+    backgroundColor: '#EDE9FE',
   },
   profileImage: {
     width: 40,

@@ -10,6 +10,7 @@ import {
   FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/api';
 
 const UserPermissionsScreen = ({ navigation, route }) => {
@@ -24,6 +25,12 @@ const UserPermissionsScreen = ({ navigation, route }) => {
     loadData();
   }, []);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchUserRole();
+    }, [userId])
+  );
+
   const loadData = async () => {
     await fetchRoles();
     await fetchUserRole();
@@ -32,9 +39,15 @@ const UserPermissionsScreen = ({ navigation, route }) => {
 
   const fetchRoles = async () => {
     try {
+      console.log('=== FETCHING ROLES FOR ASSIGNMENT ===');
       const response = await ApiService.getAvailableRoles();
+      console.log('getAvailableRoles response:', JSON.stringify(response, null, 2));
       if (response.success) {
+        console.log('Roles data:', response.data);
+        console.log('Roles array:', response.data.roles);
         setRoles(response.data.roles || []);
+      } else {
+        console.log('Failed to fetch roles:', response.message);
       }
     } catch (error) {
       console.log('Error fetching roles:', error);
@@ -45,16 +58,32 @@ const UserPermissionsScreen = ({ navigation, route }) => {
     if (!userId) return;
     
     try {
+      console.log('=== FETCHING USER ROLE ===');
+      console.log('User ID:', userId);
+      
       const response = await ApiService.getUserRole(userId);
+      console.log('getUserRole response:', JSON.stringify(response, null, 2));
+      
       if (response.success && response.data.role) {
+        console.log('Setting current role:', response.data.role);
+        console.log('Role object keys:', Object.keys(response.data.role));
+        console.log('Role _id:', response.data.role._id);
+        console.log('Role id:', response.data.role.id);
+        console.log('Role roleId:', response.data.role.roleId);
         setCurrentRole(response.data.role);
-        setSelectedRoleId(response.data.role._id);
+        // Try different possible ID fields
+        const roleId = response.data.role._id || response.data.role.id || response.data.role.roleId;
+        console.log('Setting selected role ID:', roleId);
+        setSelectedRoleId(roleId || '');
       } else {
+        console.log('No role found, clearing selection');
         setCurrentRole(null);
         setSelectedRoleId('');
       }
     } catch (error) {
       console.log('Error fetching user role:', error);
+      setCurrentRole(null);
+      setSelectedRoleId('');
     }
   };
 
@@ -63,30 +92,44 @@ const UserPermissionsScreen = ({ navigation, route }) => {
   };
 
   const handleAssignRole = async () => {
+    console.log('=== HANDLE ASSIGN ROLE CALLED ===');
+    console.log('Selected role ID:', selectedRoleId);
+    
     if (!selectedRoleId) {
+      console.log('No role selected, showing alert');
       Alert.alert('Error', 'Please select a role');
       return;
     }
     
+    console.log('Starting role assignment...');
     setUpdating(true);
     try {
+      console.log('Calling ApiService.assignUserRole with:', { userId, selectedRoleId });
       const response = await ApiService.assignUserRole(userId, selectedRoleId);
+      console.log('Assignment completed, response:', JSON.stringify(response, null, 2));
+      
       if (response.success) {
         Alert.alert('Success', 'Role assigned successfully');
-        await fetchUserRole();
+        // Update current role to match the selected role
+        const assignedRole = roles.find(role => role._id === selectedRoleId || role.id === selectedRoleId);
+        setCurrentRole(assignedRole);
+        // Keep the checkbox checked by maintaining selectedRoleId
       } else {
+        console.log('Assignment failed:', response.message);
         Alert.alert('Error', response.message || 'Failed to assign role');
       }
     } catch (error) {
+      console.log('Assignment error:', error);
       Alert.alert('Error', 'Failed to assign role');
     } finally {
+      console.log('Assignment process completed');
       setUpdating(false);
     }
   };
 
   const renderRoleCard = ({ item }) => {
-    const isSelected = selectedRoleId === item._id;
-    const isCurrent = currentRole?._id === item._id;
+    const isSelected = selectedRoleId === item._id || selectedRoleId === item.id;
+    const isCurrent = (currentRole?._id === item._id) || (currentRole?.id === item.id);
     
     return (
       <TouchableOpacity
