@@ -39,7 +39,7 @@ const UserSettingsScreen = ({ navigation }) => {
 
   const fetchUserPermissions = async () => {
     try {
-      const response = await ApiService.getMyPermissions();
+      const response = await ApiService.getAvailablePermissions();
       if (response.success) {
         setPermissions(response.data.permissions || []);
       }

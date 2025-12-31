@@ -92,7 +92,7 @@ const GroupsScreen = ({ navigation }) => {
       console.log('Fetching groups for role:', userProfile.role, 'isOrgAdmin:', isOrgAdmin);
       
       const response = isOrgAdmin 
-        ? await ApiService.getOrgGroups(1, 50)
+        ? await ApiService.getGroups(1, 50)
         : await ApiService.getGroups(1, 50);
       
       console.log('Groups API response:', response);

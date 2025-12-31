@@ -47,10 +47,7 @@ const CreateRoleScreen = ({ navigation, route }) => {
 
   const fetchPermissions = async () => {
     try {
-      const isOrgAdmin = userProfile?.role === 'ORGANIZATION';
-      const response = isOrgAdmin
-        ? await ApiService.getAvailablePermissions()
-        : await ApiService.getOrgAvailablePermissions();
+      const response = await ApiService.getAvailablePermissions();
       
       if (response.success) {
         setAvailablePermissions(response.data.permissions || []);

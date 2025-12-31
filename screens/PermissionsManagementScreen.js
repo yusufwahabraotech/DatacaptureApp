@@ -21,7 +21,7 @@ const PermissionsManagementScreen = ({ navigation }) => {
 
   const fetchPermissions = async () => {
     try {
-      const response = await ApiService.getPermissions();
+      const response = await ApiService.getAvailablePermissions();
       if (response.success) {
         setPermissions(response.data.permissions);
       }

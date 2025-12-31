@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiService from '../services/api';
 
 const BottomNavigation = ({ navigation, activeTab }) => {
   const [userRole, setUserRole] = useState(null);
@@ -12,17 +12,10 @@ const BottomNavigation = ({ navigation, activeTab }) => {
 
   const getUserRole = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      if (token) {
-        const response = await fetch('https://datacapture-backend.onrender.com/api/auth/profile', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        if (data.success) {
-          setUserRole(data.data.user.role);
-        }
+      const response = await ApiService.getUserProfile();
+      if (response.success) {
+        console.log('BottomNav - User role:', response.data.user.role);
+        setUserRole(response.data.user.role);
       }
     } catch (error) {
       console.log('Error getting user role:', error);
