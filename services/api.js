@@ -2,11 +2,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BASE_URL = 'http://192.168.1.183:3000/api';
 
-// CACHE BUSTER: Force Metro to reload this file - UPDATED v3
-const CACHE_BUSTER = 'v2024_FORCE_RELOAD_' + Date.now();
+// FORCE COMPLETE RELOAD - BREAKING CACHE v4
+const FORCE_RELOAD_NOW = 'MEASUREMENTS_FIXED_' + Date.now();
+console.log('=== API SERVICE RELOADED ===', FORCE_RELOAD_NOW);
 
 class ApiService {
+  // FORCE RELOAD MARKER
+  static RELOAD_MARKER = 'API_SERVICE_FIXED_v4_' + Date.now();
+  
   static async getToken() {
+    console.log('=== API SERVICE LOADED ===', this.RELOAD_MARKER);
     return await AsyncStorage.getItem('userToken');
   }
 
@@ -419,14 +424,98 @@ class ApiService {
     return { success: false, message: 'Failed to get user profile' };
   }
 
-  // MEASUREMENTS - Personal measurements for ALL users
+  // ORGANIZATION DASHBOARD - For settings section dashboard grid only
+  static async getOrganizationDashboardStats() {
+    try {
+      const profileResponse = await this.getUserProfile();
+      console.log('=== getOrganizationDashboardStats DEBUG ===');
+      
+      if (profileResponse.success) {
+        const user = profileResponse.data.user;
+        console.log('User role:', user.role);
+        console.log('User organizationId:', user.organizationId);
+        
+        // For ORGANIZATION role - use admin endpoint
+        if (user.role === 'ORGANIZATION') {
+          console.log('Using /admin/dashboard/stats for ORGANIZATION');
+          return this.apiCall('/admin/dashboard/stats');
+        }
+        
+        // For CUSTOMER with organizationId - check permission and use org-user endpoint
+        if (user.role === 'CUSTOMER' && user.organizationId) {
+          console.log('CUSTOMER with organizationId - checking permissions...');
+          
+          // Get user permissions
+          const permissionsResponse = await this.getMyPermissions();
+          console.log('Permissions response:', JSON.stringify(permissionsResponse, null, 2));
+          
+          if (permissionsResponse.success) {
+            const permissions = permissionsResponse.data.permissions || [];
+            const hasViewDashboardStats = permissions.includes('view_dashboard_stats');
+            
+            console.log('Has view_dashboard_stats permission:', hasViewDashboardStats);
+            console.log('All permissions:', permissions);
+            
+            if (hasViewDashboardStats) {
+              console.log('Permission granted - using /org-user/dashboard/stats');
+              return this.apiCall('/org-user/dashboard/stats');
+            } else {
+              console.log('Permission denied - view_dashboard_stats not found');
+              return { success: false, message: 'Permission denied: view_dashboard_stats required' };
+            }
+          } else {
+            console.log('Failed to get permissions');
+            return { success: false, message: 'Failed to check permissions' };
+          }
+        }
+        
+        console.log('No organization access - user role:', user.role, 'organizationId:', user.organizationId);
+        return { success: false, message: 'No organization access' };
+      }
+      
+      console.log('Profile request failed');
+      return { success: false, message: 'Failed to get user profile' };
+    } catch (error) {
+      console.log('getOrganizationDashboardStats error:', error);
+      return { success: false, message: 'Error fetching dashboard stats' };
+    }
+  }
+
+  // TEST METHOD - Direct org-user dashboard call
+  static async testOrgUserDashboard() {
+    console.log('=== TESTING ORG-USER DASHBOARD DIRECT CALL ===');
+    return this.apiCall('/org-user/dashboard/stats');
+  }
+
+  // MEASUREMENTS - FIXED ROUTING
   static async getManualMeasurements(page = 1, limit = 10) {
-    console.log('=== getManualMeasurements called with endpoint: /user/measurements ===');
+    console.log('=== getManualMeasurements FIXED - using /user/measurements ===');
     return this.apiCall(`/user/measurements?page=${page}&limit=${limit}`);
   }
 
   static async getMyMeasurements(page = 1, limit = 10) {
-    console.log('=== getMyMeasurements called - using personal measurements endpoint ===');
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      console.log('=== getMyMeasurements FIXED - role-based routing ===');
+      console.log('User role:', user.role, 'organizationId:', user.organizationId);
+      
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+        console.log('Using /admin/measurements for ORGANIZATION');
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+        console.log('Using /org-user/measurements for CUSTOMER with organizationId');
+      } else {
+        baseUrl = '/user';
+        console.log('Using /user/measurements for regular user');
+      }
+      const endpoint = `${baseUrl}/measurements?page=${page}&limit=${limit}`;
+      console.log('Calling endpoint:', endpoint);
+      return this.apiCall(endpoint);
+    }
+    console.log('Fallback to /user/measurements');
     return this.apiCall(`/user/measurements?page=${page}&limit=${limit}`);
   }
 
@@ -718,14 +807,13 @@ class ApiService {
     return this.apiCall(`/admin/measurements?userId=${userId}&page=${page}&limit=${limit}&debug=true`);
   }
 
-  // ONE-TIME CODES
+  // ONE-TIME CODES - FIXED ROUTING
   static async getOneTimeCodes(page = 1, limit = 10) {
     const profileResponse = await this.getUserProfile();
     if (profileResponse.success) {
       const user = profileResponse.data.user;
-      console.log('=== getOneTimeCodes DEBUG ===');
-      console.log('User role:', user.role);
-      console.log('User organizationId:', user.organizationId);
+      console.log('=== getOneTimeCodes FIXED - role-based routing ===');
+      console.log('User role:', user.role, 'organizationId:', user.organizationId);
       
       let baseUrl;
       if (user.role === 'ORGANIZATION') {
@@ -739,9 +827,10 @@ class ApiService {
         console.log('Using /user/one-time-codes for regular user');
       }
       const endpoint = `${baseUrl}/one-time-codes?page=${page}&limit=${limit}`;
-      console.log('Calling endpoint:', endpoint);
+      console.log('Calling FIXED endpoint:', endpoint);
       return this.apiCall(endpoint);
     }
+    console.log('Fallback to /user/one-time-codes');
     return this.apiCall(`/user/one-time-codes?page=${page}&limit=${limit}`);
   }
 

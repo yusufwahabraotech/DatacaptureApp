@@ -61,19 +61,19 @@ const AdminDashboardScreen = ({ navigation }) => {
   const fetchDashboardStats = async () => {
     try {
       console.log('=== ADMIN DASHBOARD DEBUG ===');
-      // Force admin endpoint for AdminDashboardScreen
-      const response = await ApiService.apiCall('/admin/dashboard/stats');
-      console.log('Admin dashboard stats response:', response);
+      const response = await ApiService.getOrganizationDashboardStats();
+      console.log('Dashboard stats response:', JSON.stringify(response, null, 2));
       
       if (response.success) {
-        console.log('Admin dashboard stats data:', response.data);
-        console.log('One-time codes - Generated:', response.data.oneTimeCodesGenerated, 'Used:', response.data.oneTimeCodesUsed);
+        console.log('Dashboard stats data:', response.data);
         setStats(response.data);
       } else {
-        console.log('Admin dashboard stats failed:', response.message);
+        console.log('Dashboard stats failed:', response.message);
+        Alert.alert('Dashboard Access', response.message);
       }
     } catch (error) {
-      console.log('Error fetching admin dashboard stats:', error);
+      console.log('Error fetching dashboard stats:', error);
+      Alert.alert('Error', 'Failed to load dashboard statistics');
     } finally {
       setLoading(false);
     }
