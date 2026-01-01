@@ -28,11 +28,19 @@ class ApiService {
       ...options,
     };
 
+    console.log('=== API CALL DEBUG ===');
+    console.log('URL:', url);
+    console.log('Method:', config.method || 'GET');
+    if (config.body) {
+      console.log('Request body:', config.body);
+    }
+
     const response = await fetch(url, config);
     
     if (!response.ok) {
       console.log(`API Error - Status: ${response.status}, URL: ${url}`);
       const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.log('Error response:', JSON.stringify(error, null, 2));
       return {
         success: false,
         message: error.message || `HTTP ${response.status}: ${response.statusText}`,
@@ -200,6 +208,80 @@ class ApiService {
     return this.apiCall(`/org-user/users/${userId}/password`, {
       method: 'PUT',
       body: JSON.stringify(passwordData),
+    });
+  }
+
+  // MEASUREMENTS
+  static async createAdminMeasurement(measurementData) {
+    console.log('=== createAdminMeasurement DEBUG ===');
+    console.log('measurementData:', JSON.stringify(measurementData, null, 2));
+    
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      
+      console.log('Final payload:', JSON.stringify(measurementData, null, 2));
+      
+      return this.apiCall(`${baseUrl}/measurements`, {
+        method: 'POST',
+        body: JSON.stringify(measurementData),
+      });
+    }
+    return this.apiCall('/user/measurements', {
+      method: 'POST',
+      body: JSON.stringify(measurementData),
+    });
+  }
+
+  static async updateAdminMeasurement(measurementId, measurementData) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/measurements/${measurementId}`, {
+        method: 'PUT',
+        body: JSON.stringify(measurementData),
+      });
+    }
+    return this.apiCall(`/user/measurements/${measurementId}`, {
+      method: 'PUT',
+      body: JSON.stringify(measurementData),
+    });
+  }
+
+  static async deleteAdminMeasurement(measurementId) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/measurements/${measurementId}`, {
+        method: 'DELETE',
+      });
+    }
+    return this.apiCall(`/user/measurements/${measurementId}`, {
+      method: 'DELETE',
     });
   }
 

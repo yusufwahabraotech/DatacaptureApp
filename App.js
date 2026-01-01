@@ -44,7 +44,8 @@ import RolesScreen from './screens/RolesScreen';
 import CreateRoleScreen from './screens/CreateRoleScreen';
 import GroupsScreen from './screens/GroupsScreen';
 import CreateGroupScreen from './screens/CreateGroupScreen';
-import DebugScreen from './screens/DebugScreen';
+import AdminCreateMeasurementScreen from './screens/AdminCreateMeasurementScreen';
+import AdminEditMeasurementScreen from './screens/AdminEditMeasurementScreen';
 
 const Stack = createStackNavigator();
 
@@ -98,7 +99,8 @@ export default function App() {
         <Stack.Screen name="CreateRole" component={CreateRoleScreen} />
         <Stack.Screen name="Groups" component={GroupsScreen} />
         <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
-        <Stack.Screen name="Debug" component={DebugScreen} />
+        <Stack.Screen name="AdminCreateMeasurement" component={AdminCreateMeasurementScreen} />
+        <Stack.Screen name="AdminEditMeasurement" component={AdminEditMeasurementScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

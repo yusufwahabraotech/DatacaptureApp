@@ -73,6 +73,7 @@ const UserSettingsScreen = ({ navigation }) => {
     const cards = [];
     console.log('=== getPermissionCards DEBUG ===');
     console.log('User organizationId:', user?.organizationId);
+    console.log('User role:', user?.role);
     console.log('Total permissions:', permissions.length);
 
     // Only show organization features if user has organizationId
@@ -144,7 +145,7 @@ const UserSettingsScreen = ({ navigation }) => {
         color: '#EF4444',
         bgColor: '#FEF2F2',
         permission: 'create_measurements',
-        onPress: () => navigation.navigate('BodyMeasurement')
+        onPress: () => navigation.navigate('AdminCreateMeasurement')
       },
       {
         title: 'One-Time Codes',
@@ -168,7 +169,8 @@ const UserSettingsScreen = ({ navigation }) => {
 
     // Add all features, marking those without permission as disabled
     allFeatures.forEach(feature => {
-      const hasAccess = hasPermission(feature.permission);
+      // Organization Admin has access to all features
+      const hasAccess = user?.role === 'ORGANIZATION' || hasPermission(feature.permission);
       cards.push({
         ...feature,
         hasAccess,
@@ -303,17 +305,30 @@ const UserSettingsScreen = ({ navigation }) => {
           ) : (
             <>
               <Text style={styles.sectionSubtitle}>
-                You have access to {permissions.length} feature{permissions.length !== 1 ? 's' : ''}
+                {user?.role === 'ORGANIZATION' 
+                  ? 'As Organization Admin, you have access to all features'
+                  : `You have access to ${permissions.length} feature${permissions.length !== 1 ? 's' : ''}`
+                }
               </Text>
               
               {permissions.length === 0 ? (
-                <View style={styles.noPermissions}>
-                  <Ionicons name="lock-closed" size={48} color="#9CA3AF" />
-                  <Text style={styles.noPermissionsText}>No permissions granted</Text>
-                  <Text style={styles.noPermissionsSubtext}>
-                    Contact your organization admin to request access
-                  </Text>
-                </View>
+                user?.role === 'ORGANIZATION' ? (
+                  <View style={styles.noPermissions}>
+                    <Ionicons name="lock-open" size={48} color="#10B981" />
+                    <Text style={styles.noPermissionsText}>All permissions granted</Text>
+                    <Text style={styles.noPermissionsSubtext}>
+                      You have full administrative access to all features
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.noPermissions}>
+                    <Ionicons name="lock-closed" size={48} color="#9CA3AF" />
+                    <Text style={styles.noPermissionsText}>No permissions granted</Text>
+                    <Text style={styles.noPermissionsSubtext}>
+                      Contact your organization admin to request access
+                    </Text>
+                  </View>
+                )
               ) : (
                 <View style={styles.permissionsList}>
                   {permissions.map((permission, index) => (

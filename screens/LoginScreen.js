@@ -62,6 +62,8 @@ const LoginScreen = ({ navigation, route }) => {
             },
             { text: 'Cancel', style: 'cancel' },
           ]);
+        } else if (response.code === 'ACCOUNT_SUSPENDED') {
+          Alert.alert('Account Suspended', response.message);
         } else {
           Alert.alert('Login Failed', response.message || 'Invalid credentials');
         }

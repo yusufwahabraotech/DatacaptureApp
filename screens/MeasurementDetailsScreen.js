@@ -25,6 +25,18 @@ const MeasurementDetailsScreen = ({ navigation, route }) => {
     }
   }, [measurementId]);
 
+  useEffect(() => {
+    // Refresh data when coming back from edit screen
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (route.params?.refresh) {
+        fetchMeasurementDetails();
+        // Clear the refresh parameter
+        navigation.setParams({ refresh: undefined });
+      }
+    });
+    return unsubscribe;
+  }, [navigation, route.params?.refresh]);
+
   const fetchMeasurementDetails = async () => {
     setLoading(true);
     try {
@@ -123,28 +135,36 @@ const MeasurementDetailsScreen = ({ navigation, route }) => {
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Type</Text>
-              <View style={[
-                styles.typeBadge,
-                {
-                  backgroundColor: measurement.submissionType === 'AI' 
-                    ? '#EDE9FE' 
-                    : measurement.submissionType === 'Manual' 
-                      ? '#FEF3C7' 
-                      : '#ECFDF5'
-                }
-              ]}>
-                <Text style={[
-                  styles.typeBadgeText,
+              <View style={styles.typeContainer}>
+                <View style={[
+                  styles.typeBadge,
                   {
-                    color: measurement.submissionType === 'AI' 
-                      ? '#7C3AED' 
+                    backgroundColor: measurement.submissionType === 'AI' 
+                      ? '#EDE9FE' 
                       : measurement.submissionType === 'Manual' 
-                        ? '#F59E0B' 
-                        : '#10B981'
+                        ? '#FEF3C7' 
+                        : '#ECFDF5'
                   }
                 ]}>
-                  {measurement.submissionType || 'Manual'}
-                </Text>
+                  <Text style={[
+                    styles.typeBadgeText,
+                    {
+                      color: measurement.submissionType === 'AI' 
+                        ? '#7C3AED' 
+                        : measurement.submissionType === 'Manual' 
+                          ? '#F59E0B' 
+                          : '#10B981'
+                    }
+                  ]}>
+                    {measurement.submissionType || 'Manual'}
+                  </Text>
+                </View>
+                {measurement.createdBy && measurement.createdBy !== measurement.userId && (
+                  <View style={styles.adminBadgeDetail}>
+                    <Ionicons name="shield-checkmark" size={14} color="#7C3AED" />
+                    <Text style={styles.adminBadgeDetailText}>Created by Admin</Text>
+                  </View>
+                )}
               </View>
             </View>
             <View style={styles.infoRow}>
@@ -165,6 +185,52 @@ const MeasurementDetailsScreen = ({ navigation, route }) => {
           <View style={styles.measurementHeader}>
             <Text style={styles.sectionTitle}>Body Measurements</Text>
             <View style={styles.actionButtons}>
+              {measurement.createdBy && measurement.createdBy !== measurement.userId && (
+                <>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => navigation.navigate('AdminEditMeasurement', { 
+                      measurementId: measurement.id || measurement._id,
+                      measurement: measurement
+                    })}
+                  >
+                    <Ionicons name="create-outline" size={20} color="#7C3AED" />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => {
+                      Alert.alert(
+                        'Delete Measurement',
+                        'Are you sure you want to delete this measurement? This action cannot be undone.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { 
+                            text: 'Delete', 
+                            style: 'destructive',
+                            onPress: async () => {
+                              try {
+                                const response = await ApiService.deleteAdminMeasurement(measurement.id || measurement._id);
+                                if (response.success) {
+                                  Alert.alert('Success', 'Measurement deleted successfully', [
+                                    { text: 'OK', onPress: () => navigation.goBack() }
+                                  ]);
+                                } else {
+                                  Alert.alert('Error', response.message || 'Failed to delete measurement');
+                                }
+                              } catch (error) {
+                                Alert.alert('Error', 'Network error. Please try again.');
+                              }
+                            }
+                          }
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                  </TouchableOpacity>
+                </>
+              )}
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={async () => {
@@ -397,6 +463,25 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
   },
+  typeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  adminBadgeDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  adminBadgeDetailText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#7C3AED',
+  },
   typeBadgeText: {
     fontSize: 12,
     fontWeight: '600',
@@ -443,6 +528,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  deleteButton: {
+    backgroundColor: '#FEF2F2',
   },
   sectionGroup: {
     marginBottom: 20,

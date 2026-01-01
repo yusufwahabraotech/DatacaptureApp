@@ -607,9 +607,17 @@ const UserDetailsScreen = ({ navigation, route }) => {
                   <View key={measurement.id} style={styles.measurementItem}>
                     <View style={styles.measurementItemHeader}>
                       <View>
-                        <Text style={styles.measurementItemType}>
-                          {measurement.submissionType || 'Manual'}
-                        </Text>
+                        <View style={styles.measurementTitleRow}>
+                          <Text style={styles.measurementItemType}>
+                            {measurement.submissionType || 'Manual'}
+                          </Text>
+                          {measurement.createdBy && measurement.createdBy !== measurement.userId && (
+                            <View style={styles.adminIndicator}>
+                              <Ionicons name="shield-checkmark" size={12} color="#7C3AED" />
+                              <Text style={styles.adminIndicatorText}>Admin</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text style={styles.measurementItemDate}>
                           {measurement.createdAt ? new Date(measurement.createdAt).toLocaleDateString() : 'N/A'}
                         </Text>
@@ -1162,6 +1170,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1F2937',
+  },
+  measurementTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  adminIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 2,
+  },
+  adminIndicatorText: {
+    fontSize: 9,
+    fontWeight: '500',
+    color: '#7C3AED',
   },
   measurementItemDate: {
     fontSize: 12,

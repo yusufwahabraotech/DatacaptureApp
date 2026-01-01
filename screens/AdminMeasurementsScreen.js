@@ -102,7 +102,15 @@ const AdminMeasurementsScreen = ({ navigation }) => {
                     </Text>
                   </View>
                   <View style={styles.userDetails}>
-                    <Text style={styles.userName}>{measurement.userInfo?.fullName || measurement.userInfo?.email || 'Unknown'}</Text>
+                    <View style={styles.userNameRow}>
+                      <Text style={styles.userName}>{measurement.userInfo?.fullName || measurement.userInfo?.email || 'Unknown'}</Text>
+                      {measurement.createdBy && measurement.createdBy !== measurement.userId && (
+                        <View style={styles.adminBadge}>
+                          <Ionicons name="shield-checkmark" size={12} color="#7C3AED" />
+                          <Text style={styles.adminBadgeText}>Admin</Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={styles.userCustomId}>{measurement.userInfo?.customUserId || '-'}</Text>
                   </View>
                 </View>
@@ -276,6 +284,25 @@ const styles = StyleSheet.create({
   },
   userDetails: {
     flex: 1,
+  },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  adminBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 2,
+  },
+  adminBadgeText: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#7C3AED',
   },
   userName: {
     fontSize: 16,
