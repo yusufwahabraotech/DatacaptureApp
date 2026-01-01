@@ -182,6 +182,13 @@ const UserSettingsScreen = ({ navigation }) => {
       });
     });
 
+    // Sort cards: enabled first, then disabled
+    cards.sort((a, b) => {
+      if (a.hasAccess && !b.hasAccess) return -1;
+      if (!a.hasAccess && b.hasAccess) return 1;
+      return 0;
+    });
+
     return cards;
   };
 
@@ -192,7 +199,7 @@ const UserSettingsScreen = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Settings</Text>
+          <Text style={styles.headerTitle}>Assigned Role</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
@@ -211,7 +218,7 @@ const UserSettingsScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={styles.headerTitle}>Assigned Role</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -228,47 +235,6 @@ const UserSettingsScreen = ({ navigation }) => {
             <Text style={styles.userEmail}>{user?.email}</Text>
             <Text style={styles.userRole}>{user?.role}</Text>
           </View>
-        </View>
-
-        {/* Permissions Summary */}
-        <View style={styles.permissionsSection}>
-          <Text style={styles.sectionTitle}>Your Permissions</Text>
-          {!user?.organizationId ? (
-            <View style={styles.noOrganization}>
-              <Ionicons name="business" size={48} color="#9CA3AF" />
-              <Text style={styles.noOrganizationText}>Not part of an organization</Text>
-              <Text style={styles.noOrganizationSubtext}>
-                Join an organization to access additional features
-              </Text>
-            </View>
-          ) : (
-            <>
-              <Text style={styles.sectionSubtitle}>
-                You have access to {permissions.length} feature{permissions.length !== 1 ? 's' : ''}
-              </Text>
-              
-              {permissions.length === 0 ? (
-                <View style={styles.noPermissions}>
-                  <Ionicons name="lock-closed" size={48} color="#9CA3AF" />
-                  <Text style={styles.noPermissionsText}>No permissions granted</Text>
-                  <Text style={styles.noPermissionsSubtext}>
-                    Contact your organization admin to request access
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.permissionsList}>
-                  {permissions.map((permission, index) => (
-                    <View key={index} style={styles.permissionItem}>
-                      <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                      <Text style={styles.permissionText}>
-                        {typeof permission === 'object' ? permission.name : permission}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </>
-          )}
         </View>
 
         {/* Available Features */}
@@ -322,6 +288,47 @@ const UserSettingsScreen = ({ navigation }) => {
             </View>
           </View>
         )}
+
+        {/* Permissions Summary */}
+        <View style={styles.permissionsSection}>
+          <Text style={styles.sectionTitle}>Your Permissions</Text>
+          {!user?.organizationId ? (
+            <View style={styles.noOrganization}>
+              <Ionicons name="business" size={48} color="#9CA3AF" />
+              <Text style={styles.noOrganizationText}>Not part of an organization</Text>
+              <Text style={styles.noOrganizationSubtext}>
+                Join an organization to access additional features
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.sectionSubtitle}>
+                You have access to {permissions.length} feature{permissions.length !== 1 ? 's' : ''}
+              </Text>
+              
+              {permissions.length === 0 ? (
+                <View style={styles.noPermissions}>
+                  <Ionicons name="lock-closed" size={48} color="#9CA3AF" />
+                  <Text style={styles.noPermissionsText}>No permissions granted</Text>
+                  <Text style={styles.noPermissionsSubtext}>
+                    Contact your organization admin to request access
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.permissionsList}>
+                  {permissions.map((permission, index) => (
+                    <View key={index} style={styles.permissionItem}>
+                      <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                      <Text style={styles.permissionText}>
+                        {typeof permission === 'object' ? permission.name : permission}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+        </View>
       </ScrollView>
     </View>
   );

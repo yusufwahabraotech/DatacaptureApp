@@ -215,9 +215,9 @@ const ProfileScreen = ({ navigation }) => {
               onPress={() => navigation.navigate('UserSettings')}
             >
               <View style={[styles.actionIcon, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="settings" size={24} color="#F59E0B" />
+                <Ionicons name="person-circle" size={24} color="#F59E0B" />
               </View>
-              <Text style={styles.actionLabel}>Settings</Text>
+              <Text style={styles.actionLabel}>Assigned Role</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionCard}>
