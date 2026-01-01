@@ -2,16 +2,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BASE_URL = 'http://192.168.1.183:3000/api';
 
-// FORCE COMPLETE RELOAD - BREAKING CACHE v4
-const FORCE_RELOAD_NOW = 'MEASUREMENTS_FIXED_' + Date.now();
-console.log('=== API SERVICE RELOADED ===', FORCE_RELOAD_NOW);
+// FORCE COMPLETE RELOAD - BREAKING CACHE v6 - EMERGENCY FIX
+const FORCE_RELOAD_NOW = 'MEASUREMENTS_EMERGENCY_FIX_' + Date.now();
+console.log('🚨 EMERGENCY API SERVICE RELOAD v6 🚨', FORCE_RELOAD_NOW);
+console.log('🔥 IF YOU SEE THIS, THE NEW CODE IS LOADED 🔥');
 
 class ApiService {
-  // FORCE RELOAD MARKER
-  static RELOAD_MARKER = 'API_SERVICE_FIXED_v4_' + Date.now();
+  // FORCE RELOAD MARKER - EMERGENCY v6
+  static RELOAD_MARKER = 'EMERGENCY_API_FIX_v6_' + Date.now();
   
   static async getToken() {
-    console.log('=== API SERVICE LOADED ===', this.RELOAD_MARKER);
+    console.log('🚨 EMERGENCY API SERVICE LOADED 🚨', this.RELOAD_MARKER);
     return await AsyncStorage.getItem('userToken');
   }
 
@@ -103,7 +104,15 @@ class ApiService {
   }
 
   static async getUserProfile() {
-    return this.apiCall('/auth/profile');
+    const response = await this.apiCall('/auth/profile');
+    console.log('=== USER PROFILE DEBUG ===');
+    console.log('Profile response:', JSON.stringify(response, null, 2));
+    if (response.success && response.data && response.data.user) {
+      console.log('User role:', response.data.user.role);
+      console.log('User organizationId:', response.data.user.organizationId);
+      console.log('User roleId:', response.data.user.roleId);
+    }
+    return response;
   }
 
   static async register(userData) {
@@ -173,7 +182,20 @@ class ApiService {
     if (!userId || userId === 'undefined') {
       return { success: false, message: 'User ID is required' };
     }
-    return this.apiCall(`/org-user/users/${userId}`);
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/users/${userId}`);
+    }
+    return this.apiCall(`/user/users/${userId}`);
   }
 
   static async createOrgUser(userData) {
@@ -213,32 +235,80 @@ class ApiService {
 
   // MEASUREMENTS
   static async createAdminMeasurement(measurementData) {
-    console.log('=== createAdminMeasurement DEBUG ===');
+    console.log('=== createAdminMeasurement DEBUG START ===');
     console.log('measurementData:', JSON.stringify(measurementData, null, 2));
     
-    const profileResponse = await this.getUserProfile();
-    if (profileResponse.success) {
-      const user = profileResponse.data.user;
-      let baseUrl;
-      if (user.role === 'ORGANIZATION') {
-        baseUrl = '/admin';
-      } else if (user.role === 'CUSTOMER' && user.organizationId) {
-        baseUrl = '/org-user';
+    try {
+      const profileResponse = await this.getUserProfile();
+      console.log('=== PROFILE RESPONSE ===');
+      console.log('Success:', profileResponse.success);
+      console.log('Full response:', JSON.stringify(profileResponse, null, 2));
+      
+      if (profileResponse.success) {
+        const user = profileResponse.data.user;
+        console.log('=== USER DETAILS ===');
+        console.log('Role:', user.role);
+        console.log('OrganizationId:', user.organizationId);
+        console.log('RoleId:', user.roleId);
+        console.log('Permissions:', user.permissions);
+        
+        let baseUrl;
+        if (user.role === 'ORGANIZATION') {
+          baseUrl = '/admin';
+          console.log('✅ Using /admin endpoint for ORGANIZATION role');
+        } else if (user.role === 'CUSTOMER' && user.organizationId) {
+          baseUrl = '/org-user';
+          console.log('✅ Using /org-user endpoint for CUSTOMER with organizationId:', user.organizationId);
+        } else {
+          baseUrl = '/user';
+          console.log('✅ Using /user endpoint for regular user');
+        }
+        
+        const endpoint = `${baseUrl}/measurements`;
+        console.log('=== FINAL API CALL ===');
+        console.log('Endpoint:', endpoint);
+        console.log('Full URL will be:', `${BASE_URL}${endpoint}`);
+        console.log('Request payload:', JSON.stringify(measurementData, null, 2));
+        
+        // Check if user has create_measurements permission for org-user endpoint
+        if (baseUrl === '/org-user') {
+          const permissions = user.permissions || [];
+          const hasCreatePermission = permissions.some(p => 
+            (typeof p === 'string' && p === 'create_measurements') ||
+            (typeof p === 'object' && p.key === 'create_measurements')
+          );
+          console.log('=== PERMISSION CHECK ===');
+          console.log('User permissions:', permissions);
+          console.log('Has create_measurements permission:', hasCreatePermission);
+          
+          if (!hasCreatePermission) {
+            return {
+              success: false,
+              message: 'Permission denied: create_measurements permission required'
+            };
+          }
+        }
+        
+        return this.apiCall(endpoint, {
+          method: 'POST',
+          body: JSON.stringify(measurementData),
+        });
       } else {
-        baseUrl = '/user';
+        console.log('❌ Profile response failed:', profileResponse.message);
+        console.log('Using fallback /user endpoint');
+        return this.apiCall('/user/measurements', {
+          method: 'POST',
+          body: JSON.stringify(measurementData),
+        });
       }
-      
-      console.log('Final payload:', JSON.stringify(measurementData, null, 2));
-      
-      return this.apiCall(`${baseUrl}/measurements`, {
+    } catch (error) {
+      console.log('❌ Exception in createAdminMeasurement:', error);
+      console.log('Using fallback /user endpoint');
+      return this.apiCall('/user/measurements', {
         method: 'POST',
         body: JSON.stringify(measurementData),
       });
     }
-    return this.apiCall('/user/measurements', {
-      method: 'POST',
-      body: JSON.stringify(measurementData),
-    });
   }
 
   static async updateAdminMeasurement(measurementId, measurementData) {
@@ -283,6 +353,57 @@ class ApiService {
     return this.apiCall(`/user/measurements/${measurementId}`, {
       method: 'DELETE',
     });
+  }
+
+  static async getMeasurementById(measurementId) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/measurements/${measurementId}`);
+    }
+    return this.apiCall(`/user/measurements/${measurementId}`);
+  }
+
+  static async getAdminMeasurements(page = 1, limit = 10) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/measurements?page=${page}&limit=${limit}`);
+    }
+    return this.apiCall(`/user/measurements?page=${page}&limit=${limit}`);
+  }
+
+  static async getUserMeasurements(userId, page = 1, limit = 10) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/users/${userId}/measurements?page=${page}&limit=${limit}`);
+    }
+    return this.apiCall(`/user/users/${userId}/measurements?page=${page}&limit=${limit}`);
   }
 
   // ROLES
@@ -895,13 +1016,6 @@ class ApiService {
     const hasAdmin = await this.hasAdminAccess();
     const baseUrl = hasAdmin ? '/admin' : '/user';
     return this.apiCall(`${baseUrl}/measurements`, {
-      method: 'POST',
-      body: JSON.stringify(measurementData),
-    });
-  }
-
-  static async createAdminMeasurement(measurementData) {
-    return this.apiCall('/admin/measurements', {
       method: 'POST',
       body: JSON.stringify(measurementData),
     });

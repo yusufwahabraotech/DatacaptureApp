@@ -151,6 +151,8 @@ const AdminCreateMeasurementScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
+    console.log('🚨 HANDLE SUBMIT CALLED - NEW CODE RUNNING 🚨');
+    
     if (!selectedUserId) {
       Alert.alert('Error', 'Please select a user');
       return;
@@ -184,6 +186,7 @@ const AdminCreateMeasurementScreen = ({ navigation, route }) => {
         }))
         .filter(section => section.measurements.length > 0);
 
+      console.log('🚨 ABOUT TO CALL createAdminMeasurement 🚨');
       const response = await ApiService.createAdminMeasurement({
         userId: selectedUserId,
         sections: formattedSections,
