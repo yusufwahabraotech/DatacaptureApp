@@ -2,8 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BASE_URL = 'http://192.168.1.183:3000/api';
 
-// CACHE BUSTER: Force Metro to reload this file
-const CACHE_BUSTER = Date.now();
+// CACHE BUSTER: Force Metro to reload this file - UPDATED v3
+const CACHE_BUSTER = 'v2024_FORCE_RELOAD_' + Date.now();
 
 class ApiService {
   static async getToken() {
@@ -115,15 +115,41 @@ class ApiService {
   }
 
   // USERS
-  static async getUsers() {
-    return this.apiCall('/admin/users');
+  static async getUsers(page = 1, limit = 10) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/users?page=${page}&limit=${limit}`);
+    }
+    return this.apiCall(`/user/users?page=${page}&limit=${limit}`);
   }
 
   static async getUserById(userId) {
     if (!userId || userId === 'undefined') {
       return { success: false, message: 'User ID is required' };
     }
-    return this.apiCall(`/admin/users/${userId}`);
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/users/${userId}`);
+    }
+    return this.apiCall(`/user/users/${userId}`);
   }
 
   static async getOrgUsers(page = 1, limit = 10) {
@@ -160,57 +186,152 @@ class ApiService {
 
   // ROLES
   static async getRoles(page = 1, limit = 10) {
-    const hasAdmin = await this.hasAdminAccess();
-    const baseUrl = hasAdmin ? '/admin' : '/user';
-    return this.apiCall(`${baseUrl}/roles?page=${page}&limit=${limit}&includeUsers=true`);
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      console.log('=== getRoles DEBUG ===');
+      console.log('User role:', user.role);
+      console.log('User organizationId:', user.organizationId);
+      
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+        console.log('Using /admin/roles for ORGANIZATION');
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+        console.log('Using /org-user/roles for CUSTOMER with organizationId');
+      } else {
+        baseUrl = '/user';
+        console.log('Using /user/roles for regular user');
+      }
+      const endpoint = `${baseUrl}/roles?page=${page}&limit=${limit}&includeUsers=true`;
+      console.log('Calling endpoint:', endpoint);
+      return this.apiCall(endpoint);
+    }
+    return this.apiCall(`/user/roles?page=${page}&limit=${limit}&includeUsers=true`);
   }
 
   static async getOrgRoles(page = 1, limit = 10) {
-    return this.apiCall(`/admin/roles?page=${page}&limit=${limit}&includeUsers=true`);
+    console.log('=== WARNING: getOrgRoles() called - this should use getRoles() instead ===');
+    return this.getRoles(page, limit);
   }
 
   static async createRole(roleData) {
-    const hasAdmin = await this.hasAdminAccess();
-    const baseUrl = hasAdmin ? '/admin' : '/user';
-    return this.apiCall(`${baseUrl}/roles`, {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/roles`, {
+        method: 'POST',
+        body: JSON.stringify(roleData),
+      });
+    }
+    return this.apiCall('/user/roles', {
       method: 'POST',
       body: JSON.stringify(roleData),
     });
   }
 
   static async getRoleById(roleId) {
-    const hasAdmin = await this.hasAdminAccess();
-    const baseUrl = hasAdmin ? '/admin' : '/user';
-    return this.apiCall(`${baseUrl}/roles/${roleId}?includeUsers=true`);
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/roles/${roleId}?includeUsers=true`);
+    }
+    return this.apiCall(`/user/roles/${roleId}?includeUsers=true`);
   }
 
   static async getRoleUsers(roleId) {
-    const hasAdmin = await this.hasAdminAccess();
-    const baseUrl = hasAdmin ? '/admin' : '/user';
-    return this.apiCall(`${baseUrl}/roles/${roleId}/users`);
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/roles/${roleId}/users`);
+    }
+    return this.apiCall(`/user/roles/${roleId}/users`);
   }
 
   static async updateRole(roleId, roleData) {
-    const hasAdmin = await this.hasAdminAccess();
-    const baseUrl = hasAdmin ? '/admin' : '/user';
-    return this.apiCall(`${baseUrl}/roles/${roleId}`, {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/roles/${roleId}`, {
+        method: 'PUT',
+        body: JSON.stringify(roleData),
+      });
+    }
+    return this.apiCall(`/user/roles/${roleId}`, {
       method: 'PUT',
       body: JSON.stringify(roleData),
     });
   }
 
-  static async deleteRole(roleId) {
-    const hasAdmin = await this.hasAdminAccess();
-    const baseUrl = hasAdmin ? '/admin' : '/user';
-    return this.apiCall(`${baseUrl}/roles/${roleId}`, {
+  static async deleteRole(roleId, roleData) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/roles/${roleId}`, {
+        method: 'DELETE',
+      });
+    }
+    return this.apiCall(`/user/roles/${roleId}`, {
       method: 'DELETE',
     });
   }
 
   static async getAvailableRoles() {
-    const hasAdmin = await this.hasAdminAccess();
-    const baseUrl = hasAdmin ? '/admin' : '/user';
-    return this.apiCall(`${baseUrl}/roles`);
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/roles`);
+    }
+    return this.apiCall('/user/roles');
   }
 
   static async assignRoleToMultipleUsers(roleId, userIds) {
@@ -249,46 +370,63 @@ class ApiService {
     console.log('=== API getUserRole DEBUG ===');
     console.log('Fetching role for user ID:', userId);
     
-    // Always use admin endpoint to get user data with role info
-    const userEndpoint = `/admin/users/${userId}`;
-    console.log('User endpoint:', `${BASE_URL}${userEndpoint}`);
-    
-    const response = await this.apiCall(userEndpoint);
-    console.log('User data response:', JSON.stringify(response, null, 2));
-    
-    if (response.success && response.data.user) {
-      const user = response.data.user;
-      console.log('User roleId field:', user.roleId);
-      
-      if (user.roleId) {
-        // Fetch the full role details
-        const roleDetailsResponse = await this.apiCall(`/admin/roles/${user.roleId}`);
-        console.log('Role details response:', JSON.stringify(roleDetailsResponse, null, 2));
-        
-        if (roleDetailsResponse.success && roleDetailsResponse.data.role) {
-          return {
-            success: true,
-            data: {
-              role: roleDetailsResponse.data.role
-            }
-          };
-        }
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
       }
       
-      return {
-        success: true,
-        data: {
-          role: null
+      const userEndpoint = `${baseUrl}/users/${userId}`;
+      console.log('User endpoint:', `${BASE_URL}${userEndpoint}`);
+      
+      const response = await this.apiCall(userEndpoint);
+      console.log('User data response:', JSON.stringify(response, null, 2));
+      
+      if (response.success && response.data.user) {
+        const targetUser = response.data.user;
+        console.log('User roleId field:', targetUser.roleId);
+        
+        if (targetUser.roleId) {
+          const roleDetailsResponse = await this.apiCall(`${baseUrl}/roles/${targetUser.roleId}`);
+          console.log('Role details response:', JSON.stringify(roleDetailsResponse, null, 2));
+          
+          if (roleDetailsResponse.success && roleDetailsResponse.data.role) {
+            return {
+              success: true,
+              data: {
+                role: roleDetailsResponse.data.role
+              }
+            };
+          }
         }
-      };
+        
+        return {
+          success: true,
+          data: {
+            role: null
+          }
+        };
+      }
+      
+      return response;
     }
-    
-    return response;
+    return { success: false, message: 'Failed to get user profile' };
   }
 
   // MEASUREMENTS - Personal measurements for ALL users
   static async getManualMeasurements(page = 1, limit = 10) {
     console.log('=== getManualMeasurements called with endpoint: /user/measurements ===');
+    return this.apiCall(`/user/measurements?page=${page}&limit=${limit}`);
+  }
+
+  static async getMyMeasurements(page = 1, limit = 10) {
+    console.log('=== getMyMeasurements called - using personal measurements endpoint ===');
     return this.apiCall(`/user/measurements?page=${page}&limit=${limit}`);
   }
 
@@ -313,10 +451,12 @@ class ApiService {
         console.log('Using user endpoint for regular user');
       }
       
-      console.log('calling:', `${baseUrl}/permissions`);
-      return this.apiCall(`${baseUrl}/permissions`);
+      // Use user-permissions endpoint to get actual user permissions (not static list)
+      const endpoint = `${baseUrl}/user-permissions`;
+      console.log('calling:', endpoint);
+      return this.apiCall(endpoint);
     }
-    return this.apiCall('/user/permissions');
+    return this.apiCall('/user/user-permissions');
   }
 
   static async getOrgAvailablePermissions() {
@@ -333,15 +473,11 @@ class ApiService {
     const profileResponse = await this.getUserProfile();
     if (profileResponse.success) {
       const user = profileResponse.data.user;
-      const userRole = user.role;
-      const hasOrganizationId = user.organizationId;
-      
       let baseUrl;
-      if (userRole === 'ORGANIZATION') {
+      if (user.role === 'ORGANIZATION') {
         baseUrl = '/admin';
-      } else if (userRole === 'CUSTOMER' && hasOrganizationId) {
-        // Organization customers use admin endpoints for permissions
-        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
       } else {
         baseUrl = '/user';
       }
@@ -366,19 +502,125 @@ class ApiService {
   }
 
   static async getGroups() {
-    const hasAdmin = await this.hasAdminAccess();
-    if (!hasAdmin) {
-      return { success: false, message: 'Groups management only available for organization admins' };
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        return { success: false, message: 'Groups management only available for organization users' };
+      }
+      return this.apiCall(`${baseUrl}/groups`);
     }
-    return this.apiCall('/admin/groups');
+    return { success: false, message: 'Failed to get user profile' };
   }
 
   static async getGroupById(groupId) {
-    return this.apiCall(`/admin/groups/${groupId}`);
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/groups/${groupId}`);
+    }
+    return this.apiCall(`/user/groups/${groupId}`);
+  }
+
+  static async createGroup(groupData) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/groups`, {
+        method: 'POST',
+        body: JSON.stringify(groupData),
+      });
+    }
+    return this.apiCall('/user/groups', {
+      method: 'POST',
+      body: JSON.stringify(groupData),
+    });
+  }
+
+  static async updateGroup(groupId, groupData) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/groups/${groupId}`, {
+        method: 'PUT',
+        body: JSON.stringify(groupData),
+      });
+    }
+    return this.apiCall(`/user/groups/${groupId}`, {
+      method: 'PUT',
+      body: JSON.stringify(groupData),
+    });
+  }
+
+  static async manageGroupMembers(groupId, action, userIds) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/groups/${groupId}/members`, {
+        method: 'PUT',
+        body: JSON.stringify({ action, userIds }),
+      });
+    }
+    return this.apiCall(`/user/groups/${groupId}/members`, {
+      method: 'PUT',
+      body: JSON.stringify({ action, userIds }),
+    });
   }
 
   static async deleteGroup(groupId) {
-    return this.apiCall(`/admin/groups/${groupId}`, {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/groups/${groupId}`, {
+        method: 'DELETE',
+      });
+    }
+    return this.apiCall(`/user/groups/${groupId}`, {
       method: 'DELETE',
     });
   }
@@ -394,15 +636,32 @@ class ApiService {
 
   // MEASUREMENTS
   static async getMeasurements(page = 1, limit = 10, userId = null) {
-    const hasAdmin = await this.hasAdminAccess();
-    const baseUrl = hasAdmin ? '/admin' : '/user';
-    let endpoint = `${baseUrl}/measurements?page=${page}&limit=${limit}`;
-    
-    if (userId) {
-      endpoint += `&userId=${userId}`;
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      console.log('=== getMeasurements DEBUG ===');
+      console.log('User role:', user.role);
+      console.log('User organizationId:', user.organizationId);
+      
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+        console.log('Using /admin/measurements for ORGANIZATION');
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+        console.log('Using /org-user/measurements for CUSTOMER with organizationId');
+      } else {
+        baseUrl = '/user';
+        console.log('Using /user/measurements for regular user');
+      }
+      let endpoint = `${baseUrl}/measurements?page=${page}&limit=${limit}`;
+      if (userId) {
+        endpoint += `&userId=${userId}`;
+      }
+      console.log('Calling endpoint:', endpoint);
+      return this.apiCall(endpoint);
     }
-    
-    return this.apiCall(endpoint);
+    return this.apiCall(`/user/measurements?page=${page}&limit=${limit}`);
   }
 
   static async getUserMeasurements(userId, page = 1, limit = 10) {
@@ -461,30 +720,49 @@ class ApiService {
 
   // ONE-TIME CODES
   static async getOneTimeCodes(page = 1, limit = 10) {
-    console.log('=== getOneTimeCodes called ===');
     const profileResponse = await this.getUserProfile();
-    console.log('Profile response:', JSON.stringify(profileResponse, null, 2));
-    const isOrgAdmin = profileResponse.success && profileResponse.data.user.role === 'ORGANIZATION';
-    console.log('Is org admin:', isOrgAdmin);
-    const baseUrl = isOrgAdmin ? '/admin' : '/user';
-    console.log('Base URL:', baseUrl);
-    const endpoint = `${baseUrl}/one-time-codes?page=${page}&limit=${limit}`;
-    console.log('Calling endpoint:', endpoint);
-    return this.apiCall(endpoint);
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      console.log('=== getOneTimeCodes DEBUG ===');
+      console.log('User role:', user.role);
+      console.log('User organizationId:', user.organizationId);
+      
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+        console.log('Using /admin/one-time-codes for ORGANIZATION');
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+        console.log('Using /org-user/one-time-codes for CUSTOMER with organizationId');
+      } else {
+        baseUrl = '/user';
+        console.log('Using /user/one-time-codes for regular user');
+      }
+      const endpoint = `${baseUrl}/one-time-codes?page=${page}&limit=${limit}`;
+      console.log('Calling endpoint:', endpoint);
+      return this.apiCall(endpoint);
+    }
+    return this.apiCall(`/user/one-time-codes?page=${page}&limit=${limit}`);
   }
 
   static async generateOneTimeCode(codeData) {
-    console.log('=== generateOneTimeCode called ===');
-    console.log('Code data:', JSON.stringify(codeData, null, 2));
     const profileResponse = await this.getUserProfile();
-    console.log('Profile response:', JSON.stringify(profileResponse, null, 2));
-    const isOrgAdmin = profileResponse.success && profileResponse.data.user.role === 'ORGANIZATION';
-    console.log('Is org admin:', isOrgAdmin);
-    const baseUrl = isOrgAdmin ? '/admin' : '/user';
-    console.log('Base URL:', baseUrl);
-    const endpoint = `${baseUrl}/one-time-codes`;
-    console.log('Calling endpoint:', endpoint);
-    return this.apiCall(endpoint, {
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/one-time-codes`, {
+        method: 'POST',
+        body: JSON.stringify(codeData),
+      });
+    }
+    return this.apiCall('/user/one-time-codes', {
       method: 'POST',
       body: JSON.stringify(codeData),
     });

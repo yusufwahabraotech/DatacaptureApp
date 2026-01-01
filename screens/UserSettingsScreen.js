@@ -39,9 +39,21 @@ const UserSettingsScreen = ({ navigation }) => {
 
   const fetchUserPermissions = async () => {
     try {
+      // First, let's check what the debug endpoint shows
+      console.log('=== CALLING DEBUG ENDPOINT ===');
+      const debugResponse = await ApiService.apiCall('/admin/debug/user-info');
+      console.log('Debug endpoint response:', JSON.stringify(debugResponse, null, 2));
+      
       const response = await ApiService.getAvailablePermissions();
+      console.log('=== UserSettings Permissions DEBUG ===');
+      console.log('Permissions response:', JSON.stringify(response, null, 2));
       if (response.success) {
-        setPermissions(response.data.permissions || []);
+        const perms = response.data.permissions || [];
+        console.log('Permissions array length:', perms.length);
+        console.log('All permissions:', perms.map(p => typeof p === 'object' ? p.key : p));
+        console.log('Missing group permissions:', ['view_groups', 'create_groups', 'edit_groups', 'delete_groups', 'manage_group_members'].filter(perm => !perms.some(p => p.key === perm || p === perm)));
+        console.log('Has view_groups permission:', perms.some(p => p.key === 'view_groups' || p === 'view_groups'));
+        setPermissions(perms);
       }
     } catch (error) {
       console.log('Error fetching permissions:', error);
@@ -51,14 +63,20 @@ const UserSettingsScreen = ({ navigation }) => {
   };
 
   const hasPermission = (permissionKey) => {
-    return permissions.some(p => p.key === permissionKey || p === permissionKey);
+    const hasIt = permissions.some(p => p.key === permissionKey || p === permissionKey);
+    console.log(`Checking permission '${permissionKey}':`, hasIt);
+    return hasIt;
   };
 
   const getPermissionCards = () => {
     const cards = [];
+    console.log('=== getPermissionCards DEBUG ===');
+    console.log('User organizationId:', user?.organizationId);
+    console.log('Total permissions:', permissions.length);
 
     // Only show organization features if user has organizationId
     if (!user?.organizationId) {
+      console.log('No organizationId - returning empty cards');
       return cards;
     }
 

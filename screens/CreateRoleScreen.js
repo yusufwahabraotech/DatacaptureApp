@@ -47,7 +47,8 @@ const CreateRoleScreen = ({ navigation, route }) => {
 
   const fetchPermissions = async () => {
     try {
-      const response = await ApiService.getAvailablePermissions();
+      // Use static permissions endpoint for role creation
+      const response = await ApiService.apiCall('/org-user/permissions');
       
       if (response.success) {
         setAvailablePermissions(response.data.permissions || []);

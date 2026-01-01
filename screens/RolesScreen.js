@@ -90,10 +90,8 @@ const RolesScreen = ({ navigation }) => {
 
   const fetchRoles = async () => {
     try {
-      const isOrgAdmin = userProfile?.role === 'ORGANIZATION';
-      const response = isOrgAdmin 
-        ? await ApiService.getRoles(1, 50)
-        : await ApiService.getOrgRoles(1, 50);
+      // All users should use getRoles() which has proper role-based routing
+      const response = await ApiService.getRoles(1, 50);
       
       if (response.success) {
         setRoles(response.data.roles || []);
@@ -122,10 +120,8 @@ const RolesScreen = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              const isOrgAdmin = userProfile?.role === 'ORGANIZATION';
-              const response = isOrgAdmin
-                ? await ApiService.deleteRole(roleId)
-                : await ApiService.deleteOrgRole(roleId);
+              // Use the unified deleteRole method which has proper role-based routing
+              const response = await ApiService.deleteRole(roleId);
               
               if (response.success) {
                 Alert.alert('Success', 'Role deleted successfully');
