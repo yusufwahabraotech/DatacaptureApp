@@ -26,37 +26,11 @@ const AdminDashboardScreen = ({ navigation }) => {
   });
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const rotateAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     fetchDashboardStats();
     fetchUserProfile();
   }, []);
-
-  const handleRefresh = async () => {
-    if (refreshing) return;
-    
-    setRefreshing(true);
-    Vibration.vibrate(50); // Light haptic feedback
-    
-    // Start rotation animation
-    Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      })
-    ).start();
-    
-    await fetchDashboardStats();
-    await fetchUserProfile();
-    
-    // Stop animation and reset
-    rotateAnim.stopAnimation();
-    rotateAnim.setValue(0);
-    setRefreshing(false);
-  };
 
   const fetchDashboardStats = async () => {
     try {
@@ -66,6 +40,10 @@ const AdminDashboardScreen = ({ navigation }) => {
       
       if (response.success) {
         console.log('Dashboard stats data:', response.data);
+        console.log('One-time codes data:');
+        console.log('  - Generated:', response.data.oneTimeCodesGenerated);
+        console.log('  - Used:', response.data.oneTimeCodesUsed);
+        console.log('  - Available:', response.data.oneTimeCodesAvailable);
         setStats(response.data);
       } else {
         console.log('Dashboard stats failed:', response.message);
@@ -127,8 +105,8 @@ const AdminDashboardScreen = ({ navigation }) => {
       bgColor: '#FEF2F2'
     },
     {
-      title: 'Generated Codes',
-      value: stats.oneTimeCodesGenerated,
+      title: 'One-Time Codes',
+      value: stats.oneTimeCodesGenerated || 0,
       icon: 'key',
       color: '#8B5CF6',
       bgColor: '#F3E8FF'
@@ -217,34 +195,19 @@ const AdminDashboardScreen = ({ navigation }) => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Hello, {user?.fullName || 'Admin'}</Text>
-          <Text style={styles.role}>Organization Admin</Text>
+        <View style={styles.headerLeft}>
+          {/* Back button for org-users */}
+          {user?.role === 'CUSTOMER' && (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            </TouchableOpacity>
+          )}
+          <View>
+            <Text style={styles.greeting}>Hello, {user?.fullName || 'Admin'}</Text>
+            <Text style={styles.role}>{user?.role === 'ORGANIZATION' ? 'Organization Admin' : 'Organization Dashboard'}</Text>
+          </View>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity 
-            style={[styles.refreshButton, refreshing && styles.refreshButtonActive]}
-            onPress={handleRefresh}
-            disabled={refreshing}
-            activeOpacity={0.7}
-          >
-            <Animated.View
-              style={{
-                transform: [{
-                  rotate: rotateAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0deg', '360deg'],
-                  })
-                }]
-              }}
-            >
-              <Ionicons 
-                name="refresh" 
-                size={20} 
-                color={refreshing ? '#7C3AED' : '#7C3AED'} 
-              />
-            </Animated.View>
-          </TouchableOpacity>
           <TouchableOpacity 
             style={styles.profileImage}
             onPress={() => navigation.navigate('Profile')}
@@ -270,69 +233,78 @@ const AdminDashboardScreen = ({ navigation }) => {
           ))}
         </View>
 
-        {/* One-Time Codes Summary */}
-        <View style={styles.codesSection}>
-          <Text style={styles.sectionTitle}>One-Time Codes</Text>
-          <View style={styles.codesCard}>
-            <View style={styles.codesStat}>
-              <Text style={styles.codesValue}>{stats.oneTimeCodesGenerated}</Text>
-              <Text style={styles.codesLabel}>Generated</Text>
-            </View>
-            <View style={styles.codesStat}>
-              <Text style={styles.codesValue}>{stats.oneTimeCodesUsed}</Text>
-              <Text style={styles.codesLabel}>Used</Text>
-            </View>
-            <View style={styles.codesStat}>
-              <Text style={styles.codesValue}>{stats.oneTimeCodesAvailable || (stats.oneTimeCodesGenerated - stats.oneTimeCodesUsed) || 0}</Text>
-              <Text style={styles.codesLabel}>Available</Text>
+        {/* One-Time Codes Summary - Only show if data exists */}
+        {(stats.oneTimeCodesGenerated !== undefined || stats.oneTimeCodesUsed !== undefined) && (
+          <View style={styles.codesSection}>
+            <Text style={styles.sectionTitle}>One-Time Codes</Text>
+            <View style={styles.codesCard}>
+              <View style={styles.codesStat}>
+                <Text style={styles.codesValue}>{stats.oneTimeCodesGenerated || 0}</Text>
+                <Text style={styles.codesLabel}>Generated</Text>
+              </View>
+              <View style={styles.codesStat}>
+                <Text style={styles.codesValue}>{stats.oneTimeCodesUsed || 0}</Text>
+                <Text style={styles.codesLabel}>Used</Text>
+              </View>
+              <View style={styles.codesStat}>
+                <Text style={styles.codesValue}>{stats.oneTimeCodesAvailable || (stats.oneTimeCodesGenerated - stats.oneTimeCodesUsed) || 0}</Text>
+                <Text style={styles.codesLabel}>Available</Text>
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
-        {/* Organization Management */}
-        <View style={styles.actionsSection}>
-          <Text style={styles.sectionTitle}>Organization Management</Text>
-          <Text style={styles.sectionSubtitle}>Manage users and organization settings</Text>
-          <View style={styles.actionsGrid}>
-            {quickActions.map((action, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={styles.actionCard}
-                onPress={action.onPress}
-              >
-                <View style={styles.actionIcon}>
-                  <Ionicons name={action.icon} size={24} color="#7C3AED" />
-                </View>
-                <Text style={styles.actionTitle}>{action.title}</Text>
-                <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
-              </TouchableOpacity>
-            ))}
+        {/* Organization Management - Only for ORGANIZATION role */}
+        {user?.role === 'ORGANIZATION' && (
+          <View style={styles.actionsSection}>
+            <Text style={styles.sectionTitle}>Organization Management</Text>
+            <Text style={styles.sectionSubtitle}>Manage users and organization settings</Text>
+            <View style={styles.actionsGrid}>
+              {quickActions.map((action, index) => (
+                <TouchableOpacity 
+                  key={index} 
+                  style={styles.actionCard}
+                  onPress={action.onPress}
+                >
+                  <View style={styles.actionIcon}>
+                    <Ionicons name={action.icon} size={24} color="#7C3AED" />
+                  </View>
+                  <Text style={styles.actionTitle}>{action.title}</Text>
+                  <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
-        {/* My Measurements Section */}
-        <View style={styles.actionsSection}>
-          <Text style={styles.sectionTitle}>My Measurements</Text>
-          <Text style={styles.sectionSubtitle}>Create and manage your own measurements</Text>
-          <View style={styles.actionsGrid}>
-            {measurementActions.map((action, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={styles.actionCard}
-                onPress={action.onPress}
-              >
-                <View style={styles.actionIcon}>
-                  <Ionicons name={action.icon} size={24} color="#10B981" />
-                </View>
-                <Text style={styles.actionTitle}>{action.title}</Text>
-                <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
-              </TouchableOpacity>
-            ))}
+        {/* My Measurements Section - Only for ORGANIZATION role */}
+        {user?.role === 'ORGANIZATION' && (
+          <View style={styles.actionsSection}>
+            <Text style={styles.sectionTitle}>My Measurements</Text>
+            <Text style={styles.sectionSubtitle}>Create and manage your own measurements</Text>
+            <View style={styles.actionsGrid}>
+              {measurementActions.map((action, index) => (
+                <TouchableOpacity 
+                  key={index} 
+                  style={styles.actionCard}
+                  onPress={action.onPress}
+                >
+                  <View style={styles.actionIcon}>
+                    <Ionicons name={action.icon} size={24} color="#10B981" />
+                  </View>
+                  <Text style={styles.actionTitle}>{action.title}</Text>
+                  <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
       </ScrollView>
 
-      <BottomNavigation navigation={navigation} activeTab="Dashboard" />
+      {/* Bottom Navigation - Only for ORGANIZATION role */}
+      {user?.role === 'ORGANIZATION' && (
+        <BottomNavigation navigation={navigation} activeTab="Dashboard" />
+      )}
     </View>
   );
 };
@@ -350,6 +322,15 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 20,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  backButton: {
+    marginRight: 16,
+    padding: 4,
+  },
   greeting: {
     fontSize: 24,
     fontWeight: '600',
@@ -363,18 +344,6 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  refreshButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  refreshButtonActive: {
-    backgroundColor: '#EDE9FE',
   },
   profileImage: {
     width: 40,

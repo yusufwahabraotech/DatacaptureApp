@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -80,110 +81,106 @@ const UserSettingsScreen = ({ navigation }) => {
       return cards;
     }
 
-    // User Management permissions
-    if (hasPermission('view_users')) {
-      cards.push({
+    // Define all possible features with their permission requirements
+    const allFeatures = [
+      {
         title: 'View Users',
         subtitle: 'View organization users',
         icon: 'people',
         color: '#10B981',
         bgColor: '#ECFDF5',
-        onPress: () => navigation.navigate('UsersList')
-      });
-    }
-
-    if (hasPermission('create_users')) {
-      cards.push({
+        permission: 'view_users',
+        onPress: () => navigation.navigate('UserManagement')
+      },
+      {
         title: 'Create Users',
         subtitle: 'Add new users',
         icon: 'person-add',
         color: '#3B82F6',
         bgColor: '#DBEAFE',
-        onPress: () => navigation.navigate('CreateUser')
-      });
-    }
-
-    if (hasPermission('edit_users')) {
-      cards.push({
+        permission: 'create_users',
+        onPress: () => navigation.navigate('UserManagement')
+      },
+      {
         title: 'Manage Users',
         subtitle: 'Edit user details',
         icon: 'create',
         color: '#F59E0B',
         bgColor: '#FFFBEB',
-        onPress: () => navigation.navigate('UsersList')
-      });
-    }
-
-    // Role Management permissions
-    if (hasPermission('view_roles')) {
-      cards.push({
+        permission: 'edit_users',
+        onPress: () => navigation.navigate('UserManagement')
+      },
+      {
         title: 'Roles Management',
         subtitle: 'Manage user roles',
         icon: 'shield-checkmark',
         color: '#7C3AED',
         bgColor: '#F5F3FF',
+        permission: 'view_roles',
         onPress: () => navigation.navigate('Roles')
-      });
-    }
-
-    // Group Management permissions
-    if (hasPermission('view_groups')) {
-      cards.push({
+      },
+      {
         title: 'Groups Management',
         subtitle: 'Manage user groups',
         icon: 'layers',
         color: '#EC4899',
         bgColor: '#FDF2F8',
+        permission: 'view_groups',
         onPress: () => navigation.navigate('Groups')
-      });
-    }
-
-    // Measurements permissions
-    if (hasPermission('view_measurements')) {
-      cards.push({
+      },
+      {
         title: 'View Measurements',
         subtitle: 'View all measurements',
         icon: 'body',
         color: '#7C3AED',
         bgColor: '#F5F3FF',
+        permission: 'view_measurements',
         onPress: () => navigation.navigate('UserMeasurements')
-      });
-    }
-
-    if (hasPermission('create_measurements')) {
-      cards.push({
+      },
+      {
         title: 'Create Measurements',
         subtitle: 'Add new measurements',
         icon: 'add-circle',
         color: '#EF4444',
         bgColor: '#FEF2F2',
+        permission: 'create_measurements',
         onPress: () => navigation.navigate('BodyMeasurement')
-      });
-    }
-
-    // One-time codes permissions
-    if (hasPermission('view_one_time_codes') || hasPermission('generate_one_time_codes')) {
-      cards.push({
+      },
+      {
         title: 'One-Time Codes',
         subtitle: 'Manage access codes',
         icon: 'key',
         color: '#8B5CF6',
         bgColor: '#F3E8FF',
+        permission: 'view_one_time_codes',
         onPress: () => navigation.navigate('UserOneTimeCodes')
-      });
-    }
-
-    // Dashboard permissions
-    if (hasPermission('view_dashboard_stats')) {
-      cards.push({
+      },
+      {
         title: 'Dashboard',
         subtitle: 'View organization stats',
         icon: 'analytics',
         color: '#06B6D4',
         bgColor: '#ECFEFF',
-        onPress: () => navigation.navigate('UserDashboard')
+        permission: 'view_dashboard_stats',
+        onPress: () => navigation.navigate('AdminDashboard')
+      }
+    ];
+
+    // Add all features, marking those without permission as disabled
+    allFeatures.forEach(feature => {
+      const hasAccess = hasPermission(feature.permission);
+      cards.push({
+        ...feature,
+        hasAccess,
+        onPress: hasAccess ? feature.onPress : () => {
+          Alert.alert(
+            'Permission Required',
+            `You need the "${feature.permission.replace(/_/g, ' ')}" permission to access this feature. Please contact your organization administrator.`,
+            [{ text: 'OK', style: 'default' }]
+          );
+        }
       });
-    }
+    });
 
     return cards;
   };
@@ -277,23 +274,49 @@ const UserSettingsScreen = ({ navigation }) => {
         {/* Available Features */}
         {user?.organizationId && permissionCards.length > 0 && (
           <View style={styles.featuresSection}>
-            <Text style={styles.sectionTitle}>Available Features</Text>
+            <Text style={styles.sectionTitle}>Organization Features</Text>
             <Text style={styles.sectionSubtitle}>
-              Access the features you have permission for
+              Features available to your organization. Grayed out items require additional permissions.
             </Text>
             
             <View style={styles.featuresGrid}>
               {permissionCards.map((card, index) => (
                 <TouchableOpacity 
                   key={index} 
-                  style={[styles.featureCard, { backgroundColor: card.bgColor }]}
+                  style={[
+                    styles.featureCard, 
+                    { backgroundColor: card.hasAccess ? card.bgColor : '#F9FAFB' },
+                    !card.hasAccess && styles.disabledCard
+                  ]}
                   onPress={card.onPress}
                 >
-                  <View style={styles.featureIcon}>
-                    <Ionicons name={card.icon} size={24} color={card.color} />
+                  <View style={[
+                    styles.featureIcon,
+                    { backgroundColor: card.hasAccess ? 'rgba(255,255,255,0.8)' : '#E5E7EB' }
+                  ]}>
+                    <Ionicons 
+                      name={card.hasAccess ? card.icon : 'lock-closed'} 
+                      size={24} 
+                      color={card.hasAccess ? card.color : '#9CA3AF'} 
+                    />
                   </View>
-                  <Text style={styles.featureTitle}>{card.title}</Text>
-                  <Text style={styles.featureSubtitle}>{card.subtitle}</Text>
+                  <Text style={[
+                    styles.featureTitle,
+                    !card.hasAccess && styles.disabledText
+                  ]}>
+                    {card.title}
+                  </Text>
+                  <Text style={[
+                    styles.featureSubtitle,
+                    !card.hasAccess && styles.disabledSubtext
+                  ]}>
+                    {card.hasAccess ? card.subtitle : 'Permission required'}
+                  </Text>
+                  {!card.hasAccess && (
+                    <View style={styles.permissionBadge}>
+                      <Text style={styles.permissionBadgeText}>No Access</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
@@ -474,6 +497,28 @@ const styles = StyleSheet.create({
   featureSubtitle: {
     fontSize: 12,
     color: '#6B7280',
+    textAlign: 'center',
+  },
+  disabledCard: {
+    opacity: 0.6,
+  },
+  disabledText: {
+    color: '#9CA3AF',
+  },
+  disabledSubtext: {
+    color: '#9CA3AF',
+  },
+  permissionBadge: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  permissionBadgeText: {
+    fontSize: 10,
+    color: '#EF4444',
+    fontWeight: '500',
     textAlign: 'center',
   },
 });

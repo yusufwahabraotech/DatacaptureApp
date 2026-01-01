@@ -79,9 +79,7 @@ const UserDetailsScreen = ({ navigation, route }) => {
 
   const fetchUserDetails = async () => {
     try {
-      const response = userProfile?.role === 'ORGANIZATION'
-        ? await ApiService.getUserById(initialUser.id)
-        : await ApiService.getOrgUserById(initialUser.id);
+      const response = await ApiService.getUserById(initialUser.id);
       if (response.success && response.data.user) {
         setUser(response.data.user);
         setUserStatus(response.data.user.status);
@@ -166,8 +164,7 @@ const UserDetailsScreen = ({ navigation, route }) => {
 
     setUpdateLoading(true);
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await ApiService.updateUser(user.id, editUser);
+      const response = await ApiService.updateOrgUser(user.id, editUser);
       if (response.success) {
         Alert.alert('Success', 'User information updated successfully');
         setShowEditModal(false);
@@ -185,15 +182,10 @@ const UserDetailsScreen = ({ navigation, route }) => {
   const sendEmail = async () => {
     setUpdateLoading(true);
     try {
-      const response = userProfile?.role === 'ORGANIZATION'
-        ? await ApiService.sendAdminUserEmail(user.id, {
-            adminMessage: emailMessage,
-            generateNewPassword: true
-          })
-        : await ApiService.sendOrgUserEmail(user.id, {
-            adminMessage: emailMessage,
-            generateNewPassword: true
-          });
+      const response = await ApiService.sendOrgUserEmail(user.id, {
+        adminMessage: emailMessage,
+        generateNewPassword: true
+      });
 
       if (response.success) {
         if (response.data.newPassword) {
@@ -228,9 +220,7 @@ const UserDetailsScreen = ({ navigation, route }) => {
 
     setUpdateLoading(true);
     try {
-      const response = userProfile?.role === 'ORGANIZATION'
-        ? await ApiService.resetAdminUserPassword(user.id, { password: newPassword })
-        : await ApiService.resetOrgUserPassword(user.id, { password: newPassword });
+      const response = await ApiService.resetOrgUserPassword(user.id, { password: newPassword });
 
       if (response.success) {
         const userPasswords = await AsyncStorage.getItem('userPasswords') || '{}';
@@ -301,9 +291,7 @@ const UserDetailsScreen = ({ navigation, route }) => {
   const confirmStatusUpdate = async (newStatus, actionText) => {
     setUpdateLoading(true);
     try {
-      const response = userProfile?.role === 'ORGANIZATION'
-        ? await ApiService.updateUserStatus(user._id || user.id, newStatus)
-        : await ApiService.updateOrgUserStatus(user._id || user.id, newStatus);
+      const response = await ApiService.updateOrgUserStatus(user._id || user.id, newStatus);
       if (response.success) {
         setUserStatus(newStatus);
         setUser(prev => ({ ...prev, status: newStatus }));

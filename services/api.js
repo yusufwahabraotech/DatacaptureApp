@@ -189,6 +189,20 @@ class ApiService {
     });
   }
 
+  static async sendOrgUserEmail(userId, emailData) {
+    return this.apiCall(`/org-user/users/${userId}/send-email`, {
+      method: 'POST',
+      body: JSON.stringify(emailData),
+    });
+  }
+
+  static async resetOrgUserPassword(userId, passwordData) {
+    return this.apiCall(`/org-user/users/${userId}/password`, {
+      method: 'PUT',
+      body: JSON.stringify(passwordData),
+    });
+  }
+
   // ROLES
   static async getRoles(page = 1, limit = 10) {
     const profileResponse = await this.getUserProfile();
@@ -447,18 +461,32 @@ class ApiService {
           
           // Get user permissions
           const permissionsResponse = await this.getMyPermissions();
-          console.log('Permissions response:', JSON.stringify(permissionsResponse, null, 2));
           
           if (permissionsResponse.success) {
             const permissions = permissionsResponse.data.permissions || [];
-            const hasViewDashboardStats = permissions.includes('view_dashboard_stats');
+            console.log('=== DETAILED PERMISSION DEBUG ===');
+            console.log('Permissions array length:', permissions.length);
+            permissions.forEach((p, index) => {
+              console.log(`Permission ${index}:`, typeof p, JSON.stringify(p));
+              if (typeof p === 'object' && p.key) {
+                console.log(`  - Key: ${p.key}`);
+                console.log(`  - Matches view_dashboard_stats: ${p.key === 'view_dashboard_stats'}`);
+              }
+            });
             
-            console.log('Has view_dashboard_stats permission:', hasViewDashboardStats);
-            console.log('All permissions:', permissions);
+            const hasViewDashboardStats = permissions.some(p => {
+              const match = p.key === 'view_dashboard_stats' || p === 'view_dashboard_stats';
+              console.log(`Checking permission:`, p, 'Match:', match);
+              return match;
+            });
+            
+            console.log('Final result - Has view_dashboard_stats permission:', hasViewDashboardStats);
             
             if (hasViewDashboardStats) {
-              console.log('Permission granted - using /org-user/dashboard/stats');
-              return this.apiCall('/org-user/dashboard/stats');
+              console.log('Permission granted - calling /org-user/dashboard/stats');
+              const response = await this.apiCall('/org-user/dashboard/stats');
+              console.log('Org dashboard response:', JSON.stringify(response, null, 2));
+              return response;
             } else {
               console.log('Permission denied - view_dashboard_stats not found');
               return { success: false, message: 'Permission denied: view_dashboard_stats required' };
@@ -469,11 +497,10 @@ class ApiService {
           }
         }
         
-        console.log('No organization access - user role:', user.role, 'organizationId:', user.organizationId);
+        console.log('No organization access');
         return { success: false, message: 'No organization access' };
       }
       
-      console.log('Profile request failed');
       return { success: false, message: 'Failed to get user profile' };
     } catch (error) {
       console.log('getOrganizationDashboardStats error:', error);
@@ -869,9 +896,22 @@ class ApiService {
     }
     
     const profileResponse = await this.getUserProfile();
-    const isOrgAdmin = profileResponse.success && profileResponse.data.user.role === 'ORGANIZATION';
-    const baseUrl = isOrgAdmin ? '/admin' : '/user';
-    return this.apiCall(`${baseUrl}/one-time-codes/send-email`, {
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/one-time-codes/send-email`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    }
+    return this.apiCall('/user/one-time-codes/send-email', {
       method: 'POST',
       body: JSON.stringify(payload),
     });

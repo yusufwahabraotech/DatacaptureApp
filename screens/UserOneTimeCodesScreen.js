@@ -16,6 +16,7 @@ import ApiService from '../services/api';
 const UserOneTimeCodesScreen = ({ navigation }) => {
   const [codes, setCodes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sendingEmail, setSendingEmail] = useState(null); // Track which code is being sent
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [sentCodes, setSentCodes] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
@@ -84,6 +85,7 @@ const UserOneTimeCodesScreen = ({ navigation }) => {
   };
 
   const sendCodeEmail = async (codeValue) => {
+    setSendingEmail(codeValue);
     try {
       const response = await ApiService.sendOneTimeCodeEmail(codeValue);
       if (response.success) {
@@ -94,6 +96,8 @@ const UserOneTimeCodesScreen = ({ navigation }) => {
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to send email');
+    } finally {
+      setSendingEmail(null);
     }
   };
 
@@ -184,11 +188,18 @@ const UserOneTimeCodesScreen = ({ navigation }) => {
                   <View style={styles.emailActions}>
                     {!sentCodes.has(code.code) ? (
                       <TouchableOpacity 
-                        style={styles.sendButton}
+                        style={[styles.sendButton, sendingEmail === code.code && styles.sendButtonLoading]}
                         onPress={() => sendCodeEmail(code.code)}
+                        disabled={sendingEmail === code.code}
                       >
-                        <Ionicons name="mail-outline" size={16} color="#7C3AED" />
-                        <Text style={styles.sendButtonText}>Send Email</Text>
+                        {sendingEmail === code.code ? (
+                          <ActivityIndicator size={16} color="#7C3AED" />
+                        ) : (
+                          <Ionicons name="mail-outline" size={16} color="#7C3AED" />
+                        )}
+                        <Text style={styles.sendButtonText}>
+                          {sendingEmail === code.code ? 'Sending...' : 'Send Email'}
+                        </Text>
                       </TouchableOpacity>
                     ) : (
                       <View style={styles.emailActionsRow}>
@@ -197,11 +208,18 @@ const UserOneTimeCodesScreen = ({ navigation }) => {
                           <Text style={styles.sentButtonText}>Sent</Text>
                         </View>
                         <TouchableOpacity 
-                          style={styles.resendButton}
+                          style={[styles.resendButton, sendingEmail === code.code && styles.resendButtonLoading]}
                           onPress={() => sendCodeEmail(code.code)}
+                          disabled={sendingEmail === code.code}
                         >
-                          <Ionicons name="refresh" size={16} color="#7C3AED" />
-                          <Text style={styles.resendButtonText}>Resend</Text>
+                          {sendingEmail === code.code ? (
+                            <ActivityIndicator size={16} color="#7C3AED" />
+                          ) : (
+                            <Ionicons name="refresh" size={16} color="#7C3AED" />
+                          )}
+                          <Text style={styles.resendButtonText}>
+                            {sendingEmail === code.code ? 'Sending...' : 'Resend'}
+                          </Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -534,6 +552,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     alignSelf: 'flex-start',
   },
+  sendButtonLoading: {
+    opacity: 0.7,
+  },
   sendButtonText: {
     fontSize: 14,
     color: '#7C3AED',
@@ -571,6 +592,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#7C3AED',
+  },
+  resendButtonLoading: {
+    opacity: 0.7,
   },
   resendButtonText: {
     fontSize: 14,
