@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,6 +22,9 @@ const BodyMeasurementScreen = ({ navigation }) => {
   const [measurements, setMeasurements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMeasurements, setSelectedMeasurements] = useState([]);
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [oneTimeCode, setOneTimeCode] = useState('');
+  const [currentMeasurement, setCurrentMeasurement] = useState(null);
 
   useEffect(() => {
     fetchUserProfile();
@@ -72,36 +76,30 @@ const BodyMeasurementScreen = ({ navigation }) => {
   };
 
   const shareToOrganization = (measurement) => {
-    Alert.prompt(
-      'Share to Organization',
-      'Enter the one-time code provided by the organization:',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Share',
-          onPress: async (code) => {
-            if (!code || code.trim().length === 0) {
-              Alert.alert('Error', 'Please enter a valid code');
-              return;
-            }
-            
-            try {
-              const response = await ApiService.shareToOrganization(measurement.id, code.trim());
-              if (response.success) {
-                Alert.alert('Success', 'Measurement shared to organization successfully!');
-              } else {
-                Alert.alert('Error', response.message || 'Failed to share measurement');
-              }
-            } catch (error) {
-              Alert.alert('Error', 'Failed to share measurement. Please check your code and try again.');
-            }
-          }
-        }
-      ],
-      'plain-text',
-      '',
-      'numeric'
-    );
+    setCurrentMeasurement(measurement);
+    setOneTimeCode('');
+    setShowCodeModal(true);
+  };
+
+  const handleShareWithCode = async () => {
+    if (!oneTimeCode || oneTimeCode.trim().length === 0) {
+      Alert.alert('Error', 'Please enter a valid code');
+      return;
+    }
+    
+    try {
+      const response = await ApiService.shareToOrganization(currentMeasurement.id, oneTimeCode.trim());
+      if (response.success) {
+        Alert.alert('Success', 'Measurement shared to organization successfully!');
+        setShowCodeModal(false);
+        setOneTimeCode('');
+        setCurrentMeasurement(null);
+      } else {
+        Alert.alert('Error', response.message || 'Failed to share measurement');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to share measurement. Please check your code and try again.');
+    }
   };
 
   const shareToOthers = async (measurement) => {
@@ -412,6 +410,50 @@ const BodyMeasurementScreen = ({ navigation }) => {
       </ScrollView>
 
       <BottomNavigation navigation={navigation} activeTab="BodyMeasurement" />
+      
+      {/* One-Time Code Modal */}
+      <Modal
+        visible={showCodeModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCodeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Share to Organization</Text>
+            <Text style={styles.modalSubtitle}>Enter the one-time code provided by the organization:</Text>
+            
+            <TextInput
+              style={styles.codeInput}
+              placeholder="Enter code"
+              value={oneTimeCode}
+              onChangeText={setOneTimeCode}
+              keyboardType="numeric"
+              autoFocus={true}
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.cancelButton}
+                onPress={() => {
+                  setShowCodeModal(false);
+                  setOneTimeCode('');
+                  setCurrentMeasurement(null);
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.shareModalButton}
+                onPress={handleShareWithCode}
+              >
+                <Text style={styles.shareModalButtonText}>Share</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -831,6 +873,71 @@ const styles = StyleSheet.create({
   },
   activeNavText: {
     color: '#7C3AED',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  codeInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  shareModalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+  },
+  shareModalButtonText: {
+    fontSize: 16,
+    color: 'white',
+    fontWeight: '600',
   },
 });
 

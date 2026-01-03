@@ -182,6 +182,7 @@ const UserDetailsScreen = ({ navigation, route }) => {
   const sendEmail = async () => {
     setUpdateLoading(true);
     try {
+
       const response = await ApiService.sendOrgUserEmail(user.id, {
         adminMessage: emailMessage,
         generateNewPassword: true

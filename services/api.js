@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://192.168.1.183:3000/api';
+const BASE_URL = 'http://10.140.69.84:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v6 - EMERGENCY FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENTS_EMERGENCY_FIX_' + Date.now();
@@ -206,28 +206,92 @@ class ApiService {
   }
 
   static async updateOrgUser(userId, userData) {
-    return this.apiCall(`/org-user/users/${userId}`, {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/users/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify(userData),
+      });
+    }
+    return this.apiCall(`/user/users/${userId}`, {
       method: 'PUT',
       body: JSON.stringify(userData),
     });
   }
 
   static async updateOrgUserStatus(userId, status) {
-    return this.apiCall(`/org-user/users/${userId}/status`, {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/users/${userId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+      });
+    }
+    return this.apiCall(`/user/users/${userId}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
     });
   }
 
   static async sendOrgUserEmail(userId, emailData) {
-    return this.apiCall(`/org-user/users/${userId}/send-email`, {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/users/${userId}/send-email`, {
+        method: 'POST',
+        body: JSON.stringify(emailData),
+      });
+    }
+    return this.apiCall(`/user/users/${userId}/send-email`, {
       method: 'POST',
       body: JSON.stringify(emailData),
     });
   }
 
   static async resetOrgUserPassword(userId, passwordData) {
-    return this.apiCall(`/org-user/users/${userId}/password`, {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/users/${userId}/password`, {
+        method: 'PUT',
+        body: JSON.stringify(passwordData),
+      });
+    }
+    return this.apiCall(`/user/users/${userId}/password`, {
       method: 'PUT',
       body: JSON.stringify(passwordData),
     });
@@ -390,19 +454,44 @@ class ApiService {
   }
 
   static async getUserMeasurements(userId, page = 1, limit = 10) {
+    console.log('=== getUserMeasurements DEBUG ===');
+    console.log('userId:', userId, 'page:', page, 'limit:', limit);
+    
     const profileResponse = await this.getUserProfile();
     if (profileResponse.success) {
       const user = profileResponse.data.user;
       let baseUrl;
       if (user.role === 'ORGANIZATION') {
         baseUrl = '/admin';
+        console.log('Using /admin for ORGANIZATION role');
       } else if (user.role === 'CUSTOMER' && user.organizationId) {
         baseUrl = '/org-user';
+        console.log('Using /org-user for CUSTOMER with organizationId');
+        
+        // Check if user has view_measurements permission
+        const permissions = user.permissions || [];
+        const hasViewPermission = permissions.some(p => 
+          (typeof p === 'string' && p === 'view_measurements') ||
+          (typeof p === 'object' && p.key === 'view_measurements')
+        );
+        console.log('Has view_measurements permission:', hasViewPermission);
+        
+        if (!hasViewPermission) {
+          console.log('Permission denied for view_measurements');
+          return {
+            success: false,
+            message: 'Permission denied: view_measurements permission required'
+          };
+        }
       } else {
         baseUrl = '/user';
+        console.log('Using /user for regular user');
       }
-      return this.apiCall(`${baseUrl}/users/${userId}/measurements?page=${page}&limit=${limit}`);
+      const endpoint = `${baseUrl}/users/${userId}/measurements?page=${page}&limit=${limit}`;
+      console.log('Final endpoint:', endpoint);
+      return this.apiCall(endpoint);
     }
+    console.log('Fallback to /user endpoint');
     return this.apiCall(`/user/users/${userId}/measurements?page=${page}&limit=${limit}`);
   }
 
@@ -983,18 +1072,38 @@ class ApiService {
     return this.apiCall(`/user/measurements?page=${page}&limit=${limit}`);
   }
 
-  static async getUserMeasurements(userId, page = 1, limit = 10) {
-    // Call the exact same endpoint that works in debug
-    return this.apiCall(`/admin/measurements?userId=${userId}&page=${page}&limit=${limit}`);
-  }
-
   static async getAdminMeasurements(page = 1, limit = 10, userId = null) {
-    let endpoint = `/admin/measurements?page=${page}&limit=${limit}`;
+    console.log('=== getAdminMeasurements called - this should use role-based routing ===');
+    console.log('page:', page, 'limit:', limit, 'userId:', userId);
     
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+        console.log('Using /admin for ORGANIZATION role');
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+        console.log('Using /org-user for CUSTOMER with organizationId');
+      } else {
+        baseUrl = '/user';
+        console.log('Using /user for regular user');
+      }
+      
+      let endpoint = `${baseUrl}/measurements?page=${page}&limit=${limit}`;
+      if (userId) {
+        endpoint += `&userId=${userId}`;
+      }
+      console.log('Final endpoint:', endpoint);
+      return this.apiCall(endpoint);
+    }
+    
+    let endpoint = `/user/measurements?page=${page}&limit=${limit}`;
     if (userId) {
       endpoint += `&userId=${userId}`;
     }
-    
+    console.log('Fallback endpoint:', endpoint);
     return this.apiCall(endpoint);
   }
 
@@ -1007,9 +1116,20 @@ class ApiService {
   }
 
   static async getMeasurementById(measurementId) {
-    const hasAdmin = await this.hasAdminAccess();
-    const baseUrl = hasAdmin ? '/admin' : '/user';
-    return this.apiCall(`${baseUrl}/measurements/${measurementId}`);
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/measurements/${measurementId}`);
+    }
+    return this.apiCall(`/user/measurements/${measurementId}`);
   }
 
   static async createMeasurement(measurementData) {
