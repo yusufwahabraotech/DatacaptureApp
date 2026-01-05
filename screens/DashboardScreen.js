@@ -299,8 +299,8 @@ const DashboardScreen = ({ navigation, route }) => {
 
         {/* Measurement Cards */}
         <View style={styles.cardsContainer}>
-          {/* My Role Card - Only for org-users with permissions */}
-          {user?.organizationId && (user?.role === 'ORGANIZATION' || (user?.permissions && user.permissions.length > 0)) && (
+          {/* My Role Card - Only for org-users */}
+          {user?.organizationId && (user?.role === 'ORGANIZATION' || user?.role === 'CUSTOMER') && (
             <TouchableOpacity 
               style={[styles.card, styles.roleCard]}
               onPress={() => navigation.navigate('UserSettings')}
@@ -352,19 +352,22 @@ const DashboardScreen = ({ navigation, route }) => {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.card, styles.codesCard]}
-            onPress={() => navigation.navigate('OneTimeCodes')}
-          >
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>One-Time Codes</Text>
-              <Ionicons name="key" size={24} color="#8B5CF6" />
-            </View>
-            <Text style={styles.cardValue}>{dashboardData.oneTimeCodes || 0}</Text>
-            <View style={styles.createNewButton}>
-              <Text style={styles.createNew}>Generate New</Text>
-            </View>
-          </TouchableOpacity>
+          {/* One-Time Codes Card - Only for ORGANIZATION role */}
+          {user?.role === 'ORGANIZATION' && (
+            <TouchableOpacity 
+              style={[styles.card, styles.codesCard]}
+              onPress={() => navigation.navigate('OneTimeCodes')}
+            >
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>One-Time Codes</Text>
+                <Ionicons name="key" size={24} color="#8B5CF6" />
+              </View>
+              <Text style={styles.cardValue}>{dashboardData.oneTimeCodes || 0}</Text>
+              <View style={styles.createNewButton}>
+                <Text style={styles.createNew}>Generate New</Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Total Summary */}
