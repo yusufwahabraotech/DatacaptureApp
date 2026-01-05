@@ -264,17 +264,6 @@ const UserDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  const deleteUser = () => {
-    Alert.alert(
-      'Delete User',
-      'Are you sure you want to delete this user? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: confirmDelete }
-      ]
-    );
-  };
-
   const updateUserStatus = async (newStatus) => {
     const actionText = newStatus === 'archived' ? 'archive' : newStatus === 'pending' ? 'set to pending' : newStatus === 'active' ? (userStatus === 'pending' ? 'activate' : 'unarchive') : 'update';
     const actionTitle = actionText.charAt(0).toUpperCase() + actionText.slice(1);
@@ -302,24 +291,6 @@ const UserDetailsScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       Alert.alert('Error', `Failed to ${actionText} user`);
-    } finally {
-      setUpdateLoading(false);
-    }
-  };
-
-  const confirmDelete = async () => {
-    setUpdateLoading(true);
-    try {
-      const response = await ApiService.deleteUser(user.id);
-      if (response.success) {
-        Alert.alert('Success', 'User deleted successfully', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
-      } else {
-        Alert.alert('Error', response.message);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to delete user');
     } finally {
       setUpdateLoading(false);
     }
@@ -516,7 +487,7 @@ const UserDetailsScreen = ({ navigation, route }) => {
             <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
           </TouchableOpacity>
           
-          {(userStatus === 'active' || userStatus === 'pending') && (
+          {userStatus === 'active' && (
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => updateUserStatus('pending')}
@@ -540,12 +511,12 @@ const UserDetailsScreen = ({ navigation, route }) => {
           
           {(userStatus === 'active' || userStatus === 'pending') && (
             <TouchableOpacity 
-              style={styles.actionButton}
+              style={[styles.actionButton, styles.dangerButton]}
               onPress={() => updateUserStatus('archived')}
             >
-              <Ionicons name="archive-outline" size={20} color="#6B7280" />
-              <Text style={styles.actionButtonText}>Archive User</Text>
-              <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+              <Ionicons name="archive-outline" size={20} color="#EF4444" />
+              <Text style={[styles.actionButtonText, styles.dangerText]}>Archive User</Text>
+              <Ionicons name="chevron-forward" size={16} color="#EF4444" />
             </TouchableOpacity>
           )}
           
@@ -559,15 +530,6 @@ const UserDetailsScreen = ({ navigation, route }) => {
               <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
             </TouchableOpacity>
           )}
-          
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.dangerButton]}
-            onPress={deleteUser}
-          >
-            <Ionicons name="trash-outline" size={20} color="#EF4444" />
-            <Text style={[styles.actionButtonText, styles.dangerText]}>Delete User</Text>
-            <Ionicons name="chevron-forward" size={16} color="#EF4444" />
-          </TouchableOpacity>
         </View>
 
         {/* Implemented by VScode copilot - User Measurements Section */}

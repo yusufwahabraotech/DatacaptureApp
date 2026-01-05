@@ -97,40 +97,32 @@ const DashboardScreen = ({ navigation, route }) => {
         const allMeasurements = measurementsResponse.data.measurements || [];
         setMeasurements(allMeasurements);
         
-        // Get ALL unique body parts from ALL measurements for consistent table columns
-        const bodyPartsSet = new Set();
-        allMeasurements.forEach(measurement => {
-          measurement.sections?.forEach(section => {
-            section.measurements?.forEach(bodyPart => {
-              if (bodyPart.bodyPartName) {
-                bodyPartsSet.add(bodyPart.bodyPartName);
-              }
-            });
-          });
-        });
-        
-        // Use all unique body parts as columns (limit to most common ones)
-        const allBodyParts = Array.from(bodyPartsSet);
-        const uniqueBodyParts = allBodyParts.slice(0, 5); // Show up to 5 columns
-        setTableColumns(uniqueBodyParts);
-        
         const tableRows = allMeasurements.map(measurement => {
           const row = {
             name: `${measurement.firstName} ${measurement.lastName}`,
             type: measurement.submissionType || 'Manual',
             date: measurement.createdAt ? new Date(measurement.createdAt).toLocaleDateString() : 'N/A',
-            checked: false
+            checked: false,
+            measurements: [] // Store individual measurements for this person
           };
           
-          // For each column, find the measurement value
-          uniqueBodyParts.forEach(bodyPartName => {
-            row[bodyPartName] = getBodyPartSize(measurement, bodyPartName);
+          // Get this person's specific body parts and measurements
+          measurement.sections?.forEach(section => {
+            section.measurements?.forEach(bodyPart => {
+              if (bodyPart.bodyPartName && bodyPart.size) {
+                row.measurements.push({
+                  name: bodyPart.bodyPartName,
+                  value: `${bodyPart.size}${bodyPart.unit || 'cm'}`
+                });
+              }
+            });
           });
           
           return row;
         });
         
         setTableData(tableRows);
+        setTableColumns([]); // No fixed columns needed
         
         // Update quick actions
         if (allMeasurements.length > 0) {
@@ -377,13 +369,7 @@ const DashboardScreen = ({ navigation, route }) => {
                 <Text style={[styles.tableHeaderText, styles.nameColumn]}>Name</Text>
                 <Text style={[styles.tableHeaderText, styles.typeColumn]}>Type</Text>
                 <Text style={[styles.tableHeaderText, styles.dateColumn]}>Date</Text>
-                {tableColumns.map((columnName, index) => (
-                  <View key={index} style={styles.measurementColumn}>
-                    <Text style={styles.tableHeaderText}>
-                      {columnName}
-                    </Text>
-                  </View>
-                ))}
+                <Text style={[styles.tableHeaderText, styles.measurementsColumn]}>Measurements</Text>
                 <View style={styles.actionColumn}></View>
               </View>
               {tableData.map((row, index) => (
@@ -421,13 +407,21 @@ const DashboardScreen = ({ navigation, route }) => {
                   <View style={styles.dateColumn}>
                     <Text style={styles.tableCellText}>{row.date}</Text>
                   </View>
-                  {tableColumns.map((columnName, colIndex) => (
-                    <View key={colIndex} style={styles.measurementColumn}>
-                      <Text style={styles.tableCellText}>
-                        {row[columnName] || '-'}
-                      </Text>
-                    </View>
-                  ))}
+                  <View style={styles.measurementsColumn}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View style={styles.measurementsList}>
+                        {row.measurements?.map((measurement, mIndex) => (
+                          <View key={mIndex} style={styles.measurementItem}>
+                            <Text style={styles.measurementName}>{measurement.name}</Text>
+                            <Text style={styles.measurementValue}>{measurement.value}</Text>
+                          </View>
+                        ))}
+                        {(!row.measurements || row.measurements.length === 0) && (
+                          <Text style={styles.noMeasurements}>No measurements</Text>
+                        )}
+                      </View>
+                    </ScrollView>
+                  </View>
                   <View style={styles.actionColumn}>
                     <TouchableOpacity onPress={() => {
                       setSelectedRowIndex(index);
@@ -669,6 +663,38 @@ const styles = StyleSheet.create({
     width: 120,
     justifyContent: 'center',
     paddingRight: 16,
+  },
+  measurementsColumn: {
+    width: 300,
+    justifyContent: 'center',
+    paddingRight: 16,
+  },
+  measurementsList: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  measurementItem: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 8,
+    alignItems: 'center',
+  },
+  measurementName: {
+    fontSize: 10,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  measurementValue: {
+    fontSize: 12,
+    color: '#1F2937',
+    fontWeight: '600',
+  },
+  noMeasurements: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
   },
   actionColumn: {
     width: 40,
