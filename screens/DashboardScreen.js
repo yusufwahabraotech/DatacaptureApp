@@ -29,8 +29,6 @@ const DashboardScreen = ({ navigation, route }) => {
     { name: 'Favour Alo', type: 'Body', chestLength: 42, hipsHeight: 40, legs: 34, checked: false },
   ]);
 
-  const [showActionModal, setShowActionModal] = useState(false);
-  const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
   const [showTutorial, setShowTutorial] = useState(false);
   const [user, setUser] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -200,18 +198,10 @@ const DashboardScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleMenuPress = (event, rowIndex) => {
-    const { pageX, pageY } = event.nativeEvent;
-    setModalPosition({ x: pageX - 90, y: pageY - 50 });
-    setSelectedRowIndex(rowIndex);
-    setShowActionModal(true);
-  };
-
   const handleViewMeasurement = () => {
     if (selectedRowIndex !== null && measurements[selectedRowIndex]) {
       setSelectedMeasurement(measurements[selectedRowIndex]);
       setShowViewModal(true);
-      setShowActionModal(false);
     }
   };
 
@@ -261,17 +251,6 @@ const DashboardScreen = ({ navigation, route }) => {
       <View style={styles.header}>
         <Text style={styles.greeting}>Hello, {user?.fullName || 'User'}</Text>
         <View style={styles.headerRight}>
-          <TouchableOpacity 
-            style={styles.refreshButton}
-            onPress={handleRefresh}
-            disabled={refreshing}
-          >
-            <Ionicons 
-              name="refresh" 
-              size={20} 
-              color={refreshing ? '#9CA3AF' : '#7C3AED'} 
-            />
-          </TouchableOpacity>
           <View style={styles.notificationContainer}>
             <Ionicons name="notifications-outline" size={20} color="#9CA3AF" />
           </View>
@@ -450,52 +429,21 @@ const DashboardScreen = ({ navigation, route }) => {
                     </View>
                   ))}
                   <View style={styles.actionColumn}>
-                    <TouchableOpacity onPress={(event) => handleMenuPress(event, index)}>
-                      <Ionicons name="ellipsis-horizontal" size={16} color="#9CA3AF" />
+                    <TouchableOpacity onPress={() => {
+                      setSelectedRowIndex(index);
+                      handleViewMeasurement();
+                    }}>
+                      <Text style={styles.viewMeasurementText}>View</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               ))}
             </View>
           </ScrollView>
-
-          <View style={styles.pagination}>
-            <Ionicons name="chevron-back" size={20} color="#9CA3AF" />
-            <Text style={styles.paginationText}>1 of 3</Text>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </View>
         </View>
       </ScrollView>
 
       <BottomNavigation navigation={navigation} activeTab="Dashboard" />
-
-      {/* Action Modal */}
-      <Modal
-        visible={showActionModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowActionModal(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          onPress={() => setShowActionModal(false)}
-        >
-          <View style={[styles.actionMenu, { left: modalPosition.x - 120, top: modalPosition.y }]}>
-            <TouchableOpacity style={styles.menuItem} onPress={handleViewMeasurement}>
-              <Text style={styles.menuItemText}>View Measurement</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem}>
-              <Text style={styles.menuItemText}>Edit Measurement</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem}>
-              <Text style={styles.menuItemText}>Share</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem}>
-              <Text style={[styles.menuItemText, styles.deleteText]}>Delete</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
 
       {/* View Measurement Modal */}
       <ViewMeasurementModal 
@@ -534,15 +482,6 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  refreshButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
   },
   notificationContainer: {
     width: 40,
@@ -785,11 +724,6 @@ const styles = StyleSheet.create({
   manualBadgeText: {
     color: 'white',
   },
-  pagination: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
   paginationText: {
     fontSize: 14,
     color: '#9CA3AF',
@@ -807,32 +741,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  actionMenu: {
-    position: 'absolute',
-    backgroundColor: 'white',
-    borderRadius: 8,
-    paddingVertical: 8,
-    minWidth: 180,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  menuItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  menuItemText: {
+  viewMeasurementText: {
     fontSize: 14,
-    color: '#1F2937',
-  },
-  deleteText: {
-    color: '#EF4444',
+    color: '#7C3AED',
+    fontWeight: '500',
   },
 });
 

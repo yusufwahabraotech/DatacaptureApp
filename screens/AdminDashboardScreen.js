@@ -121,6 +121,12 @@ const AdminDashboardScreen = ({ navigation }) => {
       onPress: () => navigation.navigate('UserManagement')
     },
     {
+      title: 'Export Users',
+      subtitle: 'Export users to CSV/PDF',
+      icon: 'download',
+      onPress: () => navigation.navigate('ExportUsers')
+    },
+    {
       title: 'Manage Roles',
       subtitle: 'Create and manage user roles',
       icon: 'shield',

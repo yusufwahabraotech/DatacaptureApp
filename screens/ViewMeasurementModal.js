@@ -86,10 +86,6 @@ const ViewMeasurementModal = ({ visible, onClose, measurementData }) => {
                 <View style={styles.imageSection}>
                   <View style={styles.imageSectionHeader}>
                     <Text style={styles.imageLabel}>Image Uploads:</Text>
-                    <TouchableOpacity style={styles.downloadAllButton}>
-                      <Ionicons name="download-outline" size={16} color="#7C3AED" />
-                      <Text style={styles.downloadAllText}>Download All</Text>
-                    </TouchableOpacity>
                   </View>
 
                   {measurementData.images?.length > 0 ? (
@@ -212,23 +208,11 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   imageSectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 16,
   },
   imageLabel: {
     fontSize: 14,
     color: '#9CA3AF',
-  },
-  downloadAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  downloadAllText: {
-    fontSize: 14,
-    color: '#7C3AED',
-    marginLeft: 4,
   },
   imageItem: {
     flexDirection: 'row',

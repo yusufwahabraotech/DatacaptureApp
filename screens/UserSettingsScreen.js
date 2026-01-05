@@ -94,6 +94,15 @@ const UserSettingsScreen = ({ navigation }) => {
         onPress: () => navigation.navigate('UserManagement')
       },
       {
+        title: 'Export Users',
+        subtitle: 'Export users to CSV/PDF',
+        icon: 'download',
+        color: '#7C3AED',
+        bgColor: '#F5F3FF',
+        permission: 'view_users',
+        onPress: () => navigation.navigate('ExportUsers')
+      },
+      {
         title: 'Create Users',
         subtitle: 'Add new users',
         icon: 'person-add',
@@ -167,28 +176,17 @@ const UserSettingsScreen = ({ navigation }) => {
       }
     ];
 
-    // Add all features, marking those without permission as disabled
+    // Only add features that the user has access to
     allFeatures.forEach(feature => {
       // Organization Admin has access to all features
       const hasAccess = user?.role === 'ORGANIZATION' || hasPermission(feature.permission);
-      cards.push({
-        ...feature,
-        hasAccess,
-        onPress: hasAccess ? feature.onPress : () => {
-          Alert.alert(
-            'Permission Required',
-            `You need the "${feature.permission.replace(/_/g, ' ')}" permission to access this feature. Please contact your organization administrator.`,
-            [{ text: 'OK', style: 'default' }]
-          );
-        }
-      });
-    });
-
-    // Sort cards: enabled first, then disabled
-    cards.sort((a, b) => {
-      if (a.hasAccess && !b.hasAccess) return -1;
-      if (!a.hasAccess && b.hasAccess) return 1;
-      return 0;
+      if (hasAccess) {
+        cards.push({
+          ...feature,
+          hasAccess: true,
+          onPress: feature.onPress
+        });
+      }
     });
 
     return cards;
@@ -244,7 +242,7 @@ const UserSettingsScreen = ({ navigation }) => {
           <View style={styles.featuresSection}>
             <Text style={styles.sectionTitle}>Organization Features</Text>
             <Text style={styles.sectionSubtitle}>
-              Features available to your organization. Grayed out items require additional permissions.
+              Features available to your role and permissions.
             </Text>
             
             <View style={styles.featuresGrid}>
@@ -253,40 +251,28 @@ const UserSettingsScreen = ({ navigation }) => {
                   key={index} 
                   style={[
                     styles.featureCard, 
-                    { backgroundColor: card.hasAccess ? card.bgColor : '#F9FAFB' },
-                    !card.hasAccess && styles.disabledCard
+                    { backgroundColor: card.bgColor }
                   ]}
                   onPress={card.onPress}
                 >
                   <View style={[
                     styles.featureIcon,
-                    { backgroundColor: card.hasAccess ? 'rgba(255,255,255,0.8)' : '#E5E7EB' }
+                    { backgroundColor: 'rgba(255,255,255,0.8)' }
                   ]}>
                     <Ionicons 
-                      name={card.hasAccess ? card.icon : 'lock-closed'} 
+                      name={card.icon} 
                       size={24} 
-                      color={card.hasAccess ? card.color : '#9CA3AF'} 
+                      color={card.color} 
                     />
                   </View>
-                  <Text style={[
-                    styles.featureTitle,
-                    !card.hasAccess && styles.disabledText
-                  ]}>
+                  <Text style={styles.featureTitle}>
                     {card.title}
                   </Text>
-                  <Text style={[
-                    styles.featureSubtitle,
-                    !card.hasAccess && styles.disabledSubtext
-                  ]}>
-                    {card.hasAccess ? card.subtitle : 'Permission required'}
+                  <Text style={styles.featureSubtitle}>
+                    {card.subtitle}
                   </Text>
-                  {!card.hasAccess && (
-                    <View style={styles.permissionBadge}>
-                      <Text style={styles.permissionBadgeText}>No Access</Text>
-                    </View>
-                  )}
                 </TouchableOpacity>
-              ))}
+              ))}}
             </View>
           </View>
         )}

@@ -47,6 +47,7 @@ import GroupsScreen from './screens/GroupsScreen';
 import CreateGroupScreen from './screens/CreateGroupScreen';
 import AdminCreateMeasurementScreen from './screens/AdminCreateMeasurementScreen';
 import AdminEditMeasurementScreen from './screens/AdminEditMeasurementScreen';
+import ExportUsersScreen from './screens/ExportUsersScreen';
 
 const Stack = createStackNavigator();
 
@@ -103,6 +104,7 @@ export default function App() {
         <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
         <Stack.Screen name="AdminCreateMeasurement" component={AdminCreateMeasurementScreen} />
         <Stack.Screen name="AdminEditMeasurement" component={AdminEditMeasurementScreen} />
+        <Stack.Screen name="ExportUsers" component={ExportUsersScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>
