@@ -259,18 +259,18 @@ const AdminDashboardScreen = ({ navigation }) => {
           <View style={styles.actionsSection}>
             <Text style={styles.sectionTitle}>Organization Management</Text>
             <Text style={styles.sectionSubtitle}>Manage users and organization settings</Text>
-            <View style={styles.actionsGrid}>
+            <View style={styles.professionalContainer}>
               {quickActions.map((action, index) => (
                 <TouchableOpacity 
                   key={index} 
-                  style={styles.actionCard}
+                  style={styles.professionalCard}
                   onPress={action.onPress}
                 >
-                  <View style={styles.actionIcon}>
-                    <Ionicons name={action.icon} size={24} color="#7C3AED" />
+                  <View style={styles.professionalContent}>
+                    <Text style={styles.professionalTitle}>{action.title}</Text>
+                    <Text style={styles.professionalSubtitle}>{action.subtitle}</Text>
                   </View>
-                  <Text style={styles.actionTitle}>{action.title}</Text>
-                  <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
                 </TouchableOpacity>
               ))}
             </View>
@@ -282,18 +282,18 @@ const AdminDashboardScreen = ({ navigation }) => {
           <View style={styles.actionsSection}>
             <Text style={styles.sectionTitle}>My Measurements</Text>
             <Text style={styles.sectionSubtitle}>Create and manage your own measurements</Text>
-            <View style={styles.actionsGrid}>
+            <View style={styles.measurementContainer}>
               {measurementActions.map((action, index) => (
                 <TouchableOpacity 
                   key={index} 
-                  style={styles.actionCard}
+                  style={styles.measurementCard}
                   onPress={action.onPress}
                 >
-                  <View style={styles.actionIcon}>
-                    <Ionicons name={action.icon} size={24} color="#10B981" />
+                  <View style={styles.measurementContent}>
+                    <Text style={styles.measurementTitle}>{action.title}</Text>
+                    <Text style={styles.measurementSubtitle}>{action.subtitle}</Text>
                   </View>
-                  <Text style={styles.actionTitle}>{action.title}</Text>
-                  <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
                 </TouchableOpacity>
               ))}
             </View>
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   },
   actionsSection: {
     paddingHorizontal: 20,
-    marginBottom: 100,
+    marginBottom: 80,
   },
   actionsGrid: {
     flexDirection: 'row',
@@ -466,6 +466,66 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     lineHeight: 16,
+  },
+  professionalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginTop: 8,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  professionalCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  professionalContent: {
+    flex: 1,
+  },
+  professionalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  measurementContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginTop: 8,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  measurementCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  measurementContent: {
+    flex: 1,
+  },
+  measurementTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  measurementSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
   },
 });
 

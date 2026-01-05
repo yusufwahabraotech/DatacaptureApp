@@ -94,31 +94,37 @@ const DashboardScreen = ({ navigation, route }) => {
       }
 
       // Still fetch measurements for table display
-      const measurementsResponse = await ApiService.getManualMeasurements();
+      const measurementsResponse = await ApiService.getManualMeasurements(1, 50);
       if (measurementsResponse.success) {
         const allMeasurements = measurementsResponse.data.measurements || [];
         setMeasurements(allMeasurements);
         
-        // Get unique body parts for table columns
+        // Get ALL unique body parts from ALL measurements for consistent table columns
         const bodyPartsSet = new Set();
         allMeasurements.forEach(measurement => {
           measurement.sections?.forEach(section => {
             section.measurements?.forEach(bodyPart => {
-              bodyPartsSet.add(bodyPart.bodyPartName);
+              if (bodyPart.bodyPartName) {
+                bodyPartsSet.add(bodyPart.bodyPartName);
+              }
             });
           });
         });
         
-        const uniqueBodyParts = Array.from(bodyPartsSet).slice(0, 3);
+        // Use all unique body parts as columns (limit to most common ones)
+        const allBodyParts = Array.from(bodyPartsSet);
+        const uniqueBodyParts = allBodyParts.slice(0, 5); // Show up to 5 columns
         setTableColumns(uniqueBodyParts);
         
         const tableRows = allMeasurements.map(measurement => {
           const row = {
             name: `${measurement.firstName} ${measurement.lastName}`,
-            type: 'Body',
+            type: measurement.submissionType || 'Manual',
+            date: measurement.createdAt ? new Date(measurement.createdAt).toLocaleDateString() : 'N/A',
             checked: false
           };
           
+          // For each column, find the measurement value
           uniqueBodyParts.forEach(bodyPartName => {
             row[bodyPartName] = getBodyPartSize(measurement, bodyPartName);
           });
@@ -390,7 +396,8 @@ const DashboardScreen = ({ navigation, route }) => {
                   <Ionicons name="checkbox-outline" size={16} color="#9CA3AF" />
                 </View>
                 <Text style={[styles.tableHeaderText, styles.nameColumn]}>Name</Text>
-                <Text style={[styles.tableHeaderText, styles.typeColumn]}>Measurement Type</Text>
+                <Text style={[styles.tableHeaderText, styles.typeColumn]}>Type</Text>
+                <Text style={[styles.tableHeaderText, styles.dateColumn]}>Date</Text>
                 {tableColumns.map((columnName, index) => (
                   <View key={index} style={styles.measurementColumn}>
                     <Text style={styles.tableHeaderText}>
@@ -426,11 +433,14 @@ const DashboardScreen = ({ navigation, route }) => {
                     <Text style={styles.tableCellText}>{row.name}</Text>
                   </View>
                   <View style={styles.typeColumn}>
-                    <View style={[styles.typeBadge, row.type === 'Body' ? styles.bodyBadge : styles.objectBadge]}>
-                      <Text style={[styles.typeBadgeText, row.type === 'Body' ? styles.bodyBadgeText : styles.objectBadgeText]}>
+                    <View style={[styles.typeBadge, row.type === 'AI' ? styles.aiBadge : styles.manualBadge]}>
+                      <Text style={[styles.typeBadgeText, row.type === 'AI' ? styles.aiBadgeText : styles.manualBadgeText]}>
                         {row.type}
                       </Text>
                     </View>
+                  </View>
+                  <View style={styles.dateColumn}>
+                    <Text style={styles.tableCellText}>{row.date}</Text>
                   </View>
                   {tableColumns.map((columnName, colIndex) => (
                     <View key={colIndex} style={styles.measurementColumn}>
@@ -711,6 +721,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingRight: 16,
   },
+  dateColumn: {
+    width: 100,
+    justifyContent: 'center',
+    paddingRight: 16,
+  },
   measurementColumn: {
     width: 120,
     justifyContent: 'center',
@@ -748,6 +763,12 @@ const styles = StyleSheet.create({
   objectBadge: {
     backgroundColor: '#F59E0B',
   },
+  aiBadge: {
+    backgroundColor: '#8B5CF6',
+  },
+  manualBadge: {
+    backgroundColor: '#10B981',
+  },
   typeBadgeText: {
     fontSize: 12,
     fontWeight: '500',
@@ -756,6 +777,12 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   objectBadgeText: {
+    color: 'white',
+  },
+  aiBadgeText: {
+    color: 'white',
+  },
+  manualBadgeText: {
     color: 'white',
   },
   pagination: {

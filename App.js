@@ -2,6 +2,7 @@ import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import SplashScreen from './screens/SplashScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
@@ -51,9 +52,10 @@ const Stack = createStackNavigator();
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <StatusBar style="auto" />
-      <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <StatusBar style="auto" />
+        <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
@@ -103,5 +105,6 @@ export default function App() {
         <Stack.Screen name="AdminEditMeasurement" component={AdminEditMeasurementScreen} />
       </Stack.Navigator>
     </NavigationContainer>
+    </SafeAreaProvider>
   );
 }

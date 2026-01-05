@@ -67,6 +67,28 @@ const CreateRoleScreen = ({ navigation, route }) => {
     }));
   };
 
+  const toggleCategoryPermissions = (categoryPermissions) => {
+    const categoryKeys = categoryPermissions.map(p => p.key);
+    const allSelected = categoryKeys.every(key => roleData.permissions.includes(key));
+    
+    setRoleData(prev => ({
+      ...prev,
+      permissions: allSelected
+        ? prev.permissions.filter(p => !categoryKeys.includes(p))
+        : [...new Set([...prev.permissions, ...categoryKeys])]
+    }));
+  };
+
+  const toggleAllPermissions = () => {
+    const allPermissionKeys = availablePermissions.map(p => p.key);
+    const allSelected = allPermissionKeys.every(key => roleData.permissions.includes(key));
+    
+    setRoleData(prev => ({
+      ...prev,
+      permissions: allSelected ? [] : allPermissionKeys
+    }));
+  };
+
   const handleCreateRole = async () => {
     if (!roleData.name.trim()) {
       Alert.alert('Error', 'Please enter a role name');
@@ -91,7 +113,10 @@ const CreateRoleScreen = ({ navigation, route }) => {
 
       if (response.success) {
         Alert.alert('Success', `Role ${editMode ? 'updated' : 'created'} successfully`, [
-          { text: 'OK', onPress: () => navigation.goBack() }
+          { text: 'OK', onPress: () => {
+            // Trigger refresh on the previous screen
+            navigation.navigate('Roles', { refresh: true });
+          }}
         ]);
       } else {
         Alert.alert('Error', response.message || `Failed to ${editMode ? 'update' : 'create'} role`);
@@ -158,10 +183,22 @@ const CreateRoleScreen = ({ navigation, route }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Permissions</Text>
-          <Text style={styles.sectionSubtitle}>
-            Select the permissions for this role ({roleData.permissions.length} selected)
-          </Text>
+          <View style={styles.permissionsHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Permissions</Text>
+              <Text style={styles.sectionSubtitle}>
+                Select the permissions for this role ({roleData.permissions.length} selected)
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.selectAllGlobalButton}
+              onPress={toggleAllPermissions}
+            >
+              <Text style={styles.selectAllGlobalText}>
+                {availablePermissions.length > 0 && availablePermissions.every(p => roleData.permissions.includes(p.key)) ? 'Deselect All' : 'Select All'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Search for Permissions */}
           <View style={styles.searchContainer}>
@@ -179,9 +216,27 @@ const CreateRoleScreen = ({ navigation, route }) => {
               <Text style={styles.emptyText}>No permissions match your search</Text>
             </View>
           ) : (
-            Object.entries(groupedPermissions).map(([category, permissions]) => (
-              <View key={category} style={styles.categoryGroup}>
-                <Text style={styles.categoryTitle}>{category}</Text>
+            Object.entries(groupedPermissions).map(([category, permissions]) => {
+              const categoryKeys = permissions.map(p => p.key);
+              const allSelected = categoryKeys.every(key => roleData.permissions.includes(key));
+              const someSelected = categoryKeys.some(key => roleData.permissions.includes(key));
+              
+              return (
+                <View key={category} style={styles.categoryGroup}>
+                  <View style={styles.categoryHeader}>
+                    <Text style={styles.categoryTitle}>{category}</Text>
+                    <TouchableOpacity
+                      style={styles.selectAllButton}
+                      onPress={() => toggleCategoryPermissions(permissions)}
+                    >
+                      <Text style={[
+                        styles.selectAllText,
+                        allSelected && styles.selectAllTextSelected
+                      ]}>
+                        {allSelected ? 'Deselect All' : 'Select All'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 {permissions.map((permission) => (
                   <TouchableOpacity
                     key={permission.key}
@@ -202,8 +257,9 @@ const CreateRoleScreen = ({ navigation, route }) => {
                     </View>
                   </TouchableOpacity>
                 ))}
-              </View>
-            ))
+                </View>
+              );
+            })
           )}
         </View>
       </KeyboardAwareScrollView>
@@ -296,11 +352,48 @@ const styles = StyleSheet.create({
   categoryGroup: {
     marginBottom: 24,
   },
+  categoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   categoryTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#7C3AED',
-    marginBottom: 12,
+  },
+  selectAllButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#7C3AED',
+  },
+  selectAllText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#7C3AED',
+  },
+  selectAllTextSelected: {
+    color: '#DC2626',
+  },
+  permissionsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  selectAllGlobalButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#7C3AED',
+    borderRadius: 8,
+  },
+  selectAllGlobalText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'white',
   },
   permissionItem: {
     flexDirection: 'row',

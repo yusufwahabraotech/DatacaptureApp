@@ -21,6 +21,7 @@ const CreateGroupScreen = ({ navigation, route }) => {
     memberIds: existingGroup?.memberIds || []
   });
   const [availableUsers, setAvailableUsers] = useState([]);
+  const [availableRoles, setAvailableRoles] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -36,6 +37,7 @@ const CreateGroupScreen = ({ navigation, route }) => {
   useEffect(() => {
     if (userProfile) {
       fetchUsers();
+      fetchRoles();
     }
   }, [userProfile]);
 
@@ -56,13 +58,69 @@ const CreateGroupScreen = ({ navigation, route }) => {
       const response = await ApiService.getUsers();
 
       if (response.success) {
-        setAvailableUsers(response.data.users || []);
+        const users = response.data.users || [];
+        
+        // Fetch role names for users with roleId
+        const usersWithRoles = await Promise.all(
+          users.map(async (user) => {
+            try {
+              if (user.roleId) {
+                const roleResponse = await ApiService.getRoleById(user.roleId);
+                if (roleResponse.success) {
+                  return {
+                    ...user,
+                    roleName: roleResponse.data.role.name,
+                    displayRole: roleResponse.data.role.name
+                  };
+                }
+              }
+              return {
+                ...user,
+                roleName: user.role === 'ORGANIZATION' ? 'Organization Admin' : user.role,
+                displayRole: user.role === 'ORGANIZATION' ? 'Organization Admin' : user.role
+              };
+            } catch (error) {
+              return {
+                ...user,
+                roleName: user.role || 'No Role',
+                displayRole: user.role || 'No Role'
+              };
+            }
+          })
+        );
+        
+        setAvailableUsers(usersWithRoles);
       }
     } catch (error) {
       console.log('Error fetching users:', error);
     } finally {
       setLoadingUsers(false);
     }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const response = await ApiService.getRoles(1, 100);
+      if (response.success) {
+        const roleNames = (response.data.roles || []).map(role => role.name);
+        setAvailableRoles(['ORGANIZATION', 'CUSTOMER', ...roleNames]);
+      }
+    } catch (error) {
+      console.log('Error fetching roles:', error);
+      setAvailableRoles(['ORGANIZATION', 'CUSTOMER']);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    const filteredUserIds = filteredUsers.map(user => user.id || user._id);
+    const allSelected = filteredUserIds.every(id => groupData.memberIds.includes(id));
+    
+    setGroupData(prev => ({
+      ...prev,
+      memberIds: allSelected 
+        ? prev.memberIds.filter(id => !filteredUserIds.includes(id))
+        : [...new Set([...prev.memberIds, ...filteredUserIds])]
+    }));
   };
 
   const toggleUserSelection = (userId) => {
@@ -80,12 +138,12 @@ const CreateGroupScreen = ({ navigation, route }) => {
        user.email?.toLowerCase().includes(searchQuery.toLowerCase()));
     
     const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    const matchesRole = roleFilter === 'all' || user.displayRole === roleFilter || user.role === roleFilter;
     
     return matchesSearch && matchesStatus && matchesRole;
   });
 
-  const uniqueRoles = [...new Set(availableUsers.map(user => user.role).filter(Boolean))];
+  const uniqueRoles = availableRoles.length > 0 ? availableRoles : [...new Set(availableUsers.map(user => user.role).filter(Boolean))];
 
   const handleCreateGroup = async () => {
     if (!groupData.name.trim()) {
@@ -106,7 +164,10 @@ const CreateGroupScreen = ({ navigation, route }) => {
 
       if (response.success) {
         Alert.alert('Success', `Group ${editMode ? 'updated' : 'created'} successfully`, [
-          { text: 'OK', onPress: () => navigation.goBack() }
+          { text: 'OK', onPress: () => {
+            // Trigger refresh on the previous screen
+            navigation.navigate('Groups', { refresh: true });
+          }}
         ]);
       } else {
         Alert.alert('Error', response.message || `Failed to ${editMode ? 'update' : 'create'} group`);
@@ -157,9 +218,19 @@ const CreateGroupScreen = ({ navigation, route }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Group Members</Text>
-          <Text style={styles.sectionSubtitle}>
-            Select users to add to this group ({groupData.memberIds.length} selected)
-          </Text>
+          <View style={styles.selectAllContainer}>
+            <Text style={styles.sectionSubtitle}>
+              Select users to add to this group ({groupData.memberIds.length} selected)
+            </Text>
+            <TouchableOpacity
+              style={styles.selectAllButton}
+              onPress={toggleSelectAll}
+            >
+              <Text style={styles.selectAllText}>
+                {filteredUsers.length > 0 && filteredUsers.every(user => groupData.memberIds.includes(user.id || user._id)) ? 'Deselect All' : 'Select All'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Search and Filters */}
           <View style={styles.searchContainer}>
@@ -282,7 +353,7 @@ const CreateGroupScreen = ({ navigation, route }) => {
                     <Text style={styles.userName}>{user.fullName}</Text>
                     <Text style={styles.userEmail}>{user.email}</Text>
                     <View style={styles.userMeta}>
-                      <Text style={styles.userRole}>{user.role || 'No Role'}</Text>
+                      <Text style={styles.userRole}>{user.displayRole || user.role || 'No Role'}</Text>
                       <View style={[
                         styles.statusBadge,
                         { backgroundColor: user.status === 'active' ? '#ECFDF5' : user.status === 'pending' ? '#FEF3C7' : '#FEF2F2' }
@@ -583,6 +654,23 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 10,
     fontWeight: '500',
+  },
+  selectAllContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  selectAllButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#7C3AED',
+    borderRadius: 6,
+  },
+  selectAllText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: 'white',
   },
 });
 

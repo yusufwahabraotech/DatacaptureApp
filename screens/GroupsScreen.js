@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
 
-const GroupsScreen = ({ navigation }) => {
+const GroupsScreen = ({ navigation, route }) => {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -44,6 +44,12 @@ const GroupsScreen = ({ navigation }) => {
       fetchGroups();
     }
   }, [userProfile]);
+
+  useEffect(() => {
+    if (route.params?.refresh && userProfile) {
+      fetchGroups();
+    }
+  }, [route.params?.refresh, userProfile]);
 
   const fetchUserProfile = async () => {
     try {

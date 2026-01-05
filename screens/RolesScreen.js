@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/api';
 
-const RolesScreen = ({ navigation }) => {
+const RolesScreen = ({ navigation, route }) => {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,6 +36,12 @@ const RolesScreen = ({ navigation }) => {
       fetchRoles();
     }
   }, [userProfile]);
+
+  useEffect(() => {
+    if (route.params?.refresh && userProfile) {
+      fetchRoles();
+    }
+  }, [route.params?.refresh, userProfile]);
 
   const fetchUserProfile = async () => {
     try {
@@ -94,7 +100,31 @@ const RolesScreen = ({ navigation }) => {
       const response = await ApiService.getRoles(1, 50);
       
       if (response.success) {
-        setRoles(response.data.roles || []);
+        const basicRoles = response.data.roles || [];
+        console.log('=== FETCHING DETAILED ROLE INFO ===');
+        
+        // Fetch detailed info for each role to get user counts
+        const rolesWithUserCounts = await Promise.all(
+          basicRoles.map(async (role) => {
+            try {
+              const detailResponse = await ApiService.getRoleById(role._id || role.id);
+              if (detailResponse.success) {
+                const detailedRole = detailResponse.data.role;
+                return {
+                  ...role,
+                  userCount: detailedRole.userCount || 0,
+                  assignedUsers: detailedRole.assignedUsers || []
+                };
+              }
+              return role;
+            } catch (error) {
+              console.log(`Error fetching details for role ${role.name}:`, error);
+              return role;
+            }
+          })
+        );
+        
+        setRoles(rolesWithUserCounts);
       }
     } catch (error) {
       console.log('Error fetching roles:', error);
@@ -242,7 +272,7 @@ const RolesScreen = ({ navigation }) => {
               
               <View style={styles.roleDetails}>
                 <Text style={styles.permissionCount}>
-                  {role.permissions?.length || 0} permissions • {role.assignedUsers?.length || 0} users assigned
+                  {role.permissions?.length || 0} permissions • {role.userCount || role.assignedUsers?.length || 0} users assigned
                 </Text>
                 <View style={styles.statusBadge}>
                   <Text style={styles.statusText}>
