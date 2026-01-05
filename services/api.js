@@ -149,9 +149,9 @@ class ApiService {
       } else {
         baseUrl = '/user';
       }
-      return this.apiCall(`${baseUrl}/users?page=${page}&limit=${limit}`);
+      return this.apiCall(`${baseUrl}/users?page=${page}&limit=${limit}&includeOrganization=true`);
     }
-    return this.apiCall(`/user/users?page=${page}&limit=${limit}`);
+    return this.apiCall(`/user/users?page=${page}&limit=${limit}&includeOrganization=true`);
   }
 
   static async getUserById(userId) {

@@ -175,9 +175,17 @@ const UserManagementScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>User Management</Text>
-        <TouchableOpacity onPress={() => setShowCreateModal(true)}>
-          <Ionicons name="add" size={24} color="#7C3AED" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={() => navigation.navigate('ExportUsers')}
+          >
+            <Ionicons name="download-outline" size={24} color="#7C3AED" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowCreateModal(true)}>
+            <Ionicons name="add" size={24} color="#7C3AED" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search Bar */}
@@ -457,6 +465,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerButton: {
+    marginRight: 16,
   },
   searchContainer: {
     flexDirection: 'row',
