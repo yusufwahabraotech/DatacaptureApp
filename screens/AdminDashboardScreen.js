@@ -145,6 +145,12 @@ const AdminDashboardScreen = ({ navigation }) => {
       onPress: () => navigation.navigate('AdminMeasurements')
     },
     {
+      title: 'Create User Measurement',
+      subtitle: 'Create measurement for users',
+      icon: 'add-circle',
+      onPress: () => navigation.navigate('AdminCreateMeasurement')
+    },
+    {
       title: 'One-Time Codes',
       subtitle: 'Generate access codes',
       icon: 'key',

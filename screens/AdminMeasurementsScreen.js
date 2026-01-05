@@ -191,9 +191,14 @@ const AdminMeasurementsScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>All Measurements</Text>
-        <TouchableOpacity onPress={handleExportAll} style={styles.exportButton}>
-          <Ionicons name="download" size={20} color="#7C3AED" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => navigation.navigate('AdminCreateMeasurement')} style={styles.createButton}>
+            <Ionicons name="add" size={20} color="#7C3AED" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleExportAll} style={styles.exportButton}>
+            <Ionicons name="download" size={20} color="#7C3AED" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search and Filter */}
@@ -406,6 +411,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  createButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5F3FF',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   exportButton: {
     width: 40,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import ApiService from '../services/api';
 
 const TakeNewMeasurementScreen = ({ navigation }) => {
   const [measurementMethod, setMeasurementMethod] = useState('');
@@ -21,6 +22,32 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
   const [showWhoseDropdown, setShowWhoseDropdown] = useState(false);
   const [frontImage, setFrontImage] = useState(null);
   const [sideImage, setSideImage] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  useEffect(() => {
+    if (whoseMeasurement === 'Self' && userProfile) {
+      setFirstName(userProfile.firstName || '');
+      setLastName(userProfile.lastName || '');
+    } else if (whoseMeasurement === 'Others') {
+      setFirstName('');
+      setLastName('');
+    }
+  }, [whoseMeasurement, userProfile]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await ApiService.getUserProfile();
+      if (response.success) {
+        setUserProfile(response.data.user);
+      }
+    } catch (error) {
+      console.log('Error fetching user profile:', error);
+    }
+  };
 
   const pickImage = async (imageType) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -142,11 +169,12 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>First Name</Text>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, whoseMeasurement === 'Self' && styles.disabledInput]}
               placeholder="First Name"
               placeholderTextColor="#9CA3AF"
               value={firstName}
               onChangeText={setFirstName}
+              editable={whoseMeasurement !== 'Self'}
             />
           </View>
 
@@ -154,11 +182,12 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>Last Name</Text>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, whoseMeasurement === 'Self' && styles.disabledInput]}
               placeholder="Last Name"
               placeholderTextColor="#9CA3AF"
               value={lastName}
               onChangeText={setLastName}
+              editable={whoseMeasurement !== 'Self'}
             />
           </View>
 
@@ -395,6 +424,10 @@ const styles = StyleSheet.create({
   },
   uploadSideContainer: {
     marginTop: 16,
+  },
+  disabledInput: {
+    backgroundColor: '#F3F4F6',
+    color: '#6B7280',
   },
 });
 

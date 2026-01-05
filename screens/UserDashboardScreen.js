@@ -211,6 +211,17 @@ const UserDashboardScreen = ({ navigation }) => {
 
             <TouchableOpacity 
               style={styles.actionCard}
+              onPress={() => navigation.navigate('AdminCreateMeasurement')}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="person-add" size={24} color="#8B5CF6" />
+              </View>
+              <Text style={styles.actionTitle}>Create User Measurement</Text>
+              <Text style={styles.actionSubtitle}>Create for other users</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
               onPress={() => navigation.navigate('Profile')}
             >
               <View style={styles.actionIcon}>
