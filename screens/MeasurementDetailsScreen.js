@@ -236,18 +236,38 @@ const MeasurementDetailsScreen = ({ navigation, route }) => {
                 onPress={async () => {
                   try {
                     setPdfGenerating(true);
+                    
+                    // Create table data with actual measurement names
+                    const measurementData = {};
+                    
+                    // Handle different measurement data structures
+                    if (measurement.sections && measurement.sections.length > 0) {
+                      // If measurements are organized in sections
+                      measurement.sections.forEach(section => {
+                        if (section.measurements) {
+                          section.measurements.forEach(m => {
+                            const key = m.bodyPartName || m.name || m.key || 'Unknown';
+                            const value = m.size || m.value || 0;
+                            const unit = m.unit || 'cm';
+                            measurementData[key] = `${value} ${unit}`;
+                          });
+                        }
+                      });
+                    } else if (measurement.measurements && Object.keys(measurement.measurements).length > 0) {
+                      // If measurements are in a flat object
+                      Object.entries(measurement.measurements).forEach(([key, value]) => {
+                        measurementData[key] = `${value} cm`;
+                      });
+                    }
+                    
                     const tableData = [
                       {
                         name: measurement.userInfo?.fullName || 'Unknown User',
                         type: 'Body',
-                        ...Object.fromEntries(
-                          Object.entries(measurement.measurements || {}).map(([key, value]) => [
-                            key.toLowerCase(),
-                            value
-                          ])
-                        )
+                        ...measurementData
                       }
                     ];
+                    
                     const uri = await generateMeasurementsPDF(tableData, {
                       fullName: measurement.userInfo?.fullName || 'Unknown User',
                       email: measurement.userInfo?.email || '',
@@ -275,18 +295,38 @@ const MeasurementDetailsScreen = ({ navigation, route }) => {
                 onPress={async () => {
                   try {
                     setPdfGenerating(true);
+                    
+                    // Create table data with actual measurement names
+                    const measurementData = {};
+                    
+                    // Handle different measurement data structures
+                    if (measurement.sections && measurement.sections.length > 0) {
+                      // If measurements are organized in sections
+                      measurement.sections.forEach(section => {
+                        if (section.measurements) {
+                          section.measurements.forEach(m => {
+                            const key = m.bodyPartName || m.name || m.key || 'Unknown';
+                            const value = m.size || m.value || 0;
+                            const unit = m.unit || 'cm';
+                            measurementData[key] = `${value} ${unit}`;
+                          });
+                        }
+                      });
+                    } else if (measurement.measurements && Object.keys(measurement.measurements).length > 0) {
+                      // If measurements are in a flat object
+                      Object.entries(measurement.measurements).forEach(([key, value]) => {
+                        measurementData[key] = `${value} cm`;
+                      });
+                    }
+                    
                     const tableData = [
                       {
                         name: measurement.userInfo?.fullName || 'Unknown User',
                         type: 'Body',
-                        ...Object.fromEntries(
-                          Object.entries(measurement.measurements || {}).map(([key, value]) => [
-                            key.toLowerCase(),
-                            value
-                          ])
-                        )
+                        ...measurementData
                       }
                     ];
+                    
                     const uri = await generateMeasurementsPDF(tableData, {
                       fullName: measurement.userInfo?.fullName || 'Unknown User',
                       email: measurement.userInfo?.email || '',

@@ -4,6 +4,17 @@ import * as FileSystem from 'expo-file-system';
 
 export const generateMeasurementsPDF = async (tableData, user) => {
   try {
+    // Extract all unique measurement keys from the data
+    const measurementKeys = new Set();
+    tableData.forEach(row => {
+      Object.keys(row).forEach(key => {
+        if (key !== 'name' && key !== 'type') {
+          measurementKeys.add(key);
+        }
+      });
+    });
+    const measurementColumns = Array.from(measurementKeys);
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -105,9 +116,7 @@ export const generateMeasurementsPDF = async (tableData, user) => {
               <tr>
                 <th>Name</th>
                 <th>Type</th>
-                <th>Chest Length</th>
-                <th>Hips Height</th>
-                <th>Legs</th>
+                ${measurementColumns.map(key => `<th>${key.charAt(0).toUpperCase() + key.slice(1)}</th>`).join('')}
               </tr>
             </thead>
             <tbody>
@@ -119,9 +128,7 @@ export const generateMeasurementsPDF = async (tableData, user) => {
                       ${row.type}
                     </span>
                   </td>
-                  <td class="measurement-cell">${row.chestLength}</td>
-                  <td class="measurement-cell">${row.hipsHeight}</td>
-                  <td class="measurement-cell">${row.legs}</td>
+                  ${measurementColumns.map(key => `<td class="measurement-cell">${row[key] || 'N/A'}</td>`).join('')}
                 </tr>
               `).join('')}
             </tbody>
