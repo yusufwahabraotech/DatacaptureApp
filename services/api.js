@@ -1,18 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://10.140.69.84:3000/api';
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
-// FORCE COMPLETE RELOAD - BREAKING CACHE v6 - EMERGENCY FIX
-const FORCE_RELOAD_NOW = 'MEASUREMENTS_EMERGENCY_FIX_' + Date.now();
-console.log('🚨 EMERGENCY API SERVICE RELOAD v6 🚨', FORCE_RELOAD_NOW);
+// FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
+const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
+console.log('🚨 MEASUREMENT DETAILS FIX API SERVICE RELOAD v8 🚨', FORCE_RELOAD_NOW);
 console.log('🔥 IF YOU SEE THIS, THE NEW CODE IS LOADED 🔥');
 
 class ApiService {
-  // FORCE RELOAD MARKER - EMERGENCY v6
-  static RELOAD_MARKER = 'EMERGENCY_API_FIX_v6_' + Date.now();
+  // FORCE RELOAD MARKER - PERMISSION FIX v7
+  static RELOAD_MARKER = 'PERMISSION_FIX_v7_' + Date.now();
   
   static async getToken() {
-    console.log('🚨 EMERGENCY API SERVICE LOADED 🚨', this.RELOAD_MARKER);
+    console.log('🚨 PERMISSION FIX API SERVICE LOADED 🚨', this.RELOAD_MARKER);
     return await AsyncStorage.getItem('userToken');
   }
 
@@ -454,7 +454,7 @@ class ApiService {
   }
 
   static async getUserMeasurements(userId, page = 1, limit = 10) {
-    console.log('=== getUserMeasurements DEBUG ===');
+    console.log('=== getUserMeasurements CORRECT ENDPOINT ===');
     console.log('userId:', userId, 'page:', page, 'limit:', limit);
     
     const profileResponse = await this.getUserProfile();
@@ -467,22 +467,6 @@ class ApiService {
       } else if (user.role === 'CUSTOMER' && user.organizationId) {
         baseUrl = '/org-user';
         console.log('Using /org-user for CUSTOMER with organizationId');
-        
-        // Check if user has view_measurements permission
-        const permissions = user.permissions || [];
-        const hasViewPermission = permissions.some(p => 
-          (typeof p === 'string' && p === 'view_measurements') ||
-          (typeof p === 'object' && p.key === 'view_measurements')
-        );
-        console.log('Has view_measurements permission:', hasViewPermission);
-        
-        if (!hasViewPermission) {
-          console.log('Permission denied for view_measurements');
-          return {
-            success: false,
-            message: 'Permission denied: view_measurements permission required'
-          };
-        }
       } else {
         baseUrl = '/user';
         console.log('Using /user for regular user');
@@ -800,10 +784,25 @@ class ApiService {
     }
   }
 
-  // TEST METHOD - Direct org-user dashboard call
-  static async testOrgUserDashboard() {
-    console.log('=== TESTING ORG-USER DASHBOARD DIRECT CALL ===');
-    return this.apiCall('/org-user/dashboard/stats');
+  // DEBUG: Test org-user measurements endpoint directly
+  static async testOrgUserMeasurements() {
+    console.log('=== TESTING ORG-USER MEASUREMENTS DIRECT CALL ===');
+    const response = await this.apiCall('/org-user/measurements?page=1&limit=10');
+    console.log('Direct org-user measurements response:', JSON.stringify(response, null, 2));
+    return response;
+  }
+
+  // DEBUG: Test specific user measurements endpoint
+  static async testUserMeasurementsEndpoint(userId) {
+    console.log('=== TESTING USER MEASUREMENTS ENDPOINT ===');
+    console.log('Testing userId:', userId);
+    
+    // Test org-user endpoint directly
+    const orgUserEndpoint = `/org-user/users/${userId}/measurements`;
+    console.log('Testing endpoint:', orgUserEndpoint);
+    const response = await this.apiCall(orgUserEndpoint);
+    console.log('Response:', JSON.stringify(response, null, 2));
+    return response;
   }
 
   // MEASUREMENTS - FIXED ROUTING
@@ -812,12 +811,14 @@ class ApiService {
     return this.apiCall(`/user/measurements?page=${page}&limit=${limit}`);
   }
 
-  static async getMyMeasurements(page = 1, limit = 10) {
+  // MEASUREMENTS - FIXED ROUTING WITH USER FILTER
+  static async getMyMeasurements(page = 1, limit = 10, userId = null) {
     const profileResponse = await this.getUserProfile();
     if (profileResponse.success) {
       const user = profileResponse.data.user;
       console.log('=== getMyMeasurements FIXED - role-based routing ===');
       console.log('User role:', user.role, 'organizationId:', user.organizationId);
+      console.log('Requested userId filter:', userId);
       
       let baseUrl;
       if (user.role === 'ORGANIZATION') {
@@ -830,7 +831,12 @@ class ApiService {
         baseUrl = '/user';
         console.log('Using /user/measurements for regular user');
       }
-      const endpoint = `${baseUrl}/measurements?page=${page}&limit=${limit}`;
+      
+      let endpoint = `${baseUrl}/measurements?page=${page}&limit=${limit}`;
+      if (userId) {
+        endpoint += `&userId=${userId}`;
+        console.log('Added userId filter:', userId);
+      }
       console.log('Calling endpoint:', endpoint);
       return this.apiCall(endpoint);
     }
@@ -1237,7 +1243,7 @@ class ApiService {
   static async shareToOrganization(measurementId, code) {
     return this.apiCall('/measurements/share-to-organization', {
       method: 'POST',
-      body: JSON.stringify({ measurementId, code }),
+      body: JSON.stringify({ measurementId, oneTimeCode: code }),
     });
   }
 }

@@ -51,12 +51,17 @@ const VerifyOTPScreen = ({ navigation, route }) => {
       const response = await ApiService.verifyOTP(email, otpCode);
 
       if (response.success) {
-        Alert.alert('Success', 'Account verified successfully!', [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('Login'),
-          },
-        ]);
+        // Store the token and navigate directly to dashboard for new users
+        await AsyncStorage.setItem('userToken', response.data.jwtToken);
+        
+        const userRole = response.data.user.role;
+        if (userRole === 'SUPER_ADMIN') {
+          navigation.replace('SuperAdminDashboard', { showTutorial: true, fromSignup: true });
+        } else if (userRole === 'ORGANIZATION' || userRole === 'ADMIN') {
+          navigation.replace('AdminDashboard', { showTutorial: true, fromSignup: true });
+        } else {
+          navigation.replace('Dashboard', { showTutorial: true, fromSignup: true });
+        }
       } else {
         Alert.alert('Verification Failed', response.message || 'Invalid OTP');
       }

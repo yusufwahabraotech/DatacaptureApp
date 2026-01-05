@@ -49,8 +49,8 @@ const DashboardScreen = ({ navigation, route }) => {
   useEffect(() => {
     fetchUserProfile();
     fetchDashboardData();
-    // Show tutorial only when coming from login/signup
-    if (route.params?.showTutorial) {
+    // Show tutorial only when coming from signup (not login)
+    if (route.params?.showTutorial && route.params?.fromSignup) {
       const timer = setTimeout(() => {
         setShowTutorial(true);
       }, 1000);
@@ -299,6 +299,23 @@ const DashboardScreen = ({ navigation, route }) => {
 
         {/* Measurement Cards */}
         <View style={styles.cardsContainer}>
+          {/* My Role Card - Only for org-users with permissions */}
+          {user?.organizationId && (user?.role === 'ORGANIZATION' || (user?.permissions && user.permissions.length > 0)) && (
+            <TouchableOpacity 
+              style={[styles.card, styles.roleCard]}
+              onPress={() => navigation.navigate('UserSettings')}
+            >
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>My Role & Permissions</Text>
+                <Ionicons name="shield-checkmark" size={24} color="#10B981" />
+              </View>
+              <Text style={styles.cardValue}>{user?.role === 'ORGANIZATION' ? 'Admin' : 'Organization User'}</Text>
+              <View style={styles.createNewButton}>
+                <Text style={styles.createNew}>View Details</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity 
             style={[styles.card, styles.bodyCard]}
             onPress={() => navigation.navigate('BodyMeasurement')}
@@ -596,8 +613,8 @@ const styles = StyleSheet.create({
   questionnaireCard: {
     backgroundColor: '#FFF0F5',
   },
-  codesCard: {
-    backgroundColor: '#F5F3FF',
+  roleCard: {
+    backgroundColor: '#ECFDF5',
   },
   cardHeader: {
     flexDirection: 'row',

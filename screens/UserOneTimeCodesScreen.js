@@ -32,11 +32,11 @@ const UserOneTimeCodesScreen = ({ navigation }) => {
 
   const fetchCodes = async (page = 1) => {
     try {
-      const response = await ApiService.getOneTimeCodes();
+      const response = await ApiService.getOneTimeCodes(page, 10);
       if (response.success) {
         setCodes(response.data.codes || []);
-        setCurrentPage(response.data.currentPage || 1);
-        setTotalPages(response.data.totalPages || 1);
+        setCurrentPage(response.data.pagination?.page || page);
+        setTotalPages(response.data.pagination?.totalPages || 1);
       }
     } catch (error) {
       console.log('Error fetching codes:', error);
@@ -232,27 +232,37 @@ const UserOneTimeCodesScreen = ({ navigation }) => {
       </KeyboardAwareScrollView>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <View style={styles.pagination}>
-          <TouchableOpacity 
-            style={[styles.pageButton, currentPage === 1 && styles.pageButtonDisabled]}
-            onPress={() => currentPage > 1 && fetchCodes(currentPage - 1)}
-            disabled={currentPage === 1}
-          >
-            <Text style={[styles.pageButtonText, currentPage === 1 && styles.pageButtonTextDisabled]}>Previous</Text>
-          </TouchableOpacity>
-          
-          <Text style={styles.pageInfo}>Page {currentPage} of {totalPages}</Text>
-          
-          <TouchableOpacity 
-            style={[styles.pageButton, currentPage === totalPages && styles.pageButtonDisabled]}
-            onPress={() => currentPage < totalPages && fetchCodes(currentPage + 1)}
-            disabled={currentPage === totalPages}
-          >
-            <Text style={[styles.pageButtonText, currentPage === totalPages && styles.pageButtonTextDisabled]}>Next</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <View style={styles.pagination}>
+        <TouchableOpacity 
+          style={[styles.pageButton, currentPage === 1 && styles.pageButtonDisabled]}
+          onPress={() => {
+            if (currentPage > 1) {
+              const newPage = currentPage - 1;
+              setCurrentPage(newPage);
+              fetchCodes(newPage);
+            }
+          }}
+          disabled={currentPage === 1}
+        >
+          <Text style={[styles.pageButtonText, currentPage === 1 && styles.pageButtonTextDisabled]}>Previous</Text>
+        </TouchableOpacity>
+        
+        <Text style={styles.pageInfo}>Page {currentPage} of {totalPages}</Text>
+        
+        <TouchableOpacity 
+          style={[styles.pageButton, currentPage === totalPages && styles.pageButtonDisabled]}
+          onPress={() => {
+            if (currentPage < totalPages) {
+              const newPage = currentPage + 1;
+              setCurrentPage(newPage);
+              fetchCodes(newPage);
+            }
+          }}
+          disabled={currentPage === totalPages}
+        >
+          <Text style={[styles.pageButtonText, currentPage === totalPages && styles.pageButtonTextDisabled]}>Next</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Generate Code Modal */}
       <Modal visible={showCreateModal} transparent animationType="fade">
