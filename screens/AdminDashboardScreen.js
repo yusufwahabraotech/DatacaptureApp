@@ -155,12 +155,6 @@ const AdminDashboardScreen = ({ navigation }) => {
       subtitle: 'Manage your subscription',
       icon: 'card',
       onPress: () => navigation.navigate('OrganizationSubscription')
-    },
-    {
-      title: 'Debug API',
-      subtitle: 'Test API connections',
-      icon: 'bug',
-      onPress: () => navigation.navigate('Debug')
     }
   ];
 
@@ -494,6 +488,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 2,
+  },
+  professionalSubtitle: {
+    fontSize: 14,
+    color: '#9CA3AF',
   },
   measurementContainer: {
     backgroundColor: '#FFFFFF',
