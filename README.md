@@ -1,4 +1,4 @@
-# Data Capturing App - Mobile Authentication
+# Vestradat - Mobile Authentication
 
 A responsive React Native authentication app with three screens: Splash, Login, and Sign Up.
 
@@ -36,7 +36,7 @@ npm start
 ## Project Structure
 
 ```
-DataCapturingApp/
+Vestradat/
 ├── screens/
 │   ├── SplashScreen.js    # Animated splash with DC logo
 │   ├── LoginScreen.js     # Login form with validation

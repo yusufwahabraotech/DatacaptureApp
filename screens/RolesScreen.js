@@ -272,7 +272,7 @@ const RolesScreen = ({ navigation, route }) => {
               
               <View style={styles.roleDetails}>
                 <Text style={styles.permissionCount}>
-                  {role.permissions?.length || 0} permissions • {role.userCount || role.assignedUsers?.length || 0} users assigned
+                  {(role.permissions?.length || 0) + ' permissions • ' + (role.userCount || role.assignedUsers?.length || 0) + ' users assigned'}
                 </Text>
                 <View style={styles.statusBadge}>
                   <Text style={styles.statusText}>

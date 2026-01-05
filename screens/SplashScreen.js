@@ -115,7 +115,7 @@ const SplashScreen = ({ navigation }) => {
       </Animated.View>
       
       <Animated.View style={[styles.textContainer, { opacity: textFadeAnim }]}>
-        <Text style={styles.appName}>Data Capturing</Text>
+        <Text style={styles.appName}>Vestradat</Text>
         <Text style={styles.tagline}>Measure. Analyze. Grow.</Text>
       </Animated.View>
     </View>
