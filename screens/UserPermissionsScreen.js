@@ -162,7 +162,7 @@ const UserPermissionsScreen = ({ navigation, route }) => {
           {item.description}
         </Text>
         <Text style={styles.rolePermissions}>
-          {item.permissions?.length || 0} permissions
+          {String(item.permissions?.length || 0)} permissions
         </Text>
         
         {isCurrent && (

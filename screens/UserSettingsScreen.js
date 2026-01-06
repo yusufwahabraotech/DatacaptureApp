@@ -272,7 +272,7 @@ const UserSettingsScreen = ({ navigation }) => {
                     {card.subtitle}
                   </Text>
                 </TouchableOpacity>
-              ))}}
+              ))})
             </View>
           </View>
         )}
@@ -293,7 +293,7 @@ const UserSettingsScreen = ({ navigation }) => {
               <Text style={styles.sectionSubtitle}>
                 {user?.role === 'ORGANIZATION' 
                   ? 'As Organization Admin, you have access to all features'
-                  : `You have access to ${permissions.length} feature${permissions.length !== 1 ? 's' : ''}`
+                  : `You have access to ${String(permissions.length)} feature${permissions.length !== 1 ? 's' : ''}`
                 }
               </Text>
               

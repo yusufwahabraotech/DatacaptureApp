@@ -193,11 +193,11 @@ const RolesScreen = ({ navigation, route }) => {
 
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
-          <Text style={styles.statValue}>{roles.length}</Text>
+          <Text style={styles.statValue}>{String(roles.length)}</Text>
           <Text style={styles.statLabel}>Total Roles</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statValue}>{roles.filter(r => r.isActive).length}</Text>
+          <Text style={styles.statValue}>{String(roles.filter(r => r.isActive).length)}</Text>
           <Text style={styles.statLabel}>Active Roles</Text>
         </View>
       </View>
@@ -272,7 +272,7 @@ const RolesScreen = ({ navigation, route }) => {
               
               <View style={styles.roleDetails}>
                 <Text style={styles.permissionCount}>
-                  {(role.permissions?.length || 0) + ' permissions • ' + (role.userCount || role.assignedUsers?.length || 0) + ' users assigned'}
+                  {String(role.permissions?.length || 0) + ' permissions • ' + String(role.userCount || role.assignedUsers?.length || 0) + ' users assigned'}
                 </Text>
                 <View style={styles.statusBadge}>
                   <Text style={styles.statusText}>
@@ -319,7 +319,7 @@ const RolesScreen = ({ navigation, route }) => {
               </View>
 
               <View style={styles.roleDetailSection}>
-                <Text style={styles.detailLabel}>Permissions ({selectedRole?.permissions?.length || 0})</Text>
+                <Text style={styles.detailLabel}>Permissions ({String(selectedRole?.permissions?.length || 0)})</Text>
                 {selectedRole?.permissions?.length > 0 ? (
                   selectedRole.permissions.map((permissionKey, index) => (
                     <View key={index} style={styles.permissionDetailItem}>
@@ -340,7 +340,7 @@ const RolesScreen = ({ navigation, route }) => {
                 )}
               </View>
               <View style={styles.roleDetailSection}>
-                <Text style={styles.detailLabel}>Assigned Users ({assignedUsers.length})</Text>
+                <Text style={styles.detailLabel}>Assigned Users ({String(assignedUsers.length)})</Text>
                 {loadingUsers ? (
                   <ActivityIndicator size="small" color="#7C3AED" style={styles.modalLoader} />
                 ) : assignedUsers.length > 0 ? (

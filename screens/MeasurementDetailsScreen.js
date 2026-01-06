@@ -118,13 +118,13 @@ const MeasurementDetailsScreen = ({ navigation, route }) => {
           <View style={styles.userCard}>
             <View style={styles.userAvatar}>
               <Text style={styles.userAvatarText}>
-                {(measurement.userInfo?.fullName || measurement.userInfo?.email || '?').charAt(0).toUpperCase()}
+                {(measurement.userInfo?.fullName || measurement.user?.fullName || (measurement.firstName && measurement.lastName ? `${measurement.firstName} ${measurement.lastName}` : measurement.userInfo?.email || measurement.user?.email || measurement.email || '?')).charAt(0).toUpperCase()}
               </Text>
             </View>
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{measurement.userInfo?.fullName || 'Unknown User'}</Text>
-              <Text style={styles.userEmail}>{measurement.userInfo?.email || 'No email'}</Text>
-              <Text style={styles.userCustomId}>ID: {measurement.userInfo?.customUserId || 'N/A'}</Text>
+              <Text style={styles.userName}>{measurement.userInfo?.fullName || measurement.user?.fullName || (measurement.firstName && measurement.lastName ? `${measurement.firstName} ${measurement.lastName}` : measurement.userInfo?.email || measurement.user?.email || measurement.email || 'Unknown User')}</Text>
+              <Text style={styles.userEmail}>{measurement.userInfo?.email || measurement.user?.email || measurement.email || 'No email'}</Text>
+              <Text style={styles.userCustomId}>ID: {measurement.userInfo?.customUserId || measurement.user?.customUserId || measurement.customUserId || 'N/A'}</Text>
             </View>
           </View>
         </View>
@@ -238,7 +238,7 @@ const MeasurementDetailsScreen = ({ navigation, route }) => {
                     setPdfGenerating(true);
                     
                     // Create table data with actual measurement names
-                    const measurementData = {};
+                    const measurementsList = [];
                     
                     // Handle different measurement data structures
                     if (measurement.sections && measurement.sections.length > 0) {
@@ -246,32 +246,32 @@ const MeasurementDetailsScreen = ({ navigation, route }) => {
                       measurement.sections.forEach(section => {
                         if (section.measurements) {
                           section.measurements.forEach(m => {
-                            const key = m.bodyPartName || m.name || m.key || 'Unknown';
-                            const value = m.size || m.value || 0;
-                            const unit = m.unit || 'cm';
-                            measurementData[key] = `${value} ${unit}`;
+                            const name = m.bodyPartName || m.name || m.key || 'Unknown';
+                            const value = `${m.size || m.value || 0} ${m.unit || 'cm'}`;
+                            measurementsList.push({ name, value });
                           });
                         }
                       });
                     } else if (measurement.measurements && Object.keys(measurement.measurements).length > 0) {
                       // If measurements are in a flat object
                       Object.entries(measurement.measurements).forEach(([key, value]) => {
-                        measurementData[key] = `${value} cm`;
+                        measurementsList.push({ name: key, value: `${value} cm` });
                       });
                     }
                     
                     const tableData = [
                       {
-                        name: measurement.userInfo?.fullName || 'Unknown User',
-                        type: 'Body',
-                        ...measurementData
+                        name: measurement.userInfo?.fullName || measurement.user?.fullName || (measurement.firstName && measurement.lastName ? `${measurement.firstName} ${measurement.lastName}` : 'Unknown User'),
+                        type: measurement.submissionType || 'Manual',
+                        date: formatDate(measurement.createdAt),
+                        measurements: measurementsList
                       }
                     ];
                     
                     const uri = await generateMeasurementsPDF(tableData, {
-                      fullName: measurement.userInfo?.fullName || 'Unknown User',
-                      email: measurement.userInfo?.email || '',
-                      customUserId: measurement.userInfo?.customUserId || ''
+                      fullName: measurement.userInfo?.fullName || measurement.user?.fullName || (measurement.firstName && measurement.lastName ? `${measurement.firstName} ${measurement.lastName}` : 'Unknown User'),
+                      email: measurement.userInfo?.email || measurement.user?.email || measurement.email || '',
+                      customUserId: measurement.userInfo?.customUserId || measurement.user?.customUserId || measurement.customUserId || ''
                     });
                     await viewPDF(uri);
                   } catch (err) {
@@ -297,7 +297,7 @@ const MeasurementDetailsScreen = ({ navigation, route }) => {
                     setPdfGenerating(true);
                     
                     // Create table data with actual measurement names
-                    const measurementData = {};
+                    const measurementsList = [];
                     
                     // Handle different measurement data structures
                     if (measurement.sections && measurement.sections.length > 0) {
@@ -305,32 +305,32 @@ const MeasurementDetailsScreen = ({ navigation, route }) => {
                       measurement.sections.forEach(section => {
                         if (section.measurements) {
                           section.measurements.forEach(m => {
-                            const key = m.bodyPartName || m.name || m.key || 'Unknown';
-                            const value = m.size || m.value || 0;
-                            const unit = m.unit || 'cm';
-                            measurementData[key] = `${value} ${unit}`;
+                            const name = m.bodyPartName || m.name || m.key || 'Unknown';
+                            const value = `${m.size || m.value || 0} ${m.unit || 'cm'}`;
+                            measurementsList.push({ name, value });
                           });
                         }
                       });
                     } else if (measurement.measurements && Object.keys(measurement.measurements).length > 0) {
                       // If measurements are in a flat object
                       Object.entries(measurement.measurements).forEach(([key, value]) => {
-                        measurementData[key] = `${value} cm`;
+                        measurementsList.push({ name: key, value: `${value} cm` });
                       });
                     }
                     
                     const tableData = [
                       {
-                        name: measurement.userInfo?.fullName || 'Unknown User',
-                        type: 'Body',
-                        ...measurementData
+                        name: measurement.userInfo?.fullName || measurement.user?.fullName || (measurement.firstName && measurement.lastName ? `${measurement.firstName} ${measurement.lastName}` : 'Unknown User'),
+                        type: measurement.submissionType || 'Manual',
+                        date: formatDate(measurement.createdAt),
+                        measurements: measurementsList
                       }
                     ];
                     
                     const uri = await generateMeasurementsPDF(tableData, {
-                      fullName: measurement.userInfo?.fullName || 'Unknown User',
-                      email: measurement.userInfo?.email || '',
-                      customUserId: measurement.userInfo?.customUserId || ''
+                      fullName: measurement.userInfo?.fullName || measurement.user?.fullName || (measurement.firstName && measurement.lastName ? `${measurement.firstName} ${measurement.lastName}` : 'Unknown User'),
+                      email: measurement.userInfo?.email || measurement.user?.email || measurement.email || '',
+                      customUserId: measurement.userInfo?.customUserId || measurement.user?.customUserId || measurement.customUserId || ''
                     });
                     await viewPDF(uri);
                   } catch (err) {
@@ -355,7 +355,7 @@ const MeasurementDetailsScreen = ({ navigation, route }) => {
                   {section.measurements && section.measurements.map((m, mi) => (
                     <View key={`m-${mi}`} style={styles.measurementCard}>
                       <Text style={styles.measurementLabel}>{m.bodyPartName || m.name || m.key || 'Unknown'}</Text>
-                      <Text style={styles.measurementValue}>{m.size || m.value || 0} {m.unit || 'cm'}</Text>
+                      <Text style={styles.measurementValue}>{String(m.size || m.value || 0)} {m.unit || 'cm'}</Text>
                     </View>
                   ))}
                 </View>
@@ -366,7 +366,7 @@ const MeasurementDetailsScreen = ({ navigation, route }) => {
               {Object.entries(measurement.measurements || {}).map(([key, value]) => (
                 <View key={key} style={styles.measurementCard}>
                   <Text style={styles.measurementLabel}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
-                  <Text style={styles.measurementValue}>{value} cm</Text>
+                  <Text style={styles.measurementValue}>{String(value)} cm</Text>
                 </View>
               ))}
             </View>
