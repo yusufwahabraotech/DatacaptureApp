@@ -11,6 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import ApiService from '../services/api';
@@ -27,6 +28,12 @@ const UserMeasurementsScreen = ({ navigation }) => {
     fetchMeasurements();
     fetchPermissions();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchMeasurements();
+    }, [])
+  );
 
   const fetchPermissions = async () => {
     try {
@@ -370,16 +377,6 @@ const UserMeasurementsScreen = ({ navigation }) => {
                 <Text style={styles.viewButtonText}>View Details</Text>
                 <Ionicons name="chevron-forward" size={16} color="#7C3AED" />
               </TouchableOpacity>
-              
-              {(hasPermission('edit_measurements') || hasPermission('delete_measurements')) && (
-                <TouchableOpacity 
-                  style={styles.actionButton}
-                  onPress={() => showMeasurementActions(measurement)}
-                >
-                  <Ionicons name="ellipsis-horizontal" size={16} color="#7C3AED" />
-                  <Text style={styles.actionButtonText}>Actions</Text>
-                </TouchableOpacity>
-              )}
             </View>
           ))
         )}

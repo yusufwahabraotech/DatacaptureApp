@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import ApiService from '../services/api';
@@ -25,6 +26,12 @@ const AdminMeasurementsScreen = ({ navigation }) => {
   useEffect(() => {
     fetchMeasurements();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchMeasurements();
+    }, [])
+  );
 
   const fetchMeasurements = async () => {
     try {

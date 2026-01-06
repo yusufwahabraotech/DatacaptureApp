@@ -334,25 +334,6 @@ class ApiService {
         console.log('Full URL will be:', `${BASE_URL}${endpoint}`);
         console.log('Request payload:', JSON.stringify(measurementData, null, 2));
         
-        // Check if user has create_measurements permission for org-user endpoint
-        if (baseUrl === '/org-user') {
-          const permissions = user.permissions || [];
-          const hasCreatePermission = permissions.some(p => 
-            (typeof p === 'string' && p === 'create_measurements') ||
-            (typeof p === 'object' && p.key === 'create_measurements')
-          );
-          console.log('=== PERMISSION CHECK ===');
-          console.log('User permissions:', permissions);
-          console.log('Has create_measurements permission:', hasCreatePermission);
-          
-          if (!hasCreatePermission) {
-            return {
-              success: false,
-              message: 'Permission denied: create_measurements permission required'
-            };
-          }
-        }
-        
         return this.apiCall(endpoint, {
           method: 'POST',
           body: JSON.stringify(measurementData),
