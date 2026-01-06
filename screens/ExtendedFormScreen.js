@@ -210,29 +210,14 @@ const ExtendedFormScreen = ({ navigation, route }) => {
               {/* Body Part and Measurement Unit Row for each section */}
               <View style={styles.rowContainer}>
                 <View style={styles.halfFieldContainer}>
-                  <Text style={styles.fieldLabel}>Body Part</Text>
-                  <TouchableOpacity 
-                    style={styles.dropdown}
-                    onPress={() => toggleSectionDropdown(section.id, 'showBodyPartDropdown')}
-                  >
-                    <Text style={styles.dropdownText}>
-                      {section.bodyPart || 'Select Body Part'}
-                    </Text>
-                    <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
-                  </TouchableOpacity>
-                  {section.showBodyPartDropdown && (
-                    <View style={styles.dropdownOptions}>
-                      {bodyParts.map((part) => (
-                        <TouchableOpacity 
-                          key={part}
-                          style={styles.dropdownOption}
-                          onPress={() => updateSectionBodyPart(section.id, part)}
-                        >
-                          <Text style={styles.dropdownOptionText}>{part}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
+                  <Text style={styles.fieldLabel}>Section Name</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Enter section name"
+                    placeholderTextColor="#9CA3AF"
+                    value={section.bodyPart}
+                    onChangeText={(text) => updateSectionBodyPart(section.id, text)}
+                  />
                 </View>
 
                 <View style={styles.halfFieldContainer}>
