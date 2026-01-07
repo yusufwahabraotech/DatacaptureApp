@@ -43,9 +43,20 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
     console.log('userProfile:', userProfile ? 'exists' : 'null');
     
     if (whoseMeasurement === 'Self' && userProfile) {
-      console.log('Setting names from userProfile:', userProfile.firstName, userProfile.lastName);
-      setFirstName(userProfile.firstName || '');
-      setLastName(userProfile.lastName || '');
+      let firstName = userProfile.firstName;
+      let lastName = userProfile.lastName;
+      
+      // If firstName/lastName are null but fullName exists, extract from fullName
+      if ((!firstName || !lastName) && userProfile.fullName) {
+        const nameParts = userProfile.fullName.trim().split(' ');
+        firstName = firstName || nameParts[0] || '';
+        lastName = lastName || nameParts.slice(1).join(' ') || '';
+        console.log('Extracted from fullName:', firstName, lastName);
+      }
+      
+      console.log('Setting names:', firstName, lastName);
+      setFirstName(firstName || '');
+      setLastName(lastName || '');
     } else if (whoseMeasurement === 'Others') {
       console.log('Clearing names for Others');
       setFirstName('');
@@ -55,9 +66,19 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
 
   const fetchUserProfile = async () => {
     try {
+      console.log('🚨 FETCHING USER PROFILE DEBUG 🚨');
       const response = await ApiService.getUserProfile();
+      console.log('Profile API response:', JSON.stringify(response, null, 2));
+      
       if (response.success) {
-        setUserProfile(response.data.user);
+        const user = response.data.user;
+        console.log('User data:', JSON.stringify(user, null, 2));
+        console.log('User firstName:', user.firstName);
+        console.log('User lastName:', user.lastName);
+        console.log('User role:', user.role);
+        setUserProfile(user);
+      } else {
+        console.log('Profile fetch failed:', response.message);
       }
     } catch (error) {
       console.log('Error fetching user profile:', error);
@@ -335,11 +356,12 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>First Name</Text>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, whoseMeasurement === 'Self' && styles.disabledInput]}
               placeholder="First Name"
               placeholderTextColor="#9CA3AF"
               value={firstName}
               onChangeText={setFirstName}
+              editable={whoseMeasurement !== 'Self'}
             />
           </View>
 
@@ -347,11 +369,12 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>Last Name</Text>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, whoseMeasurement === 'Self' && styles.disabledInput]}
               placeholder="Last Name"
               placeholderTextColor="#9CA3AF"
               value={lastName}
               onChangeText={setLastName}
+              editable={whoseMeasurement !== 'Self'}
             />
           </View>
 

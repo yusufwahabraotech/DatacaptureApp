@@ -887,37 +887,17 @@ class ApiService {
     return this.apiCall(`/user/measurements?page=${page}&limit=${limit}`);
   }
 
-  // MEASUREMENTS - FIXED ROUTING WITH USER FILTER
+  // MEASUREMENTS - BODY MEASUREMENT PAGE - Always use /user endpoint for personal measurements
   static async getMyMeasurements(page = 1, limit = 10, userId = null) {
-    const profileResponse = await this.getUserProfile();
-    if (profileResponse.success) {
-      const user = profileResponse.data.user;
-      console.log('=== getMyMeasurements FIXED - role-based routing ===');
-      console.log('User role:', user.role, 'organizationId:', user.organizationId);
-      console.log('Requested userId filter:', userId);
-      
-      let baseUrl;
-      if (user.role === 'ORGANIZATION') {
-        baseUrl = '/admin';
-        console.log('Using /admin/measurements for ORGANIZATION');
-      } else if (user.role === 'CUSTOMER' && user.organizationId) {
-        baseUrl = '/org-user';
-        console.log('Using /org-user/measurements for CUSTOMER with organizationId');
-      } else {
-        baseUrl = '/user';
-        console.log('Using /user/measurements for regular user');
-      }
-      
-      let endpoint = `${baseUrl}/measurements?page=${page}&limit=${limit}`;
-      if (userId) {
-        endpoint += `&userId=${userId}`;
-        console.log('Added userId filter:', userId);
-      }
-      console.log('Calling endpoint:', endpoint);
-      return this.apiCall(endpoint);
+    console.log('=== getMyMeasurements - PERSONAL BODY MEASUREMENTS ===');
+    console.log('Always using /user/measurements for personal measurements regardless of user role');
+    
+    let endpoint = `/user/measurements?page=${page}&limit=${limit}`;
+    if (userId) {
+      endpoint += `&userId=${userId}`;
     }
-    console.log('Fallback to /user/measurements');
-    return this.apiCall(`/user/measurements?page=${page}&limit=${limit}`);
+    console.log('Body Measurement endpoint:', endpoint);
+    return this.apiCall(endpoint);
   }
 
   // PERMISSIONS

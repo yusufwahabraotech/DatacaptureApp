@@ -11,11 +11,11 @@ import { Ionicons } from '@expo/vector-icons';
 
 const HelpScreen = ({ navigation }) => {
   const handleContactSupport = () => {
-    Linking.openURL('mailto:support@vestradat.com?subject=Help Request');
+    Linking.openURL('mailto:datacapturesuperadmin@raoatech.com?subject=Help Request');
   };
 
   const handleCallSupport = () => {
-    Linking.openURL('tel:+1234567890');
+    Linking.openURL('tel:+2348097227051');
   };
 
   const faqData = [
@@ -62,7 +62,7 @@ const HelpScreen = ({ navigation }) => {
               </View>
               <View style={styles.contactInfo}>
                 <Text style={styles.contactTitle}>Email Support</Text>
-                <Text style={styles.contactSubtitle}>support@vestradat.com</Text>
+                <Text style={styles.contactSubtitle}>datacapturesuperadmin@raoatech.com</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
@@ -75,7 +75,7 @@ const HelpScreen = ({ navigation }) => {
               </View>
               <View style={styles.contactInfo}>
                 <Text style={styles.contactTitle}>Phone Support</Text>
-                <Text style={styles.contactSubtitle}>+1 (234) 567-8900</Text>
+                <Text style={styles.contactSubtitle}>+234 809 722 7051</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
