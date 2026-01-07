@@ -92,7 +92,10 @@ const ProfileScreen = ({ navigation }) => {
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Profile</Text>
-          <TouchableOpacity style={styles.editButton}>
+          <TouchableOpacity 
+            style={styles.editButton}
+            onPress={() => navigation.navigate('EditProfile')}
+          >
             <Ionicons name="create-outline" size={24} color="white" />
           </TouchableOpacity>
         </View>

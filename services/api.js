@@ -1327,6 +1327,9 @@ class ApiService {
     console.log('=== AI MEASUREMENT SCAN ===');
     console.log('Scan data keys:', Object.keys(scanData));
     console.log('Height:', scanData.userHeight);
+    console.log('First Name:', scanData.firstName);
+    console.log('Last Name:', scanData.lastName);
+    console.log('Full scan data:', JSON.stringify(scanData, null, 2));
     
     try {
       const response = await this.apiCall('/measurements/scan', {

@@ -777,6 +777,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 24,
   },
+  adminMessageContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    backgroundColor: '#F5F3FF',
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#7C3AED',
+    padding: 16,
+  },
+  adminMessageContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  adminMessageText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#5B21B6',
+    lineHeight: 20,
+    marginLeft: 12,
+  },
+  debugContainer: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    backgroundColor: '#FEE2E2',
+    padding: 10,
+    borderRadius: 8,
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#DC2626',
+  },
   quickActionsWrapper: {
     flexDirection: 'row',
     alignItems: 'center',

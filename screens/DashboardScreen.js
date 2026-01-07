@@ -283,6 +283,18 @@ const DashboardScreen = ({ navigation, route }) => {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Admin Dashboard Navigation Message */}
+        {user?.role === 'ORGANIZATION' && (
+          <View style={styles.adminMessageContainer}>
+            <View style={styles.adminMessageContent}>
+              <Ionicons name="information-circle" size={20} color="#7C3AED" />
+              <Text style={styles.adminMessageText}>
+                You are currently viewing your personal dashboard. To access your organization's administrative dashboard with full management capabilities, please tap the Dashboard icon in the bottom navigation.
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Quick Actions */}
         <View style={styles.quickActionsWrapper}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickActionsContainer}>

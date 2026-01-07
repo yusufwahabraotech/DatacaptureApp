@@ -213,15 +213,14 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
         frontImageData,
         sideImageData,
         userHeight: parseInt(userHeight),
-        scanTimestamp: new Date().toISOString()
+        scanTimestamp: new Date().toISOString(),
+        firstName: firstName,
+        lastName: lastName,
+        subject: whoseMeasurement === 'Self' ? 'Self measurement' : 'Other measurement'
       };
 
-      // Add subject and name fields when measuring someone else
-      if (whoseMeasurement === 'Others') {
-        requestData.subject = 'Other';
-        requestData.firstName = firstName;
-        requestData.lastName = lastName;
-      }
+      console.log('🚨 AI SCAN REQUEST DATA 🚨');
+      console.log('Request data being sent:', JSON.stringify(requestData, null, 2));
 
       const response = await ApiService.scanMeasurement(requestData);
       
