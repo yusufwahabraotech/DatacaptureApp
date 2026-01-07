@@ -106,17 +106,28 @@ const DashboardScreen = ({ navigation, route }) => {
             measurements: [] // Store individual measurements for this person
           };
           
-          // Get this person's specific body parts and measurements
-          measurement.sections?.forEach(section => {
-            section.measurements?.forEach(bodyPart => {
-              if (bodyPart.bodyPartName && bodyPart.size) {
-                row.measurements.push({
-                  name: bodyPart.bodyPartName,
-                  value: `${bodyPart.size}${bodyPart.unit || 'cm'}`
-                });
-              }
+          // Handle both AI and Manual measurements
+          if (measurement.submissionType === 'AI' && measurement.measurements) {
+            // For AI measurements, convert object to array format
+            Object.entries(measurement.measurements).forEach(([key, value]) => {
+              row.measurements.push({
+                name: key.charAt(0).toUpperCase() + key.slice(1),
+                value: `${value}cm`
+              });
             });
-          });
+          } else if (measurement.sections) {
+            // For manual measurements, use existing structure
+            measurement.sections.forEach(section => {
+              section.measurements?.forEach(bodyPart => {
+                if (bodyPart.bodyPartName && bodyPart.size) {
+                  row.measurements.push({
+                    name: bodyPart.bodyPartName,
+                    value: `${bodyPart.size}${bodyPart.unit || 'cm'}`
+                  });
+                }
+              });
+            });
+          }
           
           return row;
         });
@@ -129,16 +140,30 @@ const DashboardScreen = ({ navigation, route }) => {
           const latestMeasurement = allMeasurements[0];
           const actions = [];
           
-          latestMeasurement.sections?.forEach(section => {
-            section.measurements?.forEach(bodyPart => {
+          // Handle both AI and Manual measurements for quick actions
+          if (latestMeasurement.submissionType === 'AI' && latestMeasurement.measurements) {
+            // For AI measurements, convert object to array format
+            Object.entries(latestMeasurement.measurements).forEach(([key, value]) => {
               if (actions.length < 4) {
                 actions.push({
-                  name: bodyPart.bodyPartName,
-                  size: `${bodyPart.size}${bodyPart.unit || 'cm'}`
+                  name: key.charAt(0).toUpperCase() + key.slice(1),
+                  size: `${value}cm`
                 });
               }
             });
-          });
+          } else if (latestMeasurement.sections) {
+            // For manual measurements, use existing structure
+            latestMeasurement.sections.forEach(section => {
+              section.measurements?.forEach(bodyPart => {
+                if (actions.length < 4) {
+                  actions.push({
+                    name: bodyPart.bodyPartName,
+                    size: `${bodyPart.size}${bodyPart.unit || 'cm'}`
+                  });
+                }
+              });
+            });
+          }
           
           setQuickActions(actions);
         }
