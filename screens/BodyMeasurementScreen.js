@@ -213,11 +213,24 @@ const BodyMeasurementScreen = ({ navigation }) => {
   const shareToOthers = async (measurement) => {
     try {
       const allBodyParts = [];
-      measurement.sections?.forEach(section => {
-        section.measurements?.forEach(bodyPart => {
-          allBodyParts.push(bodyPart);
+      
+      // Handle both AI and Manual measurements
+      if (measurement.submissionType === 'AI' && measurement.measurements) {
+        // For AI measurements, convert object to array format
+        Object.entries(measurement.measurements).forEach(([key, value]) => {
+          allBodyParts.push({
+            bodyPartName: key.charAt(0).toUpperCase() + key.slice(1),
+            size: parseFloat(value)
+          });
         });
-      });
+      } else if (measurement.sections) {
+        // For manual measurements, use existing structure
+        measurement.sections.forEach(section => {
+          section.measurements?.forEach(bodyPart => {
+            allBodyParts.push(bodyPart);
+          });
+        });
+      }
 
       const htmlContent = `
         <!DOCTYPE html>
@@ -248,7 +261,7 @@ const BodyMeasurementScreen = ({ navigation }) => {
             <h3>Personal Information</h3>
             <p><strong>Name:</strong> ${measurement.firstName} ${measurement.lastName}</p>
             <p><strong>Date:</strong> ${new Date(measurement.createdAt).toLocaleDateString()}</p>
-            <p><strong>Measurement Type:</strong> Body Measurement</p>
+            <p><strong>Measurement Type:</strong> ${measurement.submissionType === 'AI' ? 'AI Scan' : 'Manual'}</p>
           </div>
 
           <div class="measurements">
@@ -315,11 +328,24 @@ const BodyMeasurementScreen = ({ navigation }) => {
       );
 
       const allBodyParts = [];
-      measurement.sections?.forEach(section => {
-        section.measurements?.forEach(bodyPart => {
-          allBodyParts.push(bodyPart);
+      
+      // Handle both AI and Manual measurements
+      if (measurement.submissionType === 'AI' && measurement.measurements) {
+        // For AI measurements, convert object to array format
+        Object.entries(measurement.measurements).forEach(([key, value]) => {
+          allBodyParts.push({
+            bodyPartName: key.charAt(0).toUpperCase() + key.slice(1),
+            size: parseFloat(value)
+          });
         });
-      });
+      } else if (measurement.sections) {
+        // For manual measurements, use existing structure
+        measurement.sections.forEach(section => {
+          section.measurements?.forEach(bodyPart => {
+            allBodyParts.push(bodyPart);
+          });
+        });
+      }
 
       const htmlContent = `
         <!DOCTYPE html>
@@ -350,7 +376,7 @@ const BodyMeasurementScreen = ({ navigation }) => {
             <h3>Personal Information</h3>
             <p><strong>Name:</strong> ${measurement.firstName} ${measurement.lastName}</p>
             <p><strong>Date:</strong> ${new Date(measurement.createdAt).toLocaleDateString()}</p>
-            <p><strong>Measurement Type:</strong> Body Measurement</p>
+            <p><strong>Measurement Type:</strong> ${measurement.submissionType === 'AI' ? 'AI Scan' : 'Manual'}</p>
           </div>
 
           <div class="measurements">
