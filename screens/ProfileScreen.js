@@ -26,6 +26,13 @@ const ProfileScreen = ({ navigation }) => {
   }, []);
 
   useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchUserProfile();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  useEffect(() => {
     if (user) {
       fetchUserStats();
     }
