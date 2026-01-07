@@ -164,17 +164,21 @@ const ExtendedFormScreen = ({ navigation, route }) => {
 
       const measurementData = {
         measurementType: 'Manual',
-        subject: 'Self',
+        subject: 'Others', // Fixed: should be 'Others' when firstName/lastName are provided
         firstName,
         lastName,
         status: 'submitted',
         sections: formattedSections
       };
 
-      const response = await ApiService.saveManualMeasurement(measurementData);
       console.log('🚨 MANUAL MEASUREMENT SAVE DEBUG 🚨');
       console.log('Called method: ApiService.saveManualMeasurement');
       console.log('Expected endpoint: POST /api/manual-measurements/save');
+      console.log('firstName:', firstName);
+      console.log('lastName:', lastName);
+      console.log('Full measurement data:', JSON.stringify(measurementData, null, 2));
+      
+      const response = await ApiService.saveManualMeasurement(measurementData);
       console.log('Response:', response);
 
       if (response.success) {

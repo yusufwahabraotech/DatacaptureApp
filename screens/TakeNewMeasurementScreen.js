@@ -38,10 +38,16 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
   }, []);
 
   useEffect(() => {
+    console.log('🚨 NAME SETTING DEBUG 🚨');
+    console.log('whoseMeasurement:', whoseMeasurement);
+    console.log('userProfile:', userProfile ? 'exists' : 'null');
+    
     if (whoseMeasurement === 'Self' && userProfile) {
+      console.log('Setting names from userProfile:', userProfile.firstName, userProfile.lastName);
       setFirstName(userProfile.firstName || '');
       setLastName(userProfile.lastName || '');
     } else if (whoseMeasurement === 'Others') {
+      console.log('Clearing names for Others');
       setFirstName('');
       setLastName('');
     }
@@ -189,6 +195,13 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
         scanTimestamp: new Date().toISOString()
       };
 
+      // Add subject and name fields when measuring someone else
+      if (whoseMeasurement === 'Others') {
+        requestData.subject = 'Other';
+        requestData.firstName = firstName;
+        requestData.lastName = lastName;
+      }
+
       const response = await ApiService.scanMeasurement(requestData);
       
       if (response.success) {
@@ -322,12 +335,11 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>First Name</Text>
             <TextInput
-              style={[styles.textInput, whoseMeasurement === 'Self' && styles.disabledInput]}
+              style={styles.textInput}
               placeholder="First Name"
               placeholderTextColor="#9CA3AF"
               value={firstName}
               onChangeText={setFirstName}
-              editable={whoseMeasurement !== 'Self'}
             />
           </View>
 
@@ -335,12 +347,11 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>Last Name</Text>
             <TextInput
-              style={[styles.textInput, whoseMeasurement === 'Self' && styles.disabledInput]}
+              style={styles.textInput}
               placeholder="Last Name"
               placeholderTextColor="#9CA3AF"
               value={lastName}
               onChangeText={setLastName}
-              editable={whoseMeasurement !== 'Self'}
             />
           </View>
 
@@ -456,13 +467,17 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
             )}
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity 
+            <TouchableOpacity 
             style={styles.nextButton}
             onPress={() => {
               if (!firstName.trim() || !lastName.trim()) {
                 Alert.alert('Error', 'Please fill in first name and last name');
                 return;
               }
+              console.log('🚨 NAVIGATION TO EXTENDED FORM DEBUG 🚨');
+              console.log('firstName:', firstName);
+              console.log('lastName:', lastName);
+              console.log('whoseMeasurement:', whoseMeasurement);
               navigation.navigate('ExtendedForm', { firstName, lastName });
             }}
           >

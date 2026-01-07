@@ -136,6 +136,27 @@ class ApiService {
     });
   }
 
+  static async updateProfile(profileData) {
+    return this.apiCall('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    });
+  }
+
+  static async forgotPassword(email) {
+    return this.apiCall('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email: email.toLowerCase() }),
+    });
+  }
+
+  static async resetPassword(email, otp, newPassword) {
+    return this.apiCall('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email: email.toLowerCase(), otp, newPassword }),
+    });
+  }
+
   // USERS
   static async getUsers(page = 1, limit = 10) {
     const profileResponse = await this.getUserProfile();
@@ -199,7 +220,23 @@ class ApiService {
   }
 
   static async createOrgUser(userData) {
-    return this.apiCall('/org-user/users', {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        baseUrl = '/user';
+      }
+      return this.apiCall(`${baseUrl}/users`, {
+        method: 'POST',
+        body: JSON.stringify(userData),
+      });
+    }
+    return this.apiCall('/user/users', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
@@ -1046,10 +1083,16 @@ class ApiService {
       } else {
         baseUrl = '/user';
       }
-      return this.apiCall(`${baseUrl}/groups/${groupId}/members`, {
+      const response = await this.apiCall(`${baseUrl}/groups/${groupId}/members`, {
         method: 'PUT',
         body: JSON.stringify({ action, userIds }),
       });
+      
+      // Log the response to see the updated group data
+      console.log('=== manageGroupMembers RESPONSE ===');
+      console.log('Response:', JSON.stringify(response, null, 2));
+      
+      return response;
     }
     return this.apiCall(`/user/groups/${groupId}/members`, {
       method: 'PUT',

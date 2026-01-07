@@ -158,19 +158,69 @@ const CreateGroupScreen = ({ navigation, route }) => {
 
     setLoading(true);
     try {
-      const response = editMode
-        ? await ApiService.updateGroup(existingGroup.id || existingGroup._id, groupData)
-        : await ApiService.createGroup(groupData);
-
-      if (response.success) {
-        Alert.alert('Success', `Group ${editMode ? 'updated' : 'created'} successfully`, [
+      if (editMode) {
+        // Update group basic info first
+        const updateResponse = await ApiService.updateGroup(existingGroup.id || existingGroup._id, {
+          name: groupData.name,
+          description: groupData.description
+        });
+        
+        if (!updateResponse.success) {
+          Alert.alert('Error', updateResponse.message || 'Failed to update group');
+          return;
+        }
+        
+        // Handle member changes
+        const existingMemberIds = existingGroup.memberIds || [];
+        const newMemberIds = groupData.memberIds;
+        
+        const membersToAdd = newMemberIds.filter(id => !existingMemberIds.includes(id));
+        const membersToRemove = existingMemberIds.filter(id => !newMemberIds.includes(id));
+        
+        // Add new members
+        if (membersToAdd.length > 0) {
+          const addResponse = await ApiService.manageGroupMembers(
+            existingGroup.id || existingGroup._id, 
+            'add', 
+            membersToAdd
+          );
+          
+          if (!addResponse.success) {
+            Alert.alert('Warning', 'Group updated but failed to add some members');
+          }
+        }
+        
+        // Remove members
+        if (membersToRemove.length > 0) {
+          const removeResponse = await ApiService.manageGroupMembers(
+            existingGroup.id || existingGroup._id, 
+            'remove', 
+            membersToRemove
+          );
+          
+          if (!removeResponse.success) {
+            Alert.alert('Warning', 'Group updated but failed to remove some members');
+          }
+        }
+        
+        Alert.alert('Success', 'Group updated successfully', [
           { text: 'OK', onPress: () => {
-            // Trigger refresh on the previous screen
             navigation.navigate('Groups', { refresh: true });
           }}
         ]);
       } else {
-        Alert.alert('Error', response.message || `Failed to ${editMode ? 'update' : 'create'} group`);
+        // Create new group
+        const response = await ApiService.createGroup(groupData);
+        
+        if (response.success) {
+          Alert.alert('Success', 'Group created successfully', [
+            { text: 'OK', onPress: () => {
+              navigation.navigate('Groups', { refresh: true });
+            }}
+          ]);
+        } else {
+          Alert.alert('Error', response.message || 'Failed to create group');
+        }
       }
     } catch (error) {
       Alert.alert('Error', `Failed to ${editMode ? 'update' : 'create'} group`);

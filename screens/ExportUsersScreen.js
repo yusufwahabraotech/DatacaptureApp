@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as Print from 'expo-print';
 import ApiService from '../services/api';
 
 const ExportUsersScreen = ({ navigation }) => {
@@ -104,7 +105,7 @@ const ExportUsersScreen = ({ navigation }) => {
       setExporting(true);
       const allUsers = await fetchAllUsers();
       
-      let htmlContent = `
+      const htmlContent = `
         <html>
           <head>
             <meta charset="UTF-8">
@@ -112,7 +113,7 @@ const ExportUsersScreen = ({ navigation }) => {
               body { font-family: Arial, sans-serif; margin: 20px; }
               h1 { color: #7C3AED; text-align: center; }
               table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
               th { background-color: #f2f2f2; font-weight: bold; }
               tr:nth-child(even) { background-color: #f9f9f9; }
             </style>
@@ -126,54 +127,37 @@ const ExportUsersScreen = ({ navigation }) => {
                 <th>ID</th>
                 <th>Email</th>
                 <th>Full Name</th>
-                <th>First Name</th>
-                <th>Last Name</th>
                 <th>Phone</th>
-                <th>Custom User ID</th>
                 <th>Status</th>
                 <th>Role</th>
-                <th>Organization ID</th>
-                <th>Organization Name</th>
+                <th>Organization</th>
                 <th>Created</th>
               </tr>
-      `;
-      
-      allUsers.forEach(user => {
-        htmlContent += `
-          <tr>
-            <td>${user.id || 'N/A'}</td>
-            <td>${user.email || 'N/A'}</td>
-            <td>${user.fullName || 'N/A'}</td>
-            <td>${user.firstName || 'N/A'}</td>
-            <td>${user.lastName || 'N/A'}</td>
-            <td>${user.phoneNumber || 'N/A'}</td>
-            <td>${user.customUserId || 'N/A'}</td>
-            <td>${user.status || 'N/A'}</td>
-            <td>${user.role || 'N/A'}</td>
-            <td>${user.organizationId || 'N/A'}</td>
-            <td>${user.organizationName || 'N/A'}</td>
-            <td>${user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</td>
-          </tr>
-        `;
-      });
-      
-      htmlContent += `
+              ${allUsers.map(user => `
+                <tr>
+                  <td>${user.id || 'N/A'}</td>
+                  <td>${user.email || 'N/A'}</td>
+                  <td>${user.fullName || 'N/A'}</td>
+                  <td>${user.phoneNumber || 'N/A'}</td>
+                  <td>${user.status || 'N/A'}</td>
+                  <td>${user.role || 'N/A'}</td>
+                  <td>${user.organizationName || 'N/A'}</td>
+                  <td>${user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</td>
+                </tr>
+              `).join('')}
             </table>
           </body>
         </html>
       `;
       
-      const fileName = `users_export_${new Date().toISOString().split('T')[0]}.html`;
-      const fileUri = FileSystem.documentDirectory + fileName;
-      
-      await FileSystem.writeAsStringAsync(fileUri, htmlContent);
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
       
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, {
-          mimeType: 'text/html',
-          dialogTitle: 'Export Users Report',
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Export Users PDF',
         });
-        Alert.alert('Success', 'Users exported to HTML report successfully');
+        Alert.alert('Success', 'Users exported to PDF successfully');
       } else {
         Alert.alert('Error', 'Sharing is not available on this device');
       }

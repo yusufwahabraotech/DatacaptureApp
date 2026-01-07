@@ -203,7 +203,10 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           
           <View style={styles.actionGrid}>
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('EditProfile')}
+            >
               <View style={[styles.actionIcon, { backgroundColor: '#F3F4F6' }]}>
                 <Ionicons name="create" size={24} color="#7C3AED" />
               </View>
@@ -220,7 +223,10 @@ const ProfileScreen = ({ navigation }) => {
               <Text style={styles.actionLabel}>Assigned Role</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('Help')}
+            >
               <View style={[styles.actionIcon, { backgroundColor: '#DBEAFE' }]}>
                 <Ionicons name="help-circle" size={24} color="#3B82F6" />
               </View>

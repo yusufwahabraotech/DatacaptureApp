@@ -620,8 +620,6 @@ const BodyMeasurementScreen = ({ navigation }) => {
                     <Text style={styles.personName}>
                       {measurement.firstName && measurement.lastName 
                         ? `${measurement.firstName} ${measurement.lastName}` 
-                        : measurement.submissionType === 'AI' && user?.fullName
-                        ? user.fullName
                         : 'Unknown User'}
                     </Text>
                     <Text style={styles.measurementDate}>{new Date(measurement.createdAt).toLocaleDateString()}</Text>
