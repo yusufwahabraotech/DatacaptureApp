@@ -7,6 +7,10 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  TouchableWithoutFeedback,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
@@ -45,14 +49,19 @@ const ForgotPasswordScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-      </View>
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            </TouchableOpacity>
+          </View>
 
-      <View style={styles.content}>
+          <View style={styles.content}>
         <View style={styles.iconContainer}>
           <Ionicons name="lock-closed" size={64} color="#7C3AED" />
         </View>
@@ -87,14 +96,16 @@ const ForgotPasswordScreen = ({ navigation }) => {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.backToLoginButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backToLoginText}>Back to Login</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+            <TouchableOpacity
+              style={styles.backToLoginButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.backToLoginText}>Back to Login</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
 

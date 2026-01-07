@@ -7,6 +7,10 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  TouchableWithoutFeedback,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
@@ -72,14 +76,19 @@ const ResetPasswordScreen = ({ navigation, route }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-      </View>
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            </TouchableOpacity>
+          </View>
 
-      <View style={styles.content}>
+          <View style={styles.content}>
         <View style={styles.iconContainer}>
           <Ionicons name="shield-checkmark" size={64} color="#7C3AED" />
         </View>
@@ -159,14 +168,16 @@ const ResetPasswordScreen = ({ navigation, route }) => {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.resendButton}
-          onPress={handleResendCode}
-        >
-          <Text style={styles.resendButtonText}>Didn't receive code? Resend</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+            <TouchableOpacity
+              style={styles.resendButton}
+              onPress={handleResendCode}
+            >
+              <Text style={styles.resendButtonText}>Didn't receive code? Resend</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
 
