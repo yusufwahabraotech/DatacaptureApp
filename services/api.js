@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'https://datacapture-backend.onrender.com/api';
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -274,6 +274,31 @@ class ApiService {
     });
   }
 
+  // PERSONAL MEASUREMENTS (Body Measurement screen)
+  static async scanMeasurement(scanData) {
+    console.log('🚨 AI SCAN DEBUG 🚨');
+    console.log('Using endpoint: POST /api/measurements/scan');
+    console.log('Full URL:', `${BASE_URL}/measurements/scan`);
+    console.log('Scan data:', JSON.stringify(scanData, null, 2));
+    
+    return this.apiCall('/measurements/scan', {
+      method: 'POST',
+      body: JSON.stringify(scanData),
+    });
+  }
+
+  static async saveManualMeasurement(measurementData) {
+    console.log('🚨 MANUAL MEASUREMENT SAVE DEBUG 🚨');
+    console.log('Using endpoint: POST /api/manual-measurements/save');
+    console.log('Full URL:', `${BASE_URL}/manual-measurements/save`);
+    console.log('Measurement data:', JSON.stringify(measurementData, null, 2));
+    
+    return this.apiCall('/manual-measurements/save', {
+      method: 'POST',
+      body: JSON.stringify(measurementData),
+    });
+  }
+
   static async resetOrgUserPassword(userId, passwordData) {
     const profileResponse = await this.getUserProfile();
     if (profileResponse.success) {
@@ -298,6 +323,39 @@ class ApiService {
   }
 
   // MEASUREMENTS
+  static async deleteMeasurement(measurementId) {
+    console.log('=== DELETE MEASUREMENT DEBUG ===');
+    console.log('Measurement ID:', measurementId);
+    
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+        console.log('Using /admin for ORGANIZATION role');
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+        console.log('Using /org-user for CUSTOMER with organizationId');
+      } else {
+        baseUrl = '/user';
+        console.log('Using /user for regular user');
+      }
+      
+      const endpoint = `${baseUrl}/measurements/${measurementId}`;
+      console.log('Delete endpoint:', endpoint);
+      
+      return this.apiCall(endpoint, {
+        method: 'DELETE',
+      });
+    }
+    
+    console.log('Fallback to /measurements endpoint');
+    return this.apiCall(`/measurements/${measurementId}`, {
+      method: 'DELETE',
+    });
+  }
+
   static async createAdminMeasurement(measurementData) {
     console.log('=== createAdminMeasurement DEBUG START ===');
     console.log('measurementData:', JSON.stringify(measurementData, null, 2));
@@ -1226,6 +1284,46 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ measurementId, oneTimeCode: code }),
     });
+  }
+
+  // PERSONAL MEASUREMENTS (Body Measurement screen)
+  static async saveManualMeasurement(measurementData) {
+    console.log('🚨 MANUAL MEASUREMENT SAVE DEBUG 🚨');
+    console.log('Using endpoint: POST /api/manual-measurements/save');
+    console.log('Full URL:', `${BASE_URL}/manual-measurements/save`);
+    console.log('Measurement data:', JSON.stringify(measurementData, null, 2));
+    
+    return this.apiCall('/manual-measurements/save', {
+      method: 'POST',
+      body: JSON.stringify(measurementData),
+    });
+  }
+
+  // AI MEASUREMENTS
+  static async scanAIMeasurement(scanData) {
+    console.log('=== AI MEASUREMENT SCAN ===');
+    console.log('Scan data keys:', Object.keys(scanData));
+    console.log('Height:', scanData.userHeight);
+    
+    try {
+      const response = await this.apiCall('/measurements/scan', {
+        method: 'POST',
+        body: JSON.stringify(scanData),
+      });
+      
+      console.log('=== AI SCAN RESPONSE ===');
+      console.log('Response:', JSON.stringify(response, null, 2));
+      
+      return response;
+    } catch (error) {
+      console.log('=== AI SCAN ERROR ===');
+      console.log('Error:', error);
+      return {
+        success: false,
+        message: 'Failed to connect to AI service. Please check your connection and try again.',
+        error: error.message
+      };
+    }
   }
 }
 

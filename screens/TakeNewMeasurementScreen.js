@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,9 @@ import {
   TextInput,
   Image,
   Alert,
+  ActivityIndicator,
+  Modal,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,6 +26,12 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
   const [frontImage, setFrontImage] = useState(null);
   const [sideImage, setSideImage] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [userHeight, setUserHeight] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [aiResults, setAiResults] = useState(null);
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const blinkAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     fetchUserProfile();
@@ -50,16 +59,27 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
   };
 
   const pickImage = async (imageType) => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    Alert.alert(
+      'Select Image',
+      'Choose how you want to add the image:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Take Photo', onPress: () => takePhoto(imageType) },
+        { text: 'Choose from Gallery', onPress: () => chooseFromGallery(imageType) }
+      ]
+    );
+  };
+
+  const takePhoto = async (imageType) => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera roll permissions to upload images.');
+      Alert.alert('Permission needed', 'Please grant camera permissions to take photos.');
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [3, 4],
       quality: 0.8,
     });
 
@@ -70,6 +90,139 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
         setSideImage(result.assets[0].uri);
       }
     }
+  };
+
+  const chooseFromGallery = async (imageType) => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please grant gallery permissions to select images.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      if (imageType === 'front') {
+        setFrontImage(result.assets[0].uri);
+      } else {
+        setSideImage(result.assets[0].uri);
+      }
+    }
+  };
+
+  const convertImageToBase64 = async (uri) => {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.log('Error converting image to base64:', error);
+      throw error;
+    }
+  };
+
+  const startAnimations = () => {
+    // Rolling animation for the circle
+    Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 2000,
+        useNativeDriver: true,
+      })
+    ).start();
+
+    // Blinking animation for the status text
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(blinkAnim, {
+          toValue: 0.3,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(blinkAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
+
+  const stopAnimations = () => {
+    rotateAnim.stopAnimation();
+    blinkAnim.stopAnimation();
+    rotateAnim.setValue(0);
+    blinkAnim.setValue(1);
+  };
+
+  const handleAIScan = async () => {
+    if (!frontImage || !sideImage || !userHeight) {
+      Alert.alert('Missing Information', 'Please upload both front and side images and enter your height.');
+      return;
+    }
+
+    if (!firstName.trim() || !lastName.trim()) {
+      Alert.alert('Missing Information', 'Please fill in first name and last name.');
+      return;
+    }
+
+    setIsProcessing(true);
+    startAnimations();
+    
+    try {
+      const frontImageData = await convertImageToBase64(frontImage);
+      const sideImageData = await convertImageToBase64(sideImage);
+      
+      const requestData = {
+        frontImageData,
+        sideImageData,
+        userHeight: parseInt(userHeight),
+        scanTimestamp: new Date().toISOString()
+      };
+
+      const response = await ApiService.scanMeasurement(requestData);
+      
+      if (response.success) {
+        setAiResults(response.data);
+        setShowResultModal(true);
+      } else {
+        Alert.alert(
+          'Scan Failed', 
+          response.message || 'The AI service is currently unavailable. Please try again later or contact support.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.log('AI scan error:', error);
+      Alert.alert(
+        'Connection Error', 
+        'Unable to connect to the AI service. Please check your internet connection and try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsProcessing(false);
+      stopAnimations();
+    }
+  };
+
+  const saveAIResults = async () => {
+    console.log('=== AI RESULTS PROCESSED ===');
+    console.log('AI measurements are automatically saved by the scan endpoint');
+    console.log('No manual save needed for AI results');
+    
+    setShowResultModal(false);
+    Alert.alert('Success', 'AI measurement completed successfully!', [
+      { text: 'OK', onPress: () => navigation.navigate('BodyMeasurement') }
+    ]);
   };
 
   return (
@@ -191,45 +344,90 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
             />
           </View>
 
-          {/* Upload Front Image */}
-          <View style={[styles.fieldContainer, styles.uploadFrontContainer]}>
-            <Text style={styles.fieldLabel}>Upload Front Image</Text>
-            <TouchableOpacity 
-              style={styles.uploadBox}
-              onPress={() => pickImage('front')}
-            >
-              {frontImage ? (
-                <Image source={{ uri: frontImage }} style={styles.uploadedImage} />
-              ) : (
-                <>
-                  <Ionicons name="cloud-upload-outline" size={40} color="#7C3AED" />
-                  <Text style={styles.uploadText}>
-                    Upload front view or paste your file here
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
+          {/* Image Upload Section - Only show for AI measurement */}
+          {measurementMethod === 'AI' && (
+            <>
+              {/* Upload Front Image */}
+              <View style={styles.fieldContainer}>
+                <Text style={styles.fieldLabel}>Front View Image *</Text>
+                <Text style={styles.fieldDescription}>Take or upload a full-body front view photo</Text>
+                <TouchableOpacity 
+                  style={[styles.imageUploadBox, frontImage && styles.imageUploadBoxFilled]}
+                  onPress={() => pickImage('front')}
+                >
+                  {frontImage ? (
+                    <View style={styles.imageContainer}>
+                      <Image source={{ uri: frontImage }} style={styles.uploadedImage} />
+                      <View style={styles.imageOverlay}>
+                        <Ionicons name="camera" size={24} color="white" />
+                        <Text style={styles.changeImageText}>Change</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.uploadPlaceholder}>
+                      <Ionicons name="person-outline" size={48} color="#7C3AED" />
+                      <Text style={styles.uploadTitle}>Add Front View</Text>
+                      <Text style={styles.uploadSubtitle}>Take photo or choose from gallery</Text>
+                      <View style={styles.uploadActions}>
+                        <Ionicons name="camera-outline" size={20} color="#7C3AED" />
+                        <Text style={styles.uploadActionText}>Camera</Text>
+                        <Text style={styles.uploadSeparator}>or</Text>
+                        <Ionicons name="image-outline" size={20} color="#7C3AED" />
+                        <Text style={styles.uploadActionText}>Gallery</Text>
+                      </View>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
 
-          {/* Upload Side Image */}
-          <View style={[styles.fieldContainer, styles.uploadSideContainer]}>
-            <Text style={styles.fieldLabel}>Upload Side Image</Text>
-            <TouchableOpacity 
-              style={styles.uploadBox}
-              onPress={() => pickImage('side')}
-            >
-              {sideImage ? (
-                <Image source={{ uri: sideImage }} style={styles.uploadedImage} />
-              ) : (
-                <>
-                  <Ionicons name="cloud-upload-outline" size={40} color="#7C3AED" />
-                  <Text style={styles.uploadText}>
-                    Upload side view or paste your file here
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
+              {/* Upload Side Image */}
+              <View style={styles.fieldContainer}>
+                <Text style={styles.fieldLabel}>Side View Image *</Text>
+                <Text style={styles.fieldDescription}>Take or upload a full-body side view photo</Text>
+                <TouchableOpacity 
+                  style={[styles.imageUploadBox, sideImage && styles.imageUploadBoxFilled]}
+                  onPress={() => pickImage('side')}
+                >
+                  {sideImage ? (
+                    <View style={styles.imageContainer}>
+                      <Image source={{ uri: sideImage }} style={styles.uploadedImage} />
+                      <View style={styles.imageOverlay}>
+                        <Ionicons name="camera" size={24} color="white" />
+                        <Text style={styles.changeImageText}>Change</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.uploadPlaceholder}>
+                      <Ionicons name="body-outline" size={48} color="#7C3AED" />
+                      <Text style={styles.uploadTitle}>Add Side View</Text>
+                      <Text style={styles.uploadSubtitle}>Take photo or choose from gallery</Text>
+                      <View style={styles.uploadActions}>
+                        <Ionicons name="camera-outline" size={20} color="#7C3AED" />
+                        <Text style={styles.uploadActionText}>Camera</Text>
+                        <Text style={styles.uploadSeparator}>or</Text>
+                        <Ionicons name="image-outline" size={20} color="#7C3AED" />
+                        <Text style={styles.uploadActionText}>Gallery</Text>
+                      </View>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+          {/* Height Input - Only show for AI measurement */}
+          {measurementMethod === 'AI' && (
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Height (cm)</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter height in centimeters"
+                placeholderTextColor="#9CA3AF"
+                value={userHeight}
+                onChangeText={setUserHeight}
+                keyboardType="numeric"
+              />
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -241,19 +439,145 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.nextButton}
-          onPress={() => {
-            if (!firstName.trim() || !lastName.trim()) {
-              Alert.alert('Error', 'Please fill in first name and last name');
-              return;
-            }
-            navigation.navigate('ExtendedForm', { firstName, lastName });
-          }}
-        >
-          <Text style={styles.nextButtonText}>Next</Text>
-        </TouchableOpacity>
+        
+        {measurementMethod === 'AI' ? (
+          <TouchableOpacity 
+            style={[styles.nextButton, isProcessing && styles.disabledButton]}
+            onPress={handleAIScan}
+            disabled={isProcessing}
+          >
+            {isProcessing ? (
+              <View style={styles.processingContainer}>
+                <ActivityIndicator size="small" color="white" style={{ marginRight: 8 }} />
+                <Text style={styles.nextButtonText}>Processing...</Text>
+              </View>
+            ) : (
+              <Text style={styles.nextButtonText}>Scan with AI</Text>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={styles.nextButton}
+            onPress={() => {
+              if (!firstName.trim() || !lastName.trim()) {
+                Alert.alert('Error', 'Please fill in first name and last name');
+                return;
+              }
+              navigation.navigate('ExtendedForm', { firstName, lastName });
+            }}
+          >
+            <Text style={styles.nextButtonText}>Next</Text>
+          </TouchableOpacity>
+        )}
       </View>
+
+      {/* AI Results Modal */}
+      <Modal
+        visible={showResultModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowResultModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>AI Scan Results</Text>
+              <TouchableOpacity 
+                onPress={() => setShowResultModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            {aiResults && (
+              <ScrollView style={styles.resultsContainer} showsVerticalScrollIndicator={false}>
+                <View style={styles.personInfo}>
+                  <Text style={styles.personName}>{firstName} {lastName}</Text>
+                  <Text style={styles.heightInfo}>Height: {aiResults.measurements.userHeight} cm</Text>
+                </View>
+                
+                <View style={styles.measurementsList}>
+                  {Object.entries(aiResults.measurements.measurements).map(([key, value]) => (
+                    <View key={key} style={styles.measurementRow}>
+                      <Text style={styles.measurementLabel}>
+                        {key.charAt(0).toUpperCase() + key.slice(1)}:
+                      </Text>
+                      <Text style={styles.measurementValue}>{value} cm</Text>
+                    </View>
+                  ))}
+                </View>
+                
+                <View style={styles.modalActions}>
+                  <TouchableOpacity 
+                    style={styles.discardButton}
+                    onPress={() => setShowResultModal(false)}
+                  >
+                    <Text style={styles.discardButtonText}>Discard</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.saveButton}
+                    onPress={saveAIResults}
+                  >
+                    <Text style={styles.saveButtonText}>Save Results</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Processing Overlay */}
+      {isProcessing && (
+        <Modal
+          visible={isProcessing}
+          transparent={true}
+          animationType="fade"
+        >
+          <View style={styles.processingOverlay}>
+            <View style={styles.processingModal}>
+              <View style={styles.aiScanIcon}>
+                <Animated.View 
+                  style={[
+                    styles.scanningRing,
+                    {
+                      transform: [{
+                        rotate: rotateAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '360deg'],
+                        })
+                      }]
+                    }
+                  ]}
+                >
+                  <Ionicons name="body" size={40} color="#7C3AED" />
+                </Animated.View>
+                <View style={styles.scanningPulse} />
+              </View>
+              <Animated.Text style={[styles.processingTitle, { opacity: blinkAnim }]}>AI Analyzing Images</Animated.Text>
+              <Text style={styles.processingSubtitle}>
+                Our advanced AI is scanning your photos to extract precise body measurements.
+              </Text>
+              <View style={styles.progressSteps}>
+                <View style={styles.progressStep}>
+                  <View style={styles.stepDot} />
+                  <Text style={styles.stepText}>Processing Images</Text>
+                </View>
+                <View style={styles.progressStep}>
+                  <View style={[styles.stepDot, styles.stepDotActive]} />
+                  <Text style={styles.stepText}>Extracting Measurements</Text>
+                </View>
+                <View style={styles.progressStep}>
+                  <View style={styles.stepDot} />
+                  <Text style={styles.stepText}>Finalizing Results</Text>
+                </View>
+              </View>
+              <ActivityIndicator size="small" color="#7C3AED" style={{ marginTop: 20 }} />
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 };
@@ -367,7 +691,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: 8,
-    resizeMode: 'cover',
+    resizeMode: 'contain',
   },
   actionButtons: {
     paddingHorizontal: 20,
@@ -428,6 +752,267 @@ const styles = StyleSheet.create({
   disabledInput: {
     backgroundColor: '#F3F4F6',
     color: '#6B7280',
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  processingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '80%',
+    padding: 0,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  resultsContainer: {
+    padding: 20,
+  },
+  personInfo: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: '#F5F3FF',
+    borderRadius: 12,
+  },
+  personName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  heightInfo: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  measurementsList: {
+    marginBottom: 20,
+  },
+  measurementRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  measurementLabel: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  measurementValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  discardButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+  },
+  discardButtonText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  saveButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    color: 'white',
+    fontWeight: '600',
+  },
+  processingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  processingModal: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 40,
+    alignItems: 'center',
+    maxWidth: 320,
+    margin: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  aiScanIcon: {
+    position: 'relative',
+    width: 80,
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  scanningRing: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: '#7C3AED',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F3FF',
+  },
+  scanningPulse: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: '#7C3AED',
+    opacity: 0.3,
+  },
+  progressSteps: {
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  progressStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  stepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E5E7EB',
+    marginRight: 12,
+  },
+  stepDotActive: {
+    backgroundColor: '#7C3AED',
+  },
+  stepText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  processingTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  processingSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  fieldDescription: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  imageUploadBox: {
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    minHeight: 200,
+    backgroundColor: '#FAFAFA',
+  },
+  imageUploadBoxFilled: {
+    borderStyle: 'solid',
+    borderColor: '#7C3AED',
+  },
+  imageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 200,
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  changeImageText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  uploadPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+  },
+  uploadTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  uploadSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  uploadActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadActionText: {
+    fontSize: 12,
+    color: '#7C3AED',
+    fontWeight: '500',
+  },
+  uploadSeparator: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginHorizontal: 4,
   },
 });
 

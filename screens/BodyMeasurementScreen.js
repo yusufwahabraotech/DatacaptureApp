@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,15 +23,27 @@ const BodyMeasurementScreen = ({ navigation }) => {
   const [user, setUser] = useState(null);
   const [measurements, setMeasurements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(null);
   const [selectedMeasurements, setSelectedMeasurements] = useState([]);
   const [showCodeModal, setShowCodeModal] = useState(false);
   const [oneTimeCode, setOneTimeCode] = useState('');
   const [currentMeasurement, setCurrentMeasurement] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
 
   useEffect(() => {
     fetchUserProfile();
     fetchMeasurements();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchMeasurements();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const fetchUserProfile = async () => {
     try {
@@ -44,8 +58,71 @@ const BodyMeasurementScreen = ({ navigation }) => {
 
   const fetchMeasurements = async () => {
     try {
-      const response = await ApiService.getManualMeasurements();
+      console.log('=== FETCH MEASUREMENTS DEBUG START ===');
+      
+      // Try multiple endpoints to see what data is available
+      const endpoints = [
+        { name: 'getMyMeasurements', method: () => ApiService.getMyMeasurements() },
+        { name: 'getMeasurements', method: () => ApiService.getMeasurements() },
+        { name: 'getManualMeasurements', method: () => ApiService.getManualMeasurements() }
+      ];
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`\n=== TESTING ${endpoint.name} ===`);
+          const response = await endpoint.method();
+          console.log(`${endpoint.name} success:`, response.success);
+          console.log(`${endpoint.name} count:`, response.data?.measurements?.length || 0);
+          if (response.success && response.data?.measurements) {
+            response.data.measurements.forEach((m, i) => {
+              console.log(`  ${i}: ${m.submissionType || 'unknown'} - ${m.firstName} ${m.lastName}`);
+            });
+          }
+        } catch (error) {
+          console.log(`${endpoint.name} error:`, error.message);
+        }
+      }
+      
+      // Use the primary method
+      const response = await ApiService.getMyMeasurements();
       if (response.success) {
+        console.log('=== DETAILED MEASUREMENT STRUCTURE DEBUG ===');
+        console.log('Total measurements:', response.data.measurements?.length || 0);
+        response.data.measurements?.forEach((measurement, index) => {
+          console.log(`\n--- Measurement ${index} ---`);
+          console.log('ID:', measurement.id);
+          console.log('Name:', measurement.firstName, measurement.lastName);
+          console.log('Type:', measurement.submissionType);
+          console.log('Has AI measurements:', !!measurement.measurements);
+          console.log('Has sections:', !!measurement.sections);
+          
+          if (measurement.submissionType === 'Manual' && measurement.sections) {
+            console.log('MANUAL MEASUREMENT SECTIONS:');
+            measurement.sections.forEach((section, sIndex) => {
+              console.log(`  Section ${sIndex}:`, section.sectionName || 'No name');
+              if (section.measurements) {
+                section.measurements.forEach((bodyPart, bIndex) => {
+                  console.log(`    ${bIndex}: ${bodyPart.bodyPartName} = ${bodyPart.size}cm`);
+                });
+              }
+            });
+          }
+          
+          if (measurement.submissionType === 'AI' && measurement.measurements) {
+            console.log('AI MEASUREMENT DATA:');
+            Object.entries(measurement.measurements).forEach(([key, value]) => {
+              console.log(`  ${key}: ${value}cm`);
+            });
+          }
+          
+          // Check if manual measurement has AI data mixed in
+          if (measurement.submissionType === 'Manual' && measurement.measurements) {
+            console.log('⚠️  MANUAL MEASUREMENT HAS AI DATA:');
+            Object.entries(measurement.measurements).forEach(([key, value]) => {
+              console.log(`  AI Data: ${key}: ${value}cm`);
+            });
+          }
+        });
         setMeasurements(response.data.measurements || []);
       }
     } catch (error) {
@@ -71,6 +148,37 @@ const BodyMeasurementScreen = ({ navigation }) => {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Share to Organization', onPress: () => shareToOrganization(measurement) },
         { text: 'Share to Others', onPress: () => shareToOthers(measurement) }
+      ]
+    );
+  };
+
+  const handleDelete = async (measurement) => {
+    Alert.alert(
+      'Delete Measurement',
+      'Are you sure you want to delete this measurement? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeleting(measurement.id);
+              const response = await ApiService.deleteMeasurement(measurement.id);
+              if (response.success) {
+                // Immediately remove from local state for instant feedback
+                setMeasurements(prev => prev.filter(m => m.id !== measurement.id));
+                Alert.alert('Success', 'Measurement deleted successfully!');
+              } else {
+                Alert.alert('Error', response.message || 'Failed to delete measurement');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete measurement. Please try again.');
+            } finally {
+              setDeleting(null);
+            }
+          }
+        }
       ]
     );
   };
@@ -175,6 +283,29 @@ const BodyMeasurementScreen = ({ navigation }) => {
       Alert.alert('Error', 'Failed to share measurement report. Please try again.');
     }
   };
+  const filteredMeasurements = measurements.filter(measurement => {
+    const matchesSearch = !searchQuery || 
+      (measurement.firstName && measurement.firstName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (measurement.lastName && measurement.lastName.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesType = typeFilter === 'all' || 
+      (typeFilter === 'AI' && measurement.submissionType === 'AI') ||
+      (typeFilter === 'manual' && measurement.submissionType !== 'AI');
+    
+    const measurementDate = new Date(measurement.createdAt);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    const matchesDate = dateFilter === 'all' ||
+      (dateFilter === 'today' && measurementDate >= today) ||
+      (dateFilter === 'week' && measurementDate >= weekAgo) ||
+      (dateFilter === 'month' && measurementDate >= monthAgo);
+    
+    return matchesSearch && matchesType && matchesDate;
+  });
+
   const handleDownload = async (measurement) => {
     try {
       Alert.alert(
@@ -271,15 +402,25 @@ const BodyMeasurementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search"
+            placeholder="Search measurements..."
             placeholderTextColor="#9CA3AF"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
+          <TouchableOpacity 
+            style={styles.filterButton}
+            onPress={() => setShowFilters(!showFilters)}
+          >
+            <Ionicons name="options-outline" size={20} color="#7C3AED" />
+          </TouchableOpacity>
         </View>
         <View style={styles.headerRight}>
           <View style={styles.notificationContainer}>
@@ -296,6 +437,44 @@ const BodyMeasurementScreen = ({ navigation }) => {
         </View>
       </View>
 
+      {/* Filters */}
+      {showFilters && (
+        <View style={styles.filtersContainer}>
+          <View style={styles.filterRow}>
+            <Text style={styles.filterLabel}>Type:</Text>
+            <View style={styles.filterOptions}>
+              {['all', 'AI', 'manual'].map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={[styles.filterChip, typeFilter === type && styles.filterChipActive]}
+                  onPress={() => setTypeFilter(type)}
+                >
+                  <Text style={[styles.filterChipText, typeFilter === type && styles.filterChipTextActive]}>
+                    {type === 'all' ? 'All' : type === 'AI' ? 'AI Scan' : 'Manual'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          <View style={styles.filterRow}>
+            <Text style={styles.filterLabel}>Date:</Text>
+            <View style={styles.filterOptions}>
+              {['all', 'today', 'week', 'month'].map((date) => (
+                <TouchableOpacity
+                  key={date}
+                  style={[styles.filterChip, dateFilter === date && styles.filterChipActive]}
+                  onPress={() => setDateFilter(date)}
+                >
+                  <Text style={[styles.filterChipText, dateFilter === date && styles.filterChipTextActive]}>
+                    {date === 'all' ? 'All Time' : date === 'today' ? 'Today' : date === 'week' ? 'This Week' : 'This Month'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Page Title */}
       <Text style={styles.pageTitle}>Body Measurement</Text>
 
@@ -306,11 +485,23 @@ const BodyMeasurementScreen = ({ navigation }) => {
             {(() => {
               const allBodyParts = [];
               measurements.forEach(measurement => {
-                measurement.sections?.forEach(section => {
-                  section.measurements?.forEach(bodyPart => {
-                    allBodyParts.push(bodyPart);
+                // Handle both AI and Manual measurements
+                if (measurement.submissionType === 'AI' && measurement.measurements) {
+                  // For AI measurements, convert object to array format
+                  Object.entries(measurement.measurements).forEach(([key, value]) => {
+                    allBodyParts.push({
+                      bodyPartName: key.charAt(0).toUpperCase() + key.slice(1),
+                      size: parseFloat(value)
+                    });
                   });
-                });
+                } else if (measurement.sections) {
+                  // For manual measurements, use existing structure
+                  measurement.sections.forEach(section => {
+                    section.measurements?.forEach(bodyPart => {
+                      allBodyParts.push(bodyPart);
+                    });
+                  });
+                }
               });
               return allBodyParts.slice(0, 4).map((bodyPart, index) => (
                 <View key={index} style={styles.quickActionButton}>
@@ -339,14 +530,14 @@ const BodyMeasurementScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Content */}
-      <ScrollView style={styles.contentContainer}>
+        {/* Content */}
+        <View style={styles.contentContainer}>
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#7C3AED" />
             <Text style={styles.loadingText}>Loading measurements...</Text>
           </View>
-        ) : measurements.length === 0 ? (
+        ) : filteredMeasurements.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             <View style={styles.emptyStateContent}>
               <Ionicons name="document-outline" size={80} color="#C4B5FD" />
@@ -358,26 +549,61 @@ const BodyMeasurementScreen = ({ navigation }) => {
           </View>
         ) : (
           <View style={styles.measurementsContainer}>
-            {measurements.map((measurement) => {
+            {filteredMeasurements.map((measurement) => {
               const allBodyParts = [];
-              measurement.sections?.forEach(section => {
-                section.measurements?.forEach(bodyPart => {
-                  allBodyParts.push(bodyPart);
+              if (measurement.submissionType === 'AI') {
+                // For AI measurements, convert object to array format
+                Object.entries(measurement.measurements || {}).forEach(([key, value]) => {
+                  allBodyParts.push({
+                    bodyPartName: key.charAt(0).toUpperCase() + key.slice(1),
+                    size: parseFloat(value)
+                  });
                 });
-              });
+              } else {
+                // For manual measurements, use existing structure
+                measurement.sections?.forEach(section => {
+                  section.measurements?.forEach(bodyPart => {
+                    allBodyParts.push(bodyPart);
+                  });
+                });
+              }
 
               return (
                 <View key={measurement.id} style={styles.measurementCard}>
                   <View style={styles.cardHeader}>
                     <Text style={styles.cardTitle}>Body Part Measurement:</Text>
-                    <TouchableOpacity>
-                      <Text style={styles.seeLessText}>See less</Text>
-                    </TouchableOpacity>
+                    <View style={styles.cardHeaderActions}>
+                      <TouchableOpacity 
+                        style={[styles.deleteButton, deleting === measurement.id && styles.deletingButton]}
+                        onPress={() => handleDelete(measurement)}
+                        disabled={deleting === measurement.id}
+                      >
+                        {deleting === measurement.id ? (
+                          <ActivityIndicator size="small" color="#EF4444" />
+                        ) : (
+                          <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                        )}
+                      </TouchableOpacity>
+                      <TouchableOpacity>
+                        <Text style={styles.seeLessText}>See less</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                   
                   <View style={styles.personInfo}>
-                    <Text style={styles.personName}>{`${measurement.firstName} ${measurement.lastName}`}</Text>
+                    <Text style={styles.personName}>
+                      {measurement.firstName && measurement.lastName 
+                        ? `${measurement.firstName} ${measurement.lastName}` 
+                        : measurement.submissionType === 'AI' && user?.fullName
+                        ? user.fullName
+                        : 'Unknown User'}
+                    </Text>
                     <Text style={styles.measurementDate}>{new Date(measurement.createdAt).toLocaleDateString()}</Text>
+                    <View style={styles.measurementTypeBadge}>
+                      <Text style={styles.measurementTypeText}>
+                        {measurement.submissionType === 'AI' ? 'AI Scan' : 'Manual'}
+                      </Text>
+                    </View>
                   </View>
 
                   <View style={styles.measurementsList}>
@@ -407,7 +633,9 @@ const BodyMeasurementScreen = ({ navigation }) => {
             })}
           </View>
         )}
-      </ScrollView>
+        </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
 
       <BottomNavigation navigation={navigation} activeTab="BodyMeasurement" />
       
@@ -588,9 +816,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 4,
   },
-  contentContainer: {
+  scrollContainer: {
     flex: 1,
-    marginBottom: 80,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  contentContainer: {
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,
@@ -634,6 +867,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#7C3AED',
+  },
+  cardHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  deleteButton: {
+    padding: 4,
+  },
+  deletingButton: {
+    opacity: 0.5,
   },
   seeLessText: {
     fontSize: 14,
@@ -938,6 +1182,64 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
     fontWeight: '600',
+  },
+  measurementTypeBadge: {
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  measurementTypeText: {
+    fontSize: 12,
+    color: '#7C3AED',
+    fontWeight: '500',
+  },
+  filterButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  filtersContainer: {
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterRow: {
+    marginBottom: 12,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  filterOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  filterChipActive: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
+  },
+  filterChipText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
   },
 });
 

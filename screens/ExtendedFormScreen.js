@@ -171,7 +171,11 @@ const ExtendedFormScreen = ({ navigation, route }) => {
         sections: formattedSections
       };
 
-      const response = await ApiService.saveMeasurement(measurementData);
+      const response = await ApiService.saveManualMeasurement(measurementData);
+      console.log('🚨 MANUAL MEASUREMENT SAVE DEBUG 🚨');
+      console.log('Called method: ApiService.saveManualMeasurement');
+      console.log('Expected endpoint: POST /api/manual-measurements/save');
+      console.log('Response:', response);
 
       if (response.success) {
         Alert.alert('Success', 'Measurement saved successfully!', [
