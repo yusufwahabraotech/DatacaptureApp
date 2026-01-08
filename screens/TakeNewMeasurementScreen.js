@@ -107,7 +107,9 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.8,
+      quality: 0.7,
+      maxWidth: 1024,
+      maxHeight: 1024,
     });
 
     if (!result.canceled) {
@@ -129,7 +131,9 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.8,
+      quality: 0.7,
+      maxWidth: 1024,
+      maxHeight: 1024,
     });
 
     if (!result.canceled) {
