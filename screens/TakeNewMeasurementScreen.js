@@ -210,12 +210,27 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
     startAnimations();
     
     try {
-      const frontImageData = await convertImageToBase64(frontImage);
-      const sideImageData = await convertImageToBase64(sideImage);
+      console.log('🚨 CLOUDINARY UPLOAD DEBUG 🚨');
+      console.log('Front image URI:', frontImage);
+      console.log('Side image URI:', sideImage);
+      
+      // Upload images directly to Cloudinary
+      console.log('Uploading front image...');
+      const frontImageUrl = await ApiService.uploadToCloudinary(frontImage);
+      console.log('Front image uploaded:', frontImageUrl);
+      
+      console.log('Uploading side image...');
+      const sideImageUrl = await ApiService.uploadToCloudinary(sideImage);
+      console.log('Side image uploaded:', sideImageUrl);
+      
+      if (!frontImageUrl || !sideImageUrl) {
+        Alert.alert('Upload Failed', 'Failed to upload images to Cloudinary. Please try again.');
+        return;
+      }
       
       const requestData = {
-        frontImageData,
-        sideImageData,
+        frontImageUrl,
+        sideImageUrl,
         userHeight: parseInt(userHeight),
         scanTimestamp: new Date().toISOString(),
         firstName: firstName,

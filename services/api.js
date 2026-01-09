@@ -1,12 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://192.168.0.183:3000/api';
+const BASE_URL = 'https://datacapture-backend.onrender.com/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
 console.log('🚨 MEASUREMENT DETAILS FIX API SERVICE RELOAD v8 🚨', FORCE_RELOAD_NOW);
 console.log('🔥 IF YOU SEE THIS, THE NEW CODE IS LOADED 🔥');
 
+// CACHE BUST v2.1 - CLOUDINARY_UPLOAD_FIX
 class ApiService {
   // FORCE RELOAD MARKER - PERMISSION FIX v7
   static RELOAD_MARKER = 'PERMISSION_FIX_v7_' + Date.now();
@@ -32,24 +33,35 @@ class ApiService {
     console.log('=== API CALL DEBUG ===');
     console.log('URL:', url);
     console.log('Method:', config.method || 'GET');
-    if (config.body) {
-      console.log('Request body:', config.body);
-    }
 
-    const response = await fetch(url, config);
-    
-    if (!response.ok) {
-      console.log(`API Error - Status: ${response.status}, URL: ${url}`);
-      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-      console.log('Error response:', JSON.stringify(error, null, 2));
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        console.log(`API Error - Status: ${response.status}, URL: ${url}`);
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.log('Error response:', JSON.stringify(error, null, 2));
+        return {
+          success: false,
+          message: error.message || `HTTP ${response.status}: ${response.statusText}`,
+          data: error
+        };
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.log('=== NETWORK ERROR DETAILS ===');
+      console.log('Error name:', error.name);
+      console.log('Error message:', error.message);
+      console.log('Error stack:', error.stack);
+      console.log('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      
       return {
         success: false,
-        message: error.message || `HTTP ${response.status}: ${response.statusText}`,
-        data: error
+        message: `Network error: ${error.message}. Server may be starting up.`,
+        data: { error: error.message, type: error.name }
       };
     }
-    
-    return await response.json();
   }
 
   static async getUserRole() {
@@ -1322,8 +1334,63 @@ class ApiService {
     });
   }
 
-  // AI MEASUREMENTS
-  static async scanAIMeasurement(scanData) {
+  // CLOUDINARY DIRECT UPLOAD
+  static async uploadToCloudinary(imageUri) {
+    console.log('🚨 CLOUDINARY UPLOAD START 🚨');
+    console.log('Image URI:', imageUri);
+    
+    try {
+      // Create FormData with proper file handling for React Native
+      const formData = new FormData();
+      
+      // For React Native, we need to handle the file differently
+      const fileExtension = imageUri.split('.').pop() || 'jpg';
+      const fileName = `measurement-${Date.now()}.${fileExtension}`;
+      
+      formData.append('file', {
+        uri: imageUri,
+        type: `image/${fileExtension}`,
+        name: fileName,
+      });
+      
+      formData.append('upload_preset', 'vestradat_preset');
+      
+      console.log('FormData created with file:', fileName);
+      console.log('Uploading to Cloudinary...');
+      
+      const uploadResponse = await fetch('https://api.cloudinary.com/v1_1/disz21zwr/image/upload', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
+      console.log('Cloudinary response status:', uploadResponse.status);
+      
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.log('❌ Cloudinary error response:', errorText);
+        throw new Error(`Cloudinary upload failed: ${uploadResponse.status}`);
+      }
+      
+      const result = await uploadResponse.json();
+      console.log('Cloudinary response:', JSON.stringify(result, null, 2));
+      
+      if (result.secure_url) {
+        console.log('✅ Upload successful:', result.secure_url);
+        return result.secure_url;
+      } else {
+        console.log('❌ No secure_url in response');
+        throw new Error('No secure_url in Cloudinary response');
+      }
+    } catch (error) {
+      console.log('❌ Cloudinary upload error:', error);
+      console.log('Error details:', error.message);
+      throw error;
+    }
+  }
+  static async scanMeasurement(scanData) {
     console.log('=== AI MEASUREMENT SCAN ===');
     console.log('Scan data keys:', Object.keys(scanData));
     console.log('Height:', scanData.userHeight);
@@ -1339,6 +1406,25 @@ class ApiService {
       
       console.log('=== AI SCAN RESPONSE ===');
       console.log('Response:', JSON.stringify(response, null, 2));
+      
+      // Handle specific server errors
+      if (!response.success) {
+        if (response.message && response.message.includes('429')) {
+          return {
+            success: false,
+            message: 'AI service is temporarily busy. Please wait a moment and try again.',
+            error: 'Rate limit exceeded'
+          };
+        }
+        
+        if (response.message && response.message.includes('Internal server error')) {
+          return {
+            success: false,
+            message: 'AI processing failed. Please try again with different images or contact support.',
+            error: 'Server processing error'
+          };
+        }
+      }
       
       return response;
     } catch (error) {
