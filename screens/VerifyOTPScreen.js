@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,14 +14,109 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/api';
 
 const VerifyOTPScreen = ({ navigation, route }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [remainingAttempts, setRemainingAttempts] = useState(3);
+  const [maxAttempts, setMaxAttempts] = useState(3);
   const inputRefs = useRef([]);
-  const { email } = route.params;
+  const countdownInterval = useRef(null);
+  const resendInterval = useRef(null);
+  const { email, otpData } = route.params;
+
+  useEffect(() => {
+    console.log('🚨 OTP METADATA DEBUG 🚨');
+    console.log('Route params:', route.params);
+    console.log('OTP Data:', otpData);
+    
+    // Initialize OTP metadata from route params or set defaults
+    if (otpData) {
+      console.log('Setting remainingAttempts:', otpData.remainingAttempts);
+      console.log('Setting maxAttempts:', otpData.maxAttempts);
+      console.log('Setting countdown from otpExpiresIn:', otpData.otpExpiresIn);
+      
+      setRemainingAttempts(otpData.remainingAttempts || 3);
+      setMaxAttempts(otpData.maxAttempts || 3);
+      
+      if (otpData.otpExpiresIn) {
+        setCountdown(otpData.otpExpiresIn);
+        startCountdown(otpData.otpExpiresIn);
+      }
+    } else {
+      console.log('No OTP data found, setting default 10 minute countdown');
+      // Fallback: Set default 10 minute countdown if no metadata
+      setCountdown(600); // 10 minutes
+      startCountdown(600);
+      // Start 60-second resend countdown
+      setResendCountdown(60);
+      startResendCountdown(60);
+    }
+
+    return () => {
+      if (countdownInterval.current) {
+        clearInterval(countdownInterval.current);
+      }
+      if (resendInterval.current) {
+        clearInterval(resendInterval.current);
+      }
+    };
+  }, [otpData]);
+
+  const startCountdown = (seconds) => {
+    console.log('Starting countdown with seconds:', seconds);
+    
+    if (countdownInterval.current) {
+      clearInterval(countdownInterval.current);
+    }
+
+    countdownInterval.current = setInterval(() => {
+      setCountdown((prev) => {
+        const newValue = prev - 1;
+        console.log('Countdown tick:', newValue);
+        
+        if (newValue <= 0) {
+          console.log('Countdown finished, clearing interval');
+          clearInterval(countdownInterval.current);
+          return 0;
+        }
+        return newValue;
+      });
+    }, 1000);
+  };
+
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const startResendCountdown = (seconds) => {
+    console.log('Starting resend countdown with seconds:', seconds);
+    
+    if (resendInterval.current) {
+      clearInterval(resendInterval.current);
+    }
+
+    resendInterval.current = setInterval(() => {
+      setResendCountdown((prev) => {
+        const newValue = prev - 1;
+        console.log('Resend countdown tick:', newValue);
+        
+        if (newValue <= 0) {
+          console.log('Resend countdown finished, clearing interval');
+          clearInterval(resendInterval.current);
+          return 0;
+        }
+        return newValue;
+      });
+    }, 1000);
+  };
 
   const handleOtpChange = (value, index) => {
     const newOtp = [...otp];
@@ -46,15 +141,32 @@ const VerifyOTPScreen = ({ navigation, route }) => {
       return;
     }
 
+    if (countdown === 0) {
+      Alert.alert('OTP Expired', 'The OTP has expired. Please request a new one.');
+      return;
+    }
+
     setLoading(true);
     try {
+      console.log('🚨 VERIFYING OTP 🚨');
+      console.log('Email:', email);
+      console.log('OTP Code:', otpCode);
+      
       const response = await ApiService.verifyOTP(email, otpCode);
+      console.log('Verify OTP Response:', JSON.stringify(response, null, 2));
 
       if (response.success) {
-        // Store the token and navigate directly to dashboard for new users
-        await AsyncStorage.setItem('userToken', response.data.jwtToken);
+        // Clear countdown on success
+        if (countdownInterval.current) {
+          clearInterval(countdownInterval.current);
+        }
         
-        const userRole = response.data.user.role;
+        // Store the token and navigate directly to dashboard for new users
+        if (response.data.jwtToken) {
+          await AsyncStorage.setItem('userToken', response.data.jwtToken);
+        }
+        
+        const userRole = response.data.user?.role;
         if (userRole === 'SUPER_ADMIN') {
           navigation.replace('SuperAdminDashboard', { showTutorial: true, fromSignup: true });
         } else if (userRole === 'ORGANIZATION' || userRole === 'ADMIN') {
@@ -63,10 +175,24 @@ const VerifyOTPScreen = ({ navigation, route }) => {
           navigation.replace('Dashboard', { showTutorial: true, fromSignup: true });
         }
       } else {
-        Alert.alert('Verification Failed', response.message || 'Invalid OTP');
+        console.log('OTP verification failed:', response.message);
+        
+        // Update remaining attempts if provided in response
+        if (response.remainingAttempts !== undefined) {
+          setRemainingAttempts(response.remainingAttempts);
+        } else {
+          setRemainingAttempts(prev => Math.max(0, prev - 1));
+        }
+        
+        if (remainingAttempts <= 1) {
+          Alert.alert('Maximum Verification Attempts Exceeded', 'You have exceeded the maximum number of verification attempts. Please request a new OTP.');
+        } else {
+          Alert.alert('Verification Failed', response.message || 'Invalid OTP. Please try again.');
+        }
       }
     } catch (error) {
-      Alert.alert('Error', 'Network error. Please try again.');
+      console.log('OTP verification error:', error);
+      Alert.alert('Verification Error', 'Unable to verify OTP. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -81,6 +207,21 @@ const VerifyOTPScreen = ({ navigation, route }) => {
         Alert.alert('Success', 'OTP sent successfully!');
         setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
+        
+        // Update OTP metadata from response
+        if (response.data) {
+          setRemainingAttempts(response.data.remainingAttempts || 3);
+          setMaxAttempts(response.data.maxAttempts || 3);
+          
+          if (response.data.otpExpiresIn) {
+            setCountdown(response.data.otpExpiresIn);
+            startCountdown(response.data.otpExpiresIn);
+          }
+          
+          // Start new 60-second resend countdown
+          setResendCountdown(60);
+          startResendCountdown(60);
+        }
       } else {
         Alert.alert('Error', response.message || 'Failed to resend OTP');
       }
@@ -110,6 +251,24 @@ const VerifyOTPScreen = ({ navigation, route }) => {
             <Text style={styles.subtitle}>
               Enter the 6-digit code sent to {email}
             </Text>
+            
+            {/* Countdown Timer */}
+            <View style={styles.timerContainer}>
+              <Ionicons name="time-outline" size={16} color="#7C3AED" />
+              <Text style={styles.timerText}>
+                {countdown > 0 ? `OTP expires in ${formatTime(countdown)}` : 'OTP has expired'}
+              </Text>
+            </View>
+            
+            {/* Remaining Attempts */}
+            {remainingAttempts < maxAttempts && (
+              <View style={styles.attemptsContainer}>
+                <Ionicons name="warning-outline" size={16} color="#F59E0B" />
+                <Text style={styles.attemptsText}>
+                  {remainingAttempts} attempt{remainingAttempts !== 1 ? 's' : ''} remaining
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.otpContainer}>
@@ -141,16 +300,29 @@ const VerifyOTPScreen = ({ navigation, route }) => {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.resendContainer}
+            style={[
+              styles.resendContainer,
+              resendCountdown > 0 && styles.resendDisabled
+            ]}
             onPress={handleResendOTP}
-            disabled={resendLoading}
+            disabled={resendCountdown > 0 || resendLoading || remainingAttempts === 0}
           >
-            <Text style={styles.resendText}>
-              Didn't receive the code? {' '}
-              {resendLoading ? (
-                <ActivityIndicator size="small" color="#7C3AED" />
+            <Text style={[
+              styles.resendText,
+              resendCountdown > 0 && styles.resendTextDisabled
+            ]}>
+              {resendCountdown > 0 ? (
+                `Resend OTP in ${resendCountdown}s`
+              ) : remainingAttempts === 0 ? (
+                'Maximum verification attempts exceeded'
               ) : (
-                <Text style={styles.resendLink}>Resend</Text>
+                <>Didn't receive the code? {' '}
+                  {resendLoading ? (
+                    <ActivityIndicator size="small" color="#7C3AED" />
+                  ) : (
+                    <Text style={styles.resendLink}>Resend OTP</Text>
+                  )}
+                </>
               )}
             </Text>
           </TouchableOpacity>
@@ -256,6 +428,46 @@ const styles = StyleSheet.create({
   resendLink: {
     color: '#7C3AED',
     fontWeight: '500',
+  },
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#F5F3FF',
+    borderRadius: 20,
+    alignSelf: 'center',
+  },
+  timerText: {
+    fontSize: 14,
+    color: '#7C3AED',
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  attemptsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 20,
+    alignSelf: 'center',
+  },
+  attemptsText: {
+    fontSize: 14,
+    color: '#F59E0B',
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  resendDisabled: {
+    opacity: 0.6,
+  },
+  resendTextDisabled: {
+    color: '#9CA3AF',
   },
 });
 

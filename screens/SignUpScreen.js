@@ -86,9 +86,19 @@ const SignUpScreen = ({ navigation, route }) => {
       }
 
       const response = await ApiService.register(requestBody);
+      console.log('🚨 SIGNUP RESPONSE DEBUG 🚨');
+      console.log('Full response:', JSON.stringify(response, null, 2));
 
       if (response.success) {
-        navigation.navigate('VerifyOTP', { email: email.toLowerCase() });
+        console.log('Navigating to VerifyOTP with data:', {
+          email: email.toLowerCase(),
+          otpData: response.data
+        });
+        
+        navigation.navigate('VerifyOTP', { 
+          email: email.toLowerCase(),
+          otpData: response.data // Pass OTP metadata
+        });
       } else {
         Alert.alert('Registration Failed', response.message || 'Failed to create account');
       }

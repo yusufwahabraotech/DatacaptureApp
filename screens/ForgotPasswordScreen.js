@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,30 @@ import ApiService from '../services/api';
 const ForgotPasswordScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [codeSent, setCodeSent] = useState(false);
+  const resendInterval = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (resendInterval.current) {
+        clearInterval(resendInterval.current);
+      }
+    };
+  }, []);
+
+  const startResendCountdown = () => {
+    setResendCountdown(60);
+    resendInterval.current = setInterval(() => {
+      setResendCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(resendInterval.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const handleForgotPassword = async () => {
     if (!email.trim()) {
@@ -35,11 +59,48 @@ const ForgotPasswordScreen = ({ navigation }) => {
     try {
       const response = await ApiService.forgotPassword(email);
       if (response.success) {
+        setCodeSent(true);
+        startResendCountdown();
         Alert.alert('Success', 'Password reset code sent to your email', [
-          { text: 'OK', onPress: () => navigation.navigate('ResetPassword', { email }) }
+          { 
+            text: 'OK', 
+            onPress: () => navigation.navigate('ResetPassword', { 
+              email,
+              otpData: response.data // Pass OTP metadata
+            }) 
+          }
         ]);
       } else {
-        Alert.alert('Error', response.message || 'Failed to send reset code');
+        // Handle rate limiting specifically
+        if (response.message && response.message.includes('Please wait')) {
+          Alert.alert('Too Many Requests', response.message);
+        } else {
+          Alert.alert('Error', response.message || 'Failed to send reset code');
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (resendCountdown > 0) return;
+    
+    setLoading(true);
+    try {
+      const response = await ApiService.forgotPassword(email);
+      if (response.success) {
+        startResendCountdown();
+        Alert.alert('Success', 'New password reset code sent to your email');
+      } else {
+        // Handle rate limiting specifically
+        if (response.message && response.message.includes('Please wait')) {
+          Alert.alert('Too Many Requests', response.message);
+        } else {
+          Alert.alert('Error', response.message || 'Failed to resend code');
+        }
       }
     } catch (error) {
       Alert.alert('Error', 'Network error. Please try again.');
@@ -95,6 +156,28 @@ const ForgotPasswordScreen = ({ navigation }) => {
             <Text style={styles.sendButtonText}>Send Reset Code</Text>
           )}
         </TouchableOpacity>
+
+        {codeSent && (
+          <TouchableOpacity
+            style={[
+              styles.resendButton,
+              resendCountdown > 0 && styles.resendButtonDisabled
+            ]}
+            onPress={handleResendCode}
+            disabled={resendCountdown > 0 || loading}
+          >
+            <Text style={[
+              styles.resendButtonText,
+              resendCountdown > 0 && styles.resendButtonTextDisabled
+            ]}>
+              {resendCountdown > 0 ? (
+                `Resend code in ${resendCountdown}s`
+              ) : (
+                'Resend Code'
+              )}
+            </Text>
+          </TouchableOpacity>
+        )}
 
             <TouchableOpacity
               style={styles.backToLoginButton}
@@ -191,6 +274,22 @@ const styles = StyleSheet.create({
     color: '#7C3AED',
     fontSize: 16,
     fontWeight: '500',
+  },
+  resendButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  resendButtonText: {
+    color: '#7C3AED',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  resendButtonDisabled: {
+    opacity: 0.6,
+  },
+  resendButtonTextDisabled: {
+    color: '#9CA3AF',
   },
 });
 

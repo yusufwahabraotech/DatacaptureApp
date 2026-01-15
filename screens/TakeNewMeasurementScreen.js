@@ -374,12 +374,11 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>First Name</Text>
             <TextInput
-              style={[styles.textInput, whoseMeasurement === 'Self' && styles.disabledInput]}
+              style={styles.textInput}
               placeholder="First Name"
               placeholderTextColor="#9CA3AF"
               value={firstName}
               onChangeText={setFirstName}
-              editable={whoseMeasurement !== 'Self'}
             />
           </View>
 
@@ -387,12 +386,11 @@ const TakeNewMeasurementScreen = ({ navigation }) => {
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>Last Name</Text>
             <TextInput
-              style={[styles.textInput, whoseMeasurement === 'Self' && styles.disabledInput]}
+              style={styles.textInput}
               placeholder="Last Name"
               placeholderTextColor="#9CA3AF"
               value={lastName}
               onChangeText={setLastName}
-              editable={whoseMeasurement !== 'Self'}
             />
           </View>
 

@@ -9,6 +9,7 @@ import OnboardingScreen from './screens/OnboardingScreen';
 import LoginScreen from './screens/LoginScreen';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
+import SetNewPasswordScreen from './screens/SetNewPasswordScreen';
 import SignUpScreen from './screens/SignUpScreen';
 import VerifyOTPScreen from './screens/VerifyOTPScreen';
 import ProfileScreen from './screens/ProfileScreen';
@@ -67,6 +68,7 @@ export default function App() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+        <Stack.Screen name="SetNewPassword" component={SetNewPasswordScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
