@@ -19,7 +19,7 @@ class ApiService {
 
   static async apiCall(endpoint, options = {}) {
     const token = await this.getToken();
-    const url = `${BASE_URL}${endpoint}`;
+    let url = `${BASE_URL}${endpoint}`;
     
     const config = {
       headers: {
@@ -53,12 +53,34 @@ class ApiService {
       console.log('=== NETWORK ERROR DETAILS ===');
       console.log('Error name:', error.name);
       console.log('Error message:', error.message);
-      console.log('Error stack:', error.stack);
-      console.log('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      
+      // Try fallback URL if primary fails
+      if (error.message === 'Network request failed' && url.includes('onrender.com')) {
+        console.log('🔄 Trying fallback server...');
+        url = `${FALLBACK_URL}${endpoint}`;
+        console.log('Fallback URL:', url);
+        
+        try {
+          const fallbackResponse = await fetch(url, config);
+          
+          if (!fallbackResponse.ok) {
+            const error = await fallbackResponse.json().catch(() => ({ error: 'Unknown error' }));
+            return {
+              success: false,
+              message: error.message || `HTTP ${fallbackResponse.status}: ${fallbackResponse.statusText}`,
+              data: error
+            };
+          }
+          
+          return await fallbackResponse.json();
+        } catch (fallbackError) {
+          console.log('❌ Fallback also failed:', fallbackError.message);
+        }
+      }
       
       return {
         success: false,
-        message: `Network error: ${error.message}. Server may be starting up.`,
+        message: `Network error: ${error.message}. Please check your connection.`,
         data: { error: error.message, type: error.name }
       };
     }
