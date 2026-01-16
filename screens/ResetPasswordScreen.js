@@ -28,6 +28,7 @@ const ResetPasswordScreen = ({ navigation, route }) => {
   const [resendCountdown, setResendCountdown] = useState(0);
   const [remainingAttempts, setRemainingAttempts] = useState(3);
   const [maxAttempts, setMaxAttempts] = useState(3);
+  const [isInitialized, setIsInitialized] = useState(false);
   const inputRefs = useRef([]);
   const countdownInterval = useRef(null);
   const resendInterval = useRef(null);
@@ -48,37 +49,46 @@ const ResetPasswordScreen = ({ navigation, route }) => {
       
       if (otpData.otpExpiresIn) {
         setCountdown(otpData.otpExpiresIn);
-        startCountdown(otpData.otpExpiresIn);
+        setTimeout(() => startCountdown(otpData.otpExpiresIn), 100);
       }
     } else {
       console.log('No OTP data found, setting default 10 minute countdown');
       // Fallback: Set default 10 minute countdown if no metadata
       setCountdown(600); // 10 minutes
-      startCountdown(600);
-      // Start 60-second resend countdown
-      setResendCountdown(60);
-      startResendCountdown(60);
+      setTimeout(() => {
+        startCountdown(600);
+        setResendCountdown(60);
+        startResendCountdown(60);
+      }, 100);
     }
+    
+    setIsInitialized(true);
 
     return () => {
       if (countdownInterval.current) {
         clearInterval(countdownInterval.current);
+        countdownInterval.current = null;
       }
       if (resendInterval.current) {
         clearInterval(resendInterval.current);
+        resendInterval.current = null;
       }
     };
-  }, [otpData]);
+  }, []);
 
   const startCountdown = (seconds) => {
     if (countdownInterval.current) {
       clearInterval(countdownInterval.current);
+      countdownInterval.current = null;
     }
 
     countdownInterval.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(countdownInterval.current);
+          if (countdownInterval.current) {
+            clearInterval(countdownInterval.current);
+            countdownInterval.current = null;
+          }
           return 0;
         }
         return prev - 1;
@@ -97,6 +107,7 @@ const ResetPasswordScreen = ({ navigation, route }) => {
     
     if (resendInterval.current) {
       clearInterval(resendInterval.current);
+      resendInterval.current = null;
     }
 
     resendInterval.current = setInterval(() => {
@@ -106,7 +117,10 @@ const ResetPasswordScreen = ({ navigation, route }) => {
         
         if (newValue <= 0) {
           console.log('Resend countdown finished, clearing interval');
-          clearInterval(resendInterval.current);
+          if (resendInterval.current) {
+            clearInterval(resendInterval.current);
+            resendInterval.current = null;
+          }
           return 0;
         }
         return newValue;
@@ -119,14 +133,19 @@ const ResetPasswordScreen = ({ navigation, route }) => {
     newOtp[index] = value;
     setOtp(newOtp);
 
+    // Auto-focus next input on Android and iOS
     if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
+      requestAnimationFrame(() => {
+        inputRefs.current[index + 1]?.focus();
+      });
     }
   };
 
   const handleKeyPress = (e, index) => {
     if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
+      requestAnimationFrame(() => {
+        inputRefs.current[index - 1]?.focus();
+      });
     }
   };
 
@@ -170,9 +189,11 @@ const ResetPasswordScreen = ({ navigation, route }) => {
         // Clear countdown on success
         if (countdownInterval.current) {
           clearInterval(countdownInterval.current);
+          countdownInterval.current = null;
         }
         if (resendInterval.current) {
           clearInterval(resendInterval.current);
+          resendInterval.current = null;
         }
         
         Alert.alert('Success', 'Password reset successfully. You can now login with your new password.', [
@@ -249,6 +270,12 @@ const ResetPasswordScreen = ({ navigation, route }) => {
           </View>
 
           <View style={styles.content}>
+          {!isInitialized ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#7C3AED" />
+            </View>
+          ) : (
+            <>
         <View style={styles.iconContainer}>
           <Ionicons name="shield-checkmark" size={64} color="#7C3AED" />
         </View>
@@ -380,6 +407,8 @@ const ResetPasswordScreen = ({ navigation, route }) => {
             >
               <Text style={styles.backToLoginText}>Back to Login</Text>
             </TouchableOpacity>
+            </>
+          )}
           </View>
         </View>
       </TouchableWithoutFeedback>
@@ -472,24 +501,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-  },
-  passwordInput: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  eyeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
   resetButton: {
     backgroundColor: '#7C3AED',
     borderRadius: 12,
@@ -511,8 +522,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 16,
+    marginTop: 12,
+    marginBottom: 80,
   },
   verifyButtonText: {
     color: 'white',
@@ -573,6 +584,11 @@ const styles = StyleSheet.create({
   backToLoginButton: {
     alignItems: 'center',
     paddingVertical: 12,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   backToLoginText: {
     color: '#7C3AED',

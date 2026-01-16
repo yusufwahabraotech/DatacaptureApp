@@ -38,6 +38,17 @@ const LoginScreen = ({ navigation, route }) => {
       if (response.success) {
         console.log('Login response:', response);
         console.log('JWT Token:', response.data.jwtToken);
+        console.log('User verified status:', response.data.user.isVerified);
+        
+        // Check if user is verified
+        if (!response.data.user.isVerified) {
+          console.log('User not verified, redirecting to VerifyOTP');
+          navigation.navigate('VerifyOTP', { 
+            email: email.toLowerCase(),
+            fromLogin: true // Flag to indicate this came from login attempt
+          });
+          return;
+        }
         
         await AsyncStorage.setItem('userToken', response.data.jwtToken);
         
@@ -54,16 +65,16 @@ const LoginScreen = ({ navigation, route }) => {
           navigation.replace('Dashboard', { showTutorial: true });
         }
       } else {
-        if (response.code === 'EMAIL_NOT_VERIFIED') {
-          Alert.alert('Email Not Verified', response.message, [
-            {
-              text: 'Verify Now',
-              onPress: () => navigation.navigate('VerifyOTP', { email: email.toLowerCase() }),
-            },
-            { text: 'Cancel', style: 'cancel' },
-          ]);
-        } else if (response.code === 'ACCOUNT_SUSPENDED') {
-          Alert.alert('Account Suspended', response.message);
+        // Check if error data contains EMAIL_NOT_VERIFIED code
+        const errorData = response.data || response;
+        if (errorData.code === 'EMAIL_NOT_VERIFIED') {
+          console.log('Email not verified, redirecting to VerifyOTP');
+          navigation.navigate('VerifyOTP', { 
+            email: errorData.email || email.toLowerCase(),
+            fromLogin: true
+          });
+        } else if (errorData.code === 'ACCOUNT_SUSPENDED') {
+          Alert.alert('Account Suspended', errorData.message || response.message);
         } else {
           Alert.alert('Login Failed', response.message || 'Invalid credentials');
         }

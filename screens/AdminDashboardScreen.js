@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   },
   actionsSection: {
     paddingHorizontal: 20,
-    marginBottom: 80,
+    marginBottom: 120,
   },
   actionsGrid: {
     flexDirection: 'row',

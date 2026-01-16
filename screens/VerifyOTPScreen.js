@@ -28,7 +28,7 @@ const VerifyOTPScreen = ({ navigation, route }) => {
   const inputRefs = useRef([]);
   const countdownInterval = useRef(null);
   const resendInterval = useRef(null);
-  const { email, otpData } = route.params;
+  const { email, otpData, fromLogin } = route.params;
 
   useEffect(() => {
     console.log('🚨 OTP METADATA DEBUG 🚨');
@@ -56,6 +56,14 @@ const VerifyOTPScreen = ({ navigation, route }) => {
       // Start 60-second resend countdown
       setResendCountdown(60);
       startResendCountdown(60);
+      
+      // If coming from login, automatically send new OTP
+      if (fromLogin) {
+        console.log('Coming from login, sending new OTP automatically');
+        setTimeout(() => {
+          handleResendOTP();
+        }, 1000);
+      }
     }
 
     return () => {
@@ -161,19 +169,10 @@ const VerifyOTPScreen = ({ navigation, route }) => {
           clearInterval(countdownInterval.current);
         }
         
-        // Store the token and navigate directly to dashboard for new users
-        if (response.data.jwtToken) {
-          await AsyncStorage.setItem('userToken', response.data.jwtToken);
-        }
-        
-        const userRole = response.data.user?.role;
-        if (userRole === 'SUPER_ADMIN') {
-          navigation.replace('SuperAdminDashboard', { showTutorial: true, fromSignup: true });
-        } else if (userRole === 'ORGANIZATION' || userRole === 'ADMIN') {
-          navigation.replace('AdminDashboard', { showTutorial: true, fromSignup: true });
-        } else {
-          navigation.replace('Dashboard', { showTutorial: true, fromSignup: true });
-        }
+        // Don't store token or navigate to dashboard - just go to login
+        Alert.alert('Success', 'Email verified successfully! Please login with your credentials.', [
+          { text: 'OK', onPress: () => navigation.replace('Login') }
+        ]);
       } else {
         console.log('OTP verification failed:', response.message);
         
@@ -249,7 +248,10 @@ const VerifyOTPScreen = ({ navigation, route }) => {
           <View style={styles.headerContainer}>
             <Text style={styles.title}>Verify OTP</Text>
             <Text style={styles.subtitle}>
-              Enter the 6-digit code sent to {email}
+              {fromLogin ? 
+                'Your email is not verified. Enter the verification code sent to your email or request a new one.' :
+                `Enter the 6-digit code sent to ${email}`
+              }
             </Text>
             
             {/* Countdown Timer */}

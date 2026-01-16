@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'https://datacapture-backend.onrender.com/api';
+const BASE_URL = 'http://10.197.69.84:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -150,6 +150,9 @@ class ApiService {
   }
 
   static async register(userData) {
+    console.log('🚨 REGISTER API CALL DEBUG 🚨');
+    console.log('Request data:', JSON.stringify(userData, null, 2));
+    
     return this.apiCall('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
