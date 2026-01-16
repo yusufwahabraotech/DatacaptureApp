@@ -11,6 +11,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
@@ -262,7 +263,12 @@ const ResetPasswordScreen = ({ navigation, route }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.container}>
+        <ScrollView 
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color="#1F2937" />
@@ -410,7 +416,7 @@ const ResetPasswordScreen = ({ navigation, route }) => {
             </>
           )}
           </View>
-        </View>
+        </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
@@ -420,6 +426,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     paddingTop: 50,
@@ -523,7 +532,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 12,
-    marginBottom: 80,
+    marginBottom: 0,
   },
   verifyButtonText: {
     color: 'white',
@@ -584,6 +593,7 @@ const styles = StyleSheet.create({
   backToLoginButton: {
     alignItems: 'center',
     paddingVertical: 12,
+    marginBottom: 80,
   },
   loadingContainer: {
     flex: 1,
