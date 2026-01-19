@@ -24,6 +24,7 @@ const SubscriptionPackageScreen = ({ navigation }) => {
     description: '',
     selectedServices: [],
     features: [''],
+    maxUsers: '',
     discountPercentage: '',
     promoCode: '',
     promoStartDate: '',
@@ -61,6 +62,7 @@ const SubscriptionPackageScreen = ({ navigation }) => {
       description: '',
       selectedServices: [],
       features: [''],
+      maxUsers: '',
       discountPercentage: '',
       promoCode: '',
       promoStartDate: '',
@@ -76,6 +78,7 @@ const SubscriptionPackageScreen = ({ navigation }) => {
       description: pkg.description,
       selectedServices: pkg.services?.map(s => ({ serviceId: s.serviceId, duration: s.duration || 'yearly' })) || [],
       features: pkg.features.length > 0 ? pkg.features : [''],
+      maxUsers: pkg.maxUsers?.toString() || '',
       discountPercentage: pkg.discountPercentage?.toString() || '',
       promoCode: pkg.promoCode || '',
       promoStartDate: pkg.promoStartDate ? new Date(pkg.promoStartDate).toISOString().split('T')[0] : '',
@@ -159,8 +162,19 @@ const SubscriptionPackageScreen = ({ navigation }) => {
   };
 
   const handleSavePackage = async () => {
-    if (!formData.title || !formData.description || formData.selectedServices.length === 0) {
-      Alert.alert('Error', 'Please fill in all required fields and select at least one service');
+    if (!formData.title || !formData.description || formData.selectedServices.length === 0 || !formData.maxUsers) {
+      Alert.alert('Error', 'Please fill in all required fields (title, description, services, and max users)');
+      return;
+    }
+
+    const maxUsers = parseInt(formData.maxUsers);
+    if (isNaN(maxUsers) || maxUsers < 1) {
+      Alert.alert('Error', 'Maximum users must be at least 1');
+      return;
+    }
+
+    if (maxUsers > 10000) {
+      Alert.alert('Error', 'Maximum users cannot exceed 10,000');
       return;
     }
 
@@ -184,6 +198,7 @@ const SubscriptionPackageScreen = ({ navigation }) => {
         };
       }),
       features: validFeatures,
+      maxUsers: parseInt(formData.maxUsers),
       discountPercentage: parseFloat(formData.discountPercentage) || 0,
       promoCode: formData.promoCode || undefined,
       promoStartDate: formData.promoStartDate || undefined,
@@ -278,6 +293,12 @@ const SubscriptionPackageScreen = ({ navigation }) => {
                 >
                   <Text style={styles.packageTitle}>{pkg.title}</Text>
                   <Text style={styles.packageDescription}>{pkg.description}</Text>
+                  {pkg.maxUsers && (
+                    <View style={styles.userLimitContainer}>
+                      <Ionicons name="people" size={14} color="#7C3AED" />
+                      <Text style={styles.userLimitText}>Up to {pkg.maxUsers} users</Text>
+                    </View>
+                  )}
                   {pkg.promoCode && (
                     <View style={styles.promoContainer}>
                       <Text style={styles.promoCode}>Promo: {pkg.promoCode}</Text>
@@ -402,6 +423,19 @@ const SubscriptionPackageScreen = ({ navigation }) => {
                 multiline
                 numberOfLines={3}
               />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Maximum Users *</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.maxUsers}
+                onChangeText={(text) => setFormData({ ...formData, maxUsers: text })}
+                placeholder="e.g., 10, 50, 100, 1000"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="numeric"
+              />
+              <Text style={styles.helpText}>Maximum number of users the organization can create</Text>
             </View>
 
             {/* Services Section */}
@@ -672,6 +706,29 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontWeight: '400',
     marginTop: 2,
+  },
+  userLimitContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  userLimitText: {
+    fontSize: 12,
+    color: '#7C3AED',
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  helpText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   packageActions: {
     flexDirection: 'row',
