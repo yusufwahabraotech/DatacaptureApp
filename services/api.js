@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'https://datacapture-backend.onrender.com/api';
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -1461,6 +1461,73 @@ class ApiService {
         error: error.message
       };
     }
+  }
+
+  // SERVICE MANAGEMENT (Super Admin)
+  static async createService(serviceData) {
+    return this.apiCall('/services', {
+      method: 'POST',
+      body: JSON.stringify(serviceData),
+    });
+  }
+
+  static async getAllServices() {
+    return this.apiCall('/services');
+  }
+
+  static async getServiceById(serviceId) {
+    return this.apiCall(`/services/${serviceId}`);
+  }
+
+  static async updateService(serviceId, serviceData) {
+    return this.apiCall(`/services/${serviceId}`, {
+      method: 'PUT',
+      body: JSON.stringify(serviceData),
+    });
+  }
+
+  static async deleteService(serviceId) {
+    return this.apiCall(`/services/${serviceId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // SUBSCRIPTION PACKAGE MANAGEMENT (Super Admin)
+  static async getAvailableServices() {
+    return this.apiCall('/subscription-packages/available-services');
+  }
+
+  static async createSubscriptionPackage(packageData) {
+    return this.apiCall('/subscription-packages', {
+      method: 'POST',
+      body: JSON.stringify(packageData),
+    });
+  }
+
+  static async getAllSubscriptionPackages() {
+    return this.apiCall('/subscription-packages');
+  }
+
+  static async getSubscriptionPackageById(packageId) {
+    return this.apiCall(`/subscription-packages/${packageId}`);
+  }
+
+  static async updateSubscriptionPackage(packageId, packageData) {
+    return this.apiCall(`/subscription-packages/${packageId}`, {
+      method: 'PUT',
+      body: JSON.stringify(packageData),
+    });
+  }
+
+  static async deleteSubscriptionPackage(packageId) {
+    return this.apiCall(`/subscription-packages/${packageId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // SUPER ADMIN DASHBOARD STATS
+  static async getSuperAdminDashboardStats() {
+    return this.apiCall('/super-admin/dashboard-stats');
   }
 }
 

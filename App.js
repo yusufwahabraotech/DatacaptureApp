@@ -52,6 +52,10 @@ import GroupsScreen from './screens/GroupsScreen';
 import CreateGroupScreen from './screens/CreateGroupScreen';
 import AdminCreateMeasurementScreen from './screens/AdminCreateMeasurementScreen';
 import AdminEditMeasurementScreen from './screens/AdminEditMeasurementScreen';
+import ServiceManagementScreen from './screens/ServiceManagementScreen';
+import SubscriptionPackageScreen from './screens/SubscriptionPackageScreen';
+import ServiceDetailsScreen from './screens/ServiceDetailsScreen';
+import PackageDetailsScreen from './screens/PackageDetailsScreen';
 import ExportUsersScreen from './screens/ExportUsersScreen';
 
 const Stack = createStackNavigator();
@@ -88,6 +92,10 @@ export default function App() {
         <Stack.Screen name="OrganizationManagement" component={OrganizationManagementScreen} />
         <Stack.Screen name="CustomerManagement" component={CustomerManagementScreen} />
         <Stack.Screen name="SubscriptionManagement" component={SubscriptionManagementScreen} />
+        <Stack.Screen name="ServiceManagement" component={ServiceManagementScreen} />
+        <Stack.Screen name="SubscriptionPackage" component={SubscriptionPackageScreen} />
+        <Stack.Screen name="ServiceDetails" component={ServiceDetailsScreen} />
+        <Stack.Screen name="PackageDetails" component={PackageDetailsScreen} />
         <Stack.Screen name="SystemUsers" component={SystemUsersScreen} />
         <Stack.Screen name="SystemAnalytics" component={SystemAnalyticsScreen} />
         <Stack.Screen name="SystemSettings" component={SystemSettingsScreen} />

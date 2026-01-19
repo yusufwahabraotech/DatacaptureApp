@@ -110,6 +110,18 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
       onPress: () => navigation.navigate('SystemUsers')
     },
     {
+      title: 'Service Management',
+      subtitle: 'Create and manage services',
+      icon: 'construct',
+      onPress: () => navigation.navigate('ServiceManagement')
+    },
+    {
+      title: 'Subscription Packages',
+      subtitle: 'Manage subscription packages',
+      icon: 'cube',
+      onPress: () => navigation.navigate('SubscriptionPackage')
+    },
+    {
       title: 'System Analytics',
       subtitle: 'View system-wide analytics',
       icon: 'analytics',
