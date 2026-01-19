@@ -253,17 +253,12 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
 
             <View style={styles.featuresSection}>
               <Text style={styles.featuresTitle}>Features:</Text>
-              {pkg.features?.slice(0, 3).map((feature, index) => (
+              {pkg.features?.map((feature, index) => (
                 <View key={index} style={styles.featureItem}>
                   <Ionicons name="checkmark-circle" size={16} color="#10B981" />
                   <Text style={styles.featureText}>{feature}</Text>
                 </View>
               ))}
-              {pkg.features?.length > 3 && (
-                <Text style={styles.moreFeatures}>
-                  +{pkg.features.length - 3} more features
-                </Text>
-              )}
             </View>
 
             <TouchableOpacity
