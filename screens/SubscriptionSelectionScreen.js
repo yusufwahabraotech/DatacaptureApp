@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
+import { LinearGradient } from 'expo-linear-gradient';
 import ApiService from '../services/api';
 
 const SubscriptionSelectionScreen = ({ navigation }) => {
@@ -188,10 +189,15 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#6366F1', '#8B5CF6', '#A855F7']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <Text style={styles.headerTitle}>Choose Your Subscription</Text>
         <Text style={styles.headerSubtitle}>Select a package to get started</Text>
-      </View>
+      </LinearGradient>
 
       <ScrollView style={styles.scrollView}>
         {packages.map((pkg) => (
@@ -393,7 +399,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   header: {
-    backgroundColor: 'white',
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 20,
@@ -401,12 +406,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1F2937',
+    color: 'white',
     marginBottom: 8,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: 'rgba(255, 255, 255, 0.9)',
   },
   scrollView: {
     flex: 1,
@@ -422,6 +427,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    borderWidth: 2,
+    borderColor: '#7C3AED',
   },
   packageHeader: {
     marginBottom: 16,
