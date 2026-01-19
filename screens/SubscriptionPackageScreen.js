@@ -187,15 +187,15 @@ const SubscriptionPackageScreen = ({ navigation }) => {
     const packageData = {
       title: formData.title,
       description: formData.description,
-      services: formData.selectedServices.map(selectedService => {
+      services: formData.selectedServices.flatMap(selectedService => {
         const service = services.find(s => s._id === selectedService.serviceId);
-        const priceKey = `${selectedService.duration}Price`;
-        return {
+        // Create entries for all three durations
+        return ['monthly', 'quarterly', 'yearly'].map(duration => ({
           serviceId: selectedService.serviceId,
           serviceName: service?.serviceName || '',
-          duration: selectedService.duration,
-          price: service?.[priceKey] || 0,
-        };
+          duration: duration,
+          price: service?.[`${duration}Price`] || 0,
+        }));
       }),
       features: validFeatures,
       maxUsers: parseInt(formData.maxUsers),

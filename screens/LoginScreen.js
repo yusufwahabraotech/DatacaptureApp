@@ -57,6 +57,23 @@ const LoginScreen = ({ navigation, route }) => {
         console.log('Stored token:', storedToken);
         
         const userRole = response.data.user.role;
+        
+        // Check subscription status for organization admins
+        if (userRole === 'ORGANIZATION' || userRole === 'ADMIN') {
+          try {
+            const subscriptionResponse = await ApiService.getOrganizationSubscription();
+            if (!subscriptionResponse.success || !subscriptionResponse.data.subscription || subscriptionResponse.data.subscription.status !== 'active') {
+              // No active subscription, redirect to subscription selection
+              navigation.replace('SubscriptionSelection');
+              return;
+            }
+          } catch (error) {
+            // If subscription check fails, assume no subscription and redirect
+            navigation.replace('SubscriptionSelection');
+            return;
+          }
+        }
+        
         if (userRole === 'SUPER_ADMIN') {
           navigation.replace('SuperAdminDashboard', { showTutorial: true });
         } else if (userRole === 'ORGANIZATION' || userRole === 'ADMIN') {

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://192.168.0.183:3000/api';
+const BASE_URL = 'http://172.20.10.4:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -1528,6 +1528,40 @@ class ApiService {
   // SUPER ADMIN DASHBOARD STATS
   static async getSuperAdminDashboardStats() {
     return this.apiCall('/super-admin/dashboard-stats');
+  }
+
+  // PAYMENT METHODS
+  static async initializePayment(paymentData) {
+    console.log('🚨 PAYMENT INITIALIZATION DEBUG 🚨');
+    console.log('Payment data being sent:', JSON.stringify(paymentData, null, 2));
+    
+    return this.apiCall('/payments/initialize', {
+      method: 'POST',
+      body: JSON.stringify(paymentData),
+    });
+  }
+
+  static async verifyPayment(transactionId) {
+    return this.apiCall('/payments/verify', {
+      method: 'POST',
+      body: JSON.stringify({ transactionId }),
+    });
+  }
+
+  static async getPackagePricing(packageId, duration = null) {
+    const endpoint = duration 
+      ? `/payments/package/${packageId}/pricing?duration=${duration}`
+      : `/payments/package/${packageId}/pricing`;
+    return this.apiCall(endpoint);
+  }
+
+  // ORGANIZATION SUBSCRIPTIONS
+  static async getOrganizationSubscription() {
+    return this.apiCall('/organization/subscription');
+  }
+
+  static async getAvailablePackagesForOrganization() {
+    return this.apiCall('/subscription-packages/available');
   }
 }
 

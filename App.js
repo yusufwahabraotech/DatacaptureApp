@@ -57,6 +57,8 @@ import SubscriptionPackageScreen from './screens/SubscriptionPackageScreen';
 import ServiceDetailsScreen from './screens/ServiceDetailsScreen';
 import PackageDetailsScreen from './screens/PackageDetailsScreen';
 import ExportUsersScreen from './screens/ExportUsersScreen';
+import SubscriptionSelectionScreen from './screens/SubscriptionSelectionScreen';
+import PaymentVerificationScreen from './screens/PaymentVerificationScreen';
 
 const Stack = createStackNavigator();
 
@@ -123,6 +125,8 @@ export default function App() {
         <Stack.Screen name="AdminCreateMeasurement" component={AdminCreateMeasurementScreen} />
         <Stack.Screen name="AdminEditMeasurement" component={AdminEditMeasurementScreen} />
         <Stack.Screen name="ExportUsers" component={ExportUsersScreen} />
+        <Stack.Screen name="SubscriptionSelection" component={SubscriptionSelectionScreen} />
+        <Stack.Screen name="PaymentVerification" component={PaymentVerificationScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>
