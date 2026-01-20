@@ -104,6 +104,12 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
       onPress: () => navigation.navigate('OrganizationManagement')
     },
     {
+      title: 'Paid Subscriptions',
+      subtitle: 'View all paid subscriptions',
+      icon: 'card',
+      onPress: () => navigation.navigate('PaidSubscriptions')
+    },
+    {
       title: 'System Users',
       subtitle: 'Manage all system users',
       icon: 'people',

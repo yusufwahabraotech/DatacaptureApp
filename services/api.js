@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://172.20.10.4:3000/api';
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -1528,6 +1528,28 @@ class ApiService {
   // SUPER ADMIN DASHBOARD STATS
   static async getSuperAdminDashboardStats() {
     return this.apiCall('/super-admin/dashboard-stats');
+  }
+
+  // SUPER ADMIN PAID SUBSCRIPTIONS
+  static async getPaidSubscriptions(params = {}) {
+    const queryParams = new URLSearchParams();
+    
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.search) queryParams.append('search', params.search);
+    if (params.fromDate) queryParams.append('fromDate', params.fromDate);
+    if (params.toDate) queryParams.append('toDate', params.toDate);
+    if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/super-admin/paid-subscriptions${queryString ? '?' + queryString : ''}`;
+    
+    console.log('🚨 PAID SUBSCRIPTIONS API CALL 🚨');
+    console.log('Endpoint:', endpoint);
+    console.log('Query params:', params);
+    
+    return this.apiCall(endpoint);
   }
 
   // PAYMENT METHODS
