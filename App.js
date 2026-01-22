@@ -60,6 +60,8 @@ import ExportUsersScreen from './screens/ExportUsersScreen';
 import SubscriptionSelectionScreen from './screens/SubscriptionSelectionScreen';
 import PaymentVerificationScreen from './screens/PaymentVerificationScreen';
 import PaidSubscriptionsScreen from './screens/PaidSubscriptionsScreen';
+import LocationManagementScreen from './screens/LocationManagementScreen';
+import CreateLocationScreen from './screens/CreateLocationScreen';
 
 const Stack = createStackNavigator();
 
@@ -129,6 +131,8 @@ export default function App() {
         <Stack.Screen name="SubscriptionSelection" component={SubscriptionSelectionScreen} />
         <Stack.Screen name="PaymentVerification" component={PaymentVerificationScreen} />
         <Stack.Screen name="PaidSubscriptions" component={PaidSubscriptionsScreen} />
+        <Stack.Screen name="LocationManagement" component={LocationManagementScreen} />
+        <Stack.Screen name="CreateLocation" component={CreateLocationScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

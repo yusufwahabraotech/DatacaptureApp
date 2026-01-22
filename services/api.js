@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Country, State, City } from 'country-state-city';
 
 const BASE_URL = 'http://192.168.0.183:3000/api';
 
@@ -1585,6 +1586,185 @@ class ApiService {
   static async getAvailablePackagesForOrganization() {
     return this.apiCall('/subscription-packages/available');
   }
+
+  // SUPER ADMIN LOCATION MANAGEMENT
+  static async createLocation(locationData) {
+    console.log('🚨 CREATE LOCATION API DEBUG 🚨');
+    console.log('Data being sent to API:', JSON.stringify(locationData, null, 2));
+    
+    // Backend expects cityRegions as array of objects with name and fee
+    const fixedData = {
+      country: locationData.country,
+      state: locationData.state,
+      lga: locationData.lga,
+      city: locationData.city,
+      cityRegions: locationData.cityRegions || [{
+        name: locationData.cityRegion,
+        fee: Number(locationData.fee) || 0
+      }]
+    };
+    
+    console.log('🚨 CORRECT BACKEND FORMAT 🚨');
+    console.log('Fixed data being sent:', JSON.stringify(fixedData, null, 2));
+    
+    return this.apiCall('/super-admin/locations', {
+      method: 'POST',
+      body: JSON.stringify(fixedData),
+    });
+  }
+
+  static async getAllLocations(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/super-admin/locations${queryString ? '?' + queryString : ''}`;
+    
+    const response = await this.apiCall(endpoint);
+    
+    // Fix undefined fee values in response data
+    if (response.success && response.data && response.data.locations) {
+      response.data.locations = response.data.locations.map(location => ({
+        ...location,
+        cityRegions: location.cityRegions ? location.cityRegions.map(region => ({
+          ...region,
+          fee: Number(region.fee) || 0
+        })) : []
+      }));
+    }
+    
+    return response;
+  }
+
+  static async updateLocation(locationId, locationData) {
+    return this.apiCall(`/super-admin/locations/${locationId}`, {
+      method: 'PUT',
+      body: JSON.stringify(locationData),
+    });
+  }
+
+  static async deleteLocation(locationId) {
+    return this.apiCall(`/super-admin/locations/${locationId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // EXTERNAL LOCATION DATA (Using country-state-city package)
+  static async getExternalCountries() {
+    try {
+      const countries = Country.getAllCountries();
+      return {
+        success: true,
+        data: {
+          countries: countries.map(country => ({
+            name: country.name,
+            code: country.isoCode
+          })).sort((a, b) => a.name.localeCompare(b.name))
+        }
+      };
+    } catch (error) {
+      return { success: false, message: 'Failed to load countries' };
+    }
+  }
+
+  static async getExternalStates(countryName) {
+    try {
+      // Find country by name
+      const countries = Country.getAllCountries();
+      const country = countries.find(c => c.name === countryName);
+      
+      if (!country) {
+        return { success: false, message: 'Country not found' };
+      }
+      
+      const states = State.getStatesOfCountry(country.isoCode);
+      return {
+        success: true,
+        data: {
+          states: states.map(state => ({
+            name: state.name,
+            code: state.isoCode
+          })).sort((a, b) => a.name.localeCompare(b.name))
+        }
+      };
+    } catch (error) {
+      return { success: false, message: 'Failed to load states/regions' };
+    }
+  }
+
+  static async getExternalCities(countryName, stateName, lga) {
+    try {
+      // Find country and state
+      const countries = Country.getAllCountries();
+      const country = countries.find(c => c.name === countryName);
+      
+      if (!country) {
+        return { success: false, message: 'Country not found' };
+      }
+      
+      const states = State.getStatesOfCountry(country.isoCode);
+      const state = states.find(s => s.name === stateName);
+      
+      if (!state) {
+        return { success: false, message: 'State not found' };
+      }
+      
+      // Get all cities for this state
+      const allCities = City.getCitiesOfState(country.isoCode, state.isoCode);
+      
+      // Filter cities that might be related to the LGA or just return all cities
+      let cities = allCities.map(city => city.name).sort();
+      
+      // If no cities found, provide some generic city names
+      if (cities.length === 0) {
+        cities = [`${lga}`, `${lga} Central`, `${lga} Town`];
+      }
+      
+      return {
+        success: true,
+        data: { cities: cities.slice(0, 15) } // Limit to 15 for performance
+      };
+    } catch (error) {
+      return { success: false, message: 'Failed to load cities' };
+    }
+  }
+
+  static async getExternalLGAs(countryName, stateName) {
+    try {
+      // Find country and state
+      const countries = Country.getAllCountries();
+      const country = countries.find(c => c.name === countryName);
+      
+      if (!country) {
+        return { success: false, message: 'Country not found' };
+      }
+      
+      const states = State.getStatesOfCountry(country.isoCode);
+      const state = states.find(s => s.name === stateName);
+      
+      if (!state) {
+        return { success: false, message: 'State not found' };
+      }
+      
+      // Get cities for this state (we'll use cities as LGAs since the package doesn't have LGA level)
+      const cities = City.getCitiesOfState(country.isoCode, state.isoCode);
+      
+      // If no cities found, provide some generic LGA names based on the state
+      const lgas = cities.length > 0 
+        ? cities.map(city => city.name).sort()
+        : [`${stateName} Central`, `${stateName} North`, `${stateName} South`, `${stateName} East`, `${stateName} West`];
+      
+      return {
+        success: true,
+        data: { lgas: lgas.slice(0, 20) } // Limit to 20 for performance
+      };
+    } catch (error) {
+      return { success: false, message: 'Failed to load LGAs' };
+    }
+  }
+
+
 }
 
 export default ApiService;
