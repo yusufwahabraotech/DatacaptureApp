@@ -18,6 +18,8 @@ const OrganizationManagementScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedOrganization, setSelectedOrganization] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [newOrg, setNewOrg] = useState({
     organizationName: '',
@@ -55,9 +57,12 @@ const OrganizationManagementScreen = ({ navigation }) => {
 
   const fetchOrganizations = async () => {
     try {
-      const response = await ApiService.getSuperAdminOrganizations(1, 50, selectedStatus === 'all' ? null : selectedStatus);
+      const response = await ApiService.getSuperAdminOrganizationAdmins({ 
+        page: 1, 
+        limit: 50
+      });
       if (response.success) {
-        setOrganizations(response.data.organizations);
+        setOrganizations(response.data.admins);
       }
     } catch (error) {
       console.log('Error fetching organizations:', error);
@@ -139,25 +144,25 @@ const OrganizationManagementScreen = ({ navigation }) => {
       </View>
 
       {/* Status Filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statusFilter}>
+      <View style={styles.statusFilterContainer}>
         {statusOptions.map((status) => (
           <TouchableOpacity
             key={status.key}
             style={[
-              styles.statusButton,
+              styles.statusChip,
               selectedStatus === status.key && { backgroundColor: status.color }
             ]}
             onPress={() => setSelectedStatus(status.key)}
           >
             <Text style={[
-              styles.statusButtonText,
+              styles.statusChipText,
               selectedStatus === status.key && { color: 'white' }
             ]}>
               {status.label}
             </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
 
       {/* Organizations List */}
       <ScrollView style={styles.orgsList}>
@@ -203,9 +208,19 @@ const OrganizationManagementScreen = ({ navigation }) => {
               <View style={styles.orgActionButtons}>
                 <TouchableOpacity 
                   style={styles.actionButton}
-                  onPress={() => navigation.navigate('OrganizationDetails', { orgId: org.id })}
+                  onPress={() => {
+                    setSelectedOrganization(org);
+                    setShowDetailsModal(true);
+                  }}
                 >
                   <Text style={styles.actionButtonText}>View Details</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.adminsButton]}
+                  onPress={() => navigation.navigate('SuperAdminOrganizationAdmins')}
+                >
+                  <Text style={styles.adminsButtonText}>View All Admins</Text>
                 </TouchableOpacity>
                 
                 {org.status === 'active' ? (
@@ -228,6 +243,95 @@ const OrganizationManagementScreen = ({ navigation }) => {
           ))
         )}
       </ScrollView>
+
+      {/* Organization Details Modal */}
+      <Modal visible={showDetailsModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.detailsModalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Organization Details</Text>
+              <TouchableOpacity onPress={() => setShowDetailsModal(false)}>
+                <Ionicons name="close" size={24} color="#1F2937" />
+              </TouchableOpacity>
+            </View>
+            
+            {selectedOrganization && (
+              <ScrollView style={styles.detailsContent}>
+                <View style={styles.detailsTable}>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Company Name</Text>
+                    <Text style={styles.tableValue}>{selectedOrganization.organizationName}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Admin Name</Text>
+                    <Text style={styles.tableValue}>{selectedOrganization.fullName}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Email</Text>
+                    <Text style={styles.tableValue}>{selectedOrganization.email}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Phone</Text>
+                    <Text style={styles.tableValue}>{selectedOrganization.phoneNumber || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Role</Text>
+                    <Text style={styles.tableValue}>{selectedOrganization.role}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Country</Text>
+                    <Text style={styles.tableValue}>{selectedOrganization.country}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Status</Text>
+                    <Text style={[styles.tableValue, { color: selectedOrganization.status === 'active' ? '#10B981' : '#EF4444' }]}>
+                      {selectedOrganization.status}
+                    </Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Verified</Text>
+                    <Text style={[styles.tableValue, { color: selectedOrganization.isVerified ? '#10B981' : '#EF4444' }]}>
+                      {selectedOrganization.isVerified ? 'Yes' : 'No'}
+                    </Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Organization ID</Text>
+                    <Text style={styles.tableValue}>{selectedOrganization.organizationId}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Custom ID Prefix</Text>
+                    <Text style={styles.tableValue}>{selectedOrganization.organizationDetails?.customIdPrefix || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>User Counter</Text>
+                    <Text style={styles.tableValue}>{selectedOrganization.organizationDetails?.userCounter || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Total Users</Text>
+                    <Text style={styles.tableValue}>{selectedOrganization.organizationStats?.totalUsers || '0'}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Active Users</Text>
+                    <Text style={styles.tableValue}>{selectedOrganization.organizationStats?.activeUsers || '0'}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Pending Users</Text>
+                    <Text style={styles.tableValue}>{selectedOrganization.organizationStats?.pendingUsers || '0'}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Archived Users</Text>
+                    <Text style={styles.tableValue}>{selectedOrganization.organizationStats?.archivedUsers || '0'}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Created Date</Text>
+                    <Text style={styles.tableValue}>{formatDate(selectedOrganization.createdAt)}</Text>
+                  </View>
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Create Organization Modal */}
       <Modal visible={showCreateModal} transparent animationType="fade">
@@ -352,19 +456,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
   },
-  statusFilter: {
+  statusFilterContainer: {
+    flexDirection: 'row',
     paddingHorizontal: 20,
     marginBottom: 20,
+    flexWrap: 'wrap',
   },
-  statusButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+  statusChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
     backgroundColor: '#F3F4F6',
-    marginRight: 12,
+    marginRight: 8,
+    marginBottom: 8,
   },
-  statusButtonText: {
-    fontSize: 14,
+  statusChipText: {
+    fontSize: 13,
     fontWeight: '500',
     color: '#6B7280',
   },
@@ -452,21 +559,31 @@ const styles = StyleSheet.create({
   },
   orgActionButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
+    flexWrap: 'wrap',
   },
   actionButton: {
     flex: 1,
+    minWidth: '30%',
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#7C3AED',
     alignItems: 'center',
   },
   actionButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: '#7C3AED',
+  },
+  adminsButton: {
+    borderColor: '#10B981',
+  },
+  adminsButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#10B981',
   },
   suspendButton: {
     borderColor: '#EF4444',
@@ -562,6 +679,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: 'white',
+  },
+  detailsModalContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    width: '95%',
+    maxHeight: '85%',
+  },
+  detailsContent: {
+    padding: 20,
+  },
+  detailsTable: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 16,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  tableLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    flex: 1,
+  },
+  tableValue: {
+    fontSize: 14,
+    color: '#1F2937',
+    flex: 1,
+    textAlign: 'right',
   },
 });
 

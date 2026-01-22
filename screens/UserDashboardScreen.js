@@ -21,6 +21,7 @@ const UserDashboardScreen = ({ navigation }) => {
   });
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasDataVerificationRole, setHasDataVerificationRole] = useState(false);
 
   useEffect(() => {
     fetchDashboardStats();
@@ -45,6 +46,9 @@ const UserDashboardScreen = ({ navigation }) => {
       const response = await ApiService.getUserProfile();
       if (response.success) {
         setUser(response.data.user);
+        // Check if user has data verification permission
+        const hasVerificationRole = response.data.user.permissions?.includes('data_verification');
+        setHasDataVerificationRole(hasVerificationRole);
       }
     } catch (error) {
       console.log('Error fetching profile:', error);
@@ -176,6 +180,19 @@ const UserDashboardScreen = ({ navigation }) => {
         <View style={styles.actionsSection}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
+            {hasDataVerificationRole && (
+              <TouchableOpacity 
+                style={styles.actionCard}
+                onPress={() => navigation.navigate('FieldAgentVerification')}
+              >
+                <View style={styles.actionIcon}>
+                  <Ionicons name="shield-checkmark" size={24} color="#10B981" />
+                </View>
+                <Text style={styles.actionTitle}>Data Verification</Text>
+                <Text style={styles.actionSubtitle}>Field verification tasks</Text>
+              </TouchableOpacity>
+            )}
+            
             <TouchableOpacity 
               style={styles.actionCard}
               onPress={() => navigation.navigate('UserMeasurements')}

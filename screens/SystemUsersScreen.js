@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
@@ -16,11 +17,21 @@ const SystemUsersScreen = ({ navigation }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  const statusOptions = [
+    { key: 'all', label: 'All', color: '#6B7280' },
+    { key: 'active', label: 'Active', color: '#10B981' },
+    { key: 'pending', label: 'Pending', color: '#F59E0B' },
+    { key: 'archived', label: 'Archived', color: '#EF4444' }
+  ];
 
   useEffect(() => {
     checkUserRole();
     fetchSystemUsers();
-  }, []);
+  }, [selectedStatus]);
 
   const checkUserRole = async () => {
     try {
@@ -38,7 +49,7 @@ const SystemUsersScreen = ({ navigation }) => {
 
   const fetchSystemUsers = async () => {
     try {
-      const response = await ApiService.getSuperAdminUsers(1, 100);
+      const response = await ApiService.getSuperAdminUsers({ page: 1, limit: 100 });
       if (response.success) {
         setUsers(response.data.users);
       }
@@ -51,9 +62,9 @@ const SystemUsersScreen = ({ navigation }) => {
 
   const resetUserPassword = async (userId) => {
     try {
-      const response = await ApiService.resetSuperAdminUserPassword(userId);
+      const response = await ApiService.resetSuperAdminUserPassword(userId, {});
       if (response.success) {
-        Alert.alert('Success', `Password reset successfully!\\nNew Password: ${response.data.newPassword}`);
+        Alert.alert('Success', `Password reset successfully!\nNew Password: ${response.data.newPassword}`);
       } else {
         Alert.alert('Error', response.message);
       }
@@ -90,6 +101,27 @@ const SystemUsersScreen = ({ navigation }) => {
         />
       </View>
 
+      {/* Status Filter */}
+      <View style={styles.statusFilterContainer}>
+        {statusOptions.map((status) => (
+          <TouchableOpacity
+            key={status.key}
+            style={[
+              styles.statusChip,
+              selectedStatus === status.key && { backgroundColor: status.color }
+            ]}
+            onPress={() => setSelectedStatus(status.key)}
+          >
+            <Text style={[
+              styles.statusChipText,
+              selectedStatus === status.key && { color: 'white' }
+            ]}>
+              {status.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {/* Users List */}
       <ScrollView style={styles.usersList}>
         {loading ? (
@@ -112,16 +144,101 @@ const SystemUsersScreen = ({ navigation }) => {
                   )}
                 </View>
               </View>
-              <TouchableOpacity 
-                style={styles.resetButton}
-                onPress={() => resetUserPassword(user.id)}
-              >
-                <Text style={styles.resetButtonText}>Reset Password</Text>
-              </TouchableOpacity>
+              <View style={styles.userActions}>
+                <View style={[styles.statusBadge, { backgroundColor: statusOptions.find(s => s.key === user.status)?.color }]}>
+                  <Text style={styles.statusBadgeText}>{user.status}</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => {
+                    setSelectedUser(user);
+                    setShowDetailsModal(true);
+                  }}
+                >
+                  <Text style={styles.actionButtonText}>View Details</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ))
         )}
       </ScrollView>
+
+      {/* User Details Modal */}
+      <Modal visible={showDetailsModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.detailsModalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>User Details</Text>
+              <TouchableOpacity onPress={() => setShowDetailsModal(false)}>
+                <Ionicons name="close" size={24} color="#1F2937" />
+              </TouchableOpacity>
+            </View>
+            
+            {selectedUser && (
+              <ScrollView style={styles.detailsContent}>
+                <View style={styles.detailsTable}>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Full Name</Text>
+                    <Text style={styles.tableValue}>{selectedUser.fullName}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Email</Text>
+                    <Text style={styles.tableValue}>{selectedUser.email}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Phone</Text>
+                    <Text style={styles.tableValue}>{selectedUser.phoneNumber || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Role</Text>
+                    <Text style={styles.tableValue}>{selectedUser.role}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Status</Text>
+                    <Text style={[styles.tableValue, { color: statusOptions.find(s => s.key === selectedUser.status)?.color }]}>
+                      {selectedUser.status}
+                    </Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Organization</Text>
+                    <Text style={styles.tableValue}>{selectedUser.organizationName || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Country</Text>
+                    <Text style={styles.tableValue}>{selectedUser.country || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Custom User ID</Text>
+                    <Text style={styles.tableValue}>{selectedUser.customUserId || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Verified</Text>
+                    <Text style={[styles.tableValue, { color: selectedUser.isVerified ? '#10B981' : '#EF4444' }]}>
+                      {selectedUser.isVerified ? 'Yes' : 'No'}
+                    </Text>
+                  </View>
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>Created Date</Text>
+                    <Text style={styles.tableValue}>{new Date(selectedUser.createdAt).toLocaleDateString()}</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.modalActions}>
+                  <TouchableOpacity 
+                    style={styles.resetButton}
+                    onPress={() => {
+                      setShowDetailsModal(false);
+                      resetUserPassword(selectedUser.id);
+                    }}
+                  >
+                    <Text style={styles.resetButtonText}>Reset Password</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -235,6 +352,108 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '500',
+  },
+  statusFilterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    flexWrap: 'wrap',
+  },
+  statusChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    backgroundColor: '#F3F4F6',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  statusChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  userActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: 'white',
+  },
+  actionButton: {
+    backgroundColor: '#7C3AED',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  actionButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailsModalContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    width: '95%',
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  detailsContent: {
+    padding: 20,
+  },
+  detailsTable: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 16,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  tableLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    flex: 1,
+  },
+  tableValue: {
+    fontSize: 14,
+    color: '#1F2937',
+    flex: 1,
+    textAlign: 'right',
+  },
+  modalActions: {
+    marginTop: 20,
+    alignItems: 'center',
   },
 });
 

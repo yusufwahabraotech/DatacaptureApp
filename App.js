@@ -62,6 +62,12 @@ import PaymentVerificationScreen from './screens/PaymentVerificationScreen';
 import PaidSubscriptionsScreen from './screens/PaidSubscriptionsScreen';
 import LocationManagementScreen from './screens/LocationManagementScreen';
 import CreateLocationScreen from './screens/CreateLocationScreen';
+import SuperAdminOrganizationAdminsScreen from './screens/SuperAdminOrganizationAdminsScreen';
+import DataVerificationManagementScreen from './screens/DataVerificationManagementScreen';
+import DataVerificationUsersScreen from './screens/DataVerificationUsersScreen';
+import FieldAgentVerificationScreen from './screens/FieldAgentVerificationScreen';
+import CreateDataVerificationRoleScreen from './screens/CreateDataVerificationRoleScreen';
+import CreateVerificationScreen from './screens/CreateVerificationScreen';
 
 const Stack = createStackNavigator();
 
@@ -133,6 +139,12 @@ export default function App() {
         <Stack.Screen name="PaidSubscriptions" component={PaidSubscriptionsScreen} />
         <Stack.Screen name="LocationManagement" component={LocationManagementScreen} />
         <Stack.Screen name="CreateLocation" component={CreateLocationScreen} />
+        <Stack.Screen name="SuperAdminOrganizationAdmins" component={SuperAdminOrganizationAdminsScreen} />
+        <Stack.Screen name="DataVerificationManagement" component={DataVerificationManagementScreen} />
+        <Stack.Screen name="DataVerificationUsers" component={DataVerificationUsersScreen} />
+        <Stack.Screen name="FieldAgentVerification" component={FieldAgentVerificationScreen} />
+        <Stack.Screen name="CreateDataVerificationRole" component={CreateDataVerificationRoleScreen} />
+        <Stack.Screen name="CreateVerification" component={CreateVerificationScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

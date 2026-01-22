@@ -32,6 +32,7 @@ const DashboardScreen = ({ navigation, route }) => {
   const [showTutorial, setShowTutorial] = useState(false);
   const [user, setUser] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasDataVerificationRole, setHasDataVerificationRole] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     bodyMeasurements: 0,
     objectMeasurements: 0,
@@ -207,6 +208,9 @@ const DashboardScreen = ({ navigation, route }) => {
       
       if (response.success) {
         setUser(response.data.user);
+        // Check if user has data verification permission
+        const hasVerificationRole = response.data.user.permissions?.includes('data_verification');
+        setHasDataVerificationRole(hasVerificationRole);
       } else {
         console.log('Profile fetch failed:', response.message);
       }
@@ -313,6 +317,23 @@ const DashboardScreen = ({ navigation, route }) => {
 
         {/* Measurement Cards */}
         <View style={styles.cardsContainer}>
+          {/* Data Verification Card - Only for users with permission */}
+          {hasDataVerificationRole && (
+            <TouchableOpacity 
+              style={[styles.card, styles.verificationCard]}
+              onPress={() => navigation.navigate('FieldAgentVerification')}
+            >
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Data Verification</Text>
+                <Ionicons name="shield-checkmark" size={24} color="#10B981" />
+              </View>
+              <Text style={styles.cardValue}>Field Agent</Text>
+              <View style={styles.createNewButton}>
+                <Text style={styles.createNew}>View Tasks</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* My Role Card - Only for org-users */}
           {user?.organizationId && (user?.role === 'ORGANIZATION' || user?.role === 'CUSTOMER') && (
             <TouchableOpacity 
@@ -597,6 +618,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF0F5',
   },
   roleCard: {
+    backgroundColor: '#ECFDF5',
+  },
+  verificationCard: {
     backgroundColor: '#ECFDF5',
   },
   cardHeader: {

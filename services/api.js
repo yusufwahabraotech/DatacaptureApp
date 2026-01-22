@@ -1531,6 +1531,100 @@ class ApiService {
     return this.apiCall('/super-admin/dashboard-stats');
   }
 
+  // SUPER ADMIN USER MANAGEMENT
+  static async getSuperAdminUsers(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.search) queryParams.append('search', params.search);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/super-admin/users${queryString ? '?' + queryString : ''}`;
+    return this.apiCall(endpoint);
+  }
+
+  static async getSuperAdminUserById(userId) {
+    return this.apiCall(`/super-admin/users/${userId}`);
+  }
+
+  static async updateSuperAdminUser(userId, userData) {
+    return this.apiCall(`/super-admin/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  static async updateSuperAdminUserStatus(userId, status) {
+    return this.apiCall(`/super-admin/users/${userId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  static async resetSuperAdminUserPassword(userId, passwordData) {
+    return this.apiCall(`/super-admin/users/${userId}/reset-password`, {
+      method: 'PUT',
+      body: JSON.stringify(passwordData),
+    });
+  }
+
+  static async deleteSuperAdminUser(userId) {
+    return this.apiCall(`/super-admin/users/${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async exportSuperAdminUsers(format = 'csv') {
+    return this.apiCall(`/super-admin/users/export/${format}`);
+  }
+
+  static async getOrganizationUsers(organizationId, params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/super-admin/organizations/${organizationId}/users${queryString ? '?' + queryString : ''}`;
+    return this.apiCall(endpoint);
+  }
+
+  static async getSuperAdminOrganizationAdmins(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.search) queryParams.append('search', params.search);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/super-admin/admins${queryString ? '?' + queryString : ''}`;
+    return this.apiCall(endpoint);
+  }
+
+  // SUPER ADMIN ORGANIZATION MANAGEMENT
+  static async getSuperAdminOrganizations(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.search) queryParams.append('search', params.search);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/super-admin/organizations${queryString ? '?' + queryString : ''}`;
+    return this.apiCall(endpoint);
+  }
+
+  static async createSuperAdminOrganization(orgData) {
+    return this.apiCall('/super-admin/organizations', {
+      method: 'POST',
+      body: JSON.stringify(orgData),
+    });
+  }
+
+  static async updateSuperAdminOrganizationStatus(orgId, status) {
+    return this.apiCall(`/super-admin/organizations/${orgId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
   // SUPER ADMIN PAID SUBSCRIPTIONS
   static async getPaidSubscriptions(params = {}) {
     const queryParams = new URLSearchParams();
@@ -1762,6 +1856,82 @@ class ApiService {
     } catch (error) {
       return { success: false, message: 'Failed to load LGAs' };
     }
+  }
+
+  // SUPER ADMIN DATA VERIFICATION
+  static async createDataVerificationRole(roleData) {
+    return this.apiCall('/super-admin/data-verification/create-role', {
+      method: 'POST',
+      body: JSON.stringify(roleData),
+    });
+  }
+
+  static async getDataVerificationAllUsers() {
+    return this.apiCall('/super-admin/data-verification/users');
+  }
+
+  static async assignDataVerificationRole(userId, assign) {
+    return this.apiCall(`/super-admin/data-verification/assign-role/${userId}`, {
+      method: 'POST',
+      body: JSON.stringify({ assign }),
+    });
+  }
+
+  static async getSuperAdminVerifications(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.status) queryParams.append('status', params.status);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/super-admin/data-verification/verifications${queryString ? '?' + queryString : ''}`;
+    return this.apiCall(endpoint);
+  }
+
+  static async reviewVerification(verificationId, status, comments) {
+    return this.apiCall(`/super-admin/data-verification/verifications/${verificationId}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ status, comments }),
+    });
+  }
+
+  static async getDataVerificationUsers() {
+    return this.apiCall('/super-admin/data-verification/verification-users');
+  }
+
+  static async getVerificationStats() {
+    return this.apiCall('/super-admin/data-verification/verification-stats');
+  }
+
+  // FIELD AGENT DATA VERIFICATION
+  static async createVerification(verificationData) {
+    return this.apiCall('/data-verification', {
+      method: 'POST',
+      body: JSON.stringify(verificationData),
+    });
+  }
+
+  static async getMyVerifications() {
+    return this.apiCall('/data-verification/my-verifications');
+  }
+
+  static async getVerificationOrganizations() {
+    return this.apiCall('/data-verification/organizations');
+  }
+
+  static async getVerificationUsers() {
+    return this.apiCall('/data-verification/users');
+  }
+
+  static async updateVerification(verificationId, verificationData) {
+    return this.apiCall(`/data-verification/${verificationId}`, {
+      method: 'PUT',
+      body: JSON.stringify(verificationData),
+    });
+  }
+
+  static async submitVerification(verificationId) {
+    return this.apiCall(`/data-verification/${verificationId}/submit`, {
+      method: 'POST',
+    });
   }
 
 

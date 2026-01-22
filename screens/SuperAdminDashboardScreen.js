@@ -98,6 +98,12 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
 
   const quickActions = [
     {
+      title: 'Data Verification',
+      subtitle: 'Manage field verification system',
+      icon: 'shield-checkmark',
+      onPress: () => navigation.navigate('DataVerificationManagement')
+    },
+    {
       title: 'Manage Organizations',
       subtitle: 'View and manage all organizations',
       icon: 'business',
