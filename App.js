@@ -68,6 +68,8 @@ import DataVerificationUsersScreen from './screens/DataVerificationUsersScreen';
 import FieldAgentVerificationScreen from './screens/FieldAgentVerificationScreen';
 import CreateDataVerificationRoleScreen from './screens/CreateDataVerificationRoleScreen';
 import CreateVerificationScreen from './screens/CreateVerificationScreen';
+import VerificationDetailsScreen from './screens/VerificationDetailsScreen';
+import SuperAdminVerificationDetailsScreen from './screens/SuperAdminVerificationDetailsScreen';
 
 const Stack = createStackNavigator();
 
@@ -145,6 +147,8 @@ export default function App() {
         <Stack.Screen name="FieldAgentVerification" component={FieldAgentVerificationScreen} />
         <Stack.Screen name="CreateDataVerificationRole" component={CreateDataVerificationRoleScreen} />
         <Stack.Screen name="CreateVerification" component={CreateVerificationScreen} />
+        <Stack.Screen name="VerificationDetails" component={VerificationDetailsScreen} />
+        <Stack.Screen name="SuperAdminVerificationDetails" component={SuperAdminVerificationDetailsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

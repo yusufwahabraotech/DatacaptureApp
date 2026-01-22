@@ -1901,6 +1901,10 @@ class ApiService {
     return this.apiCall('/super-admin/data-verification/verification-stats');
   }
 
+  static async getSuperAdminVerificationDetails(verificationId) {
+    return this.apiCall(`/super-admin/data-verification/verifications/${verificationId}`);
+  }
+
   // FIELD AGENT DATA VERIFICATION
   static async createVerification(verificationData) {
     return this.apiCall('/data-verification', {

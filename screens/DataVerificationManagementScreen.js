@@ -169,22 +169,30 @@ const DataVerificationManagementScreen = ({ navigation }) => {
               <Text style={styles.location}>{verification.city}, {verification.state}</Text>
               <Text style={styles.date}>Created: {formatDate(verification.createdAt)}</Text>
 
-              {verification.status === 'submitted' && (
-                <View style={styles.actionButtons}>
-                  <TouchableOpacity 
-                    style={[styles.actionButton, styles.approveButton]}
-                    onPress={() => reviewVerification(verification._id, 'approved', 'Verification approved')}
-                  >
-                    <Text style={styles.approveButtonText}>Approve</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.actionButton, styles.rejectButton]}
-                    onPress={() => reviewVerification(verification._id, 'rejected', 'Verification rejected')}
-                  >
-                    <Text style={styles.rejectButtonText}>Reject</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+              <View style={styles.actionButtons}>
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.viewDetailsButton]}
+                  onPress={() => navigation.navigate('SuperAdminVerificationDetails', { verificationId: verification._id })}
+                >
+                  <Text style={styles.viewDetailsButtonText}>View Details</Text>
+                </TouchableOpacity>
+                {verification.status === 'submitted' && (
+                  <>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.approveButton]}
+                      onPress={() => reviewVerification(verification._id, 'approved', 'Verification approved')}
+                    >
+                      <Text style={styles.approveButtonText}>Approve</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.rejectButton]}
+                      onPress={() => reviewVerification(verification._id, 'rejected', 'Verification rejected')}
+                    >
+                      <Text style={styles.rejectButtonText}>Reject</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
             </View>
           ))
         )}
@@ -361,6 +369,16 @@ const styles = StyleSheet.create({
   },
   rejectButtonText: {
     color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  viewDetailsButton: {
+    backgroundColor: '#F5F3FF',
+    borderWidth: 1,
+    borderColor: '#7C3AED',
+  },
+  viewDetailsButtonText: {
+    color: '#7C3AED',
     fontSize: 14,
     fontWeight: '500',
   },
