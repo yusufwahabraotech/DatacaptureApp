@@ -70,6 +70,12 @@ import CreateDataVerificationRoleScreen from './screens/CreateDataVerificationRo
 import CreateVerificationScreen from './screens/CreateVerificationScreen';
 import VerificationDetailsScreen from './screens/VerificationDetailsScreen';
 import SuperAdminVerificationDetailsScreen from './screens/SuperAdminVerificationDetailsScreen';
+import OrganizationProfileScreen from './screens/OrganizationProfileScreen';
+import OrganizationLocationsScreen from './screens/OrganizationLocationsScreen';
+import AddLocationScreen from './screens/AddLocationScreen';
+import VerifiedBadgePaymentScreen from './screens/VerifiedBadgePaymentScreen';
+import VerificationManagementScreen from './screens/VerificationManagementScreen';
+import PublicOrganizationProfilesScreen from './screens/PublicOrganizationProfilesScreen';
 
 const Stack = createStackNavigator();
 
@@ -149,6 +155,14 @@ export default function App() {
         <Stack.Screen name="CreateVerification" component={CreateVerificationScreen} />
         <Stack.Screen name="VerificationDetails" component={VerificationDetailsScreen} />
         <Stack.Screen name="SuperAdminVerificationDetails" component={SuperAdminVerificationDetailsScreen} />
+        
+        {/* Organization Profile & Verified Badge Screens */}
+        <Stack.Screen name="OrganizationProfile" component={OrganizationProfileScreen} />
+        <Stack.Screen name="OrganizationLocations" component={OrganizationLocationsScreen} />
+        <Stack.Screen name="AddLocation" component={AddLocationScreen} />
+        <Stack.Screen name="VerifiedBadgePayment" component={VerifiedBadgePaymentScreen} />
+        <Stack.Screen name="VerificationManagement" component={VerificationManagementScreen} />
+        <Stack.Screen name="PublicOrganizationProfiles" component={PublicOrganizationProfilesScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

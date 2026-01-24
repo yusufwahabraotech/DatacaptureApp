@@ -167,6 +167,12 @@ const AdminDashboardScreen = ({ navigation }) => {
       subtitle: 'Manage your subscription',
       icon: 'card',
       onPress: () => navigation.navigate('OrganizationSubscription')
+    },
+    {
+      title: 'Organization Profile',
+      subtitle: 'Manage profile & verification',
+      icon: 'business',
+      onPress: () => navigation.navigate('OrganizationProfile')
     }
   ];
 

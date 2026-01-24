@@ -150,6 +150,18 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
       subtitle: 'Configure system settings',
       icon: 'settings',
       onPress: () => navigation.navigate('SystemSettings')
+    },
+    {
+      title: 'Verification Management',
+      subtitle: 'Approve organization verifications',
+      icon: 'shield-checkmark',
+      onPress: () => navigation.navigate('VerificationManagement')
+    },
+    {
+      title: 'Organization Directory',
+      subtitle: 'View public organization profiles',
+      icon: 'library',
+      onPress: () => navigation.navigate('PublicOrganizationProfiles')
     }
   ];
 

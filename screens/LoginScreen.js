@@ -61,14 +61,12 @@ const LoginScreen = ({ navigation, route }) => {
         // Check subscription status for organization admins
         if (userRole === 'ORGANIZATION' || userRole === 'ADMIN') {
           try {
-            const subscriptionResponse = await ApiService.getOrganizationSubscription();
-            if (!subscriptionResponse.success || !subscriptionResponse.data.subscription || subscriptionResponse.data.subscription.status !== 'active') {
-              // No active subscription, redirect to subscription selection
+            const subscriptionResponse = await ApiService.checkUserSubscriptionStatus(response.data.user._id);
+            if (subscriptionResponse.success && subscriptionResponse.data.redirectTo === 'subscription') {
               navigation.replace('SubscriptionSelection');
               return;
             }
           } catch (error) {
-            // If subscription check fails, assume no subscription and redirect
             navigation.replace('SubscriptionSelection');
             return;
           }

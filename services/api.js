@@ -1905,37 +1905,89 @@ class ApiService {
     return this.apiCall(`/super-admin/data-verification/verifications/${verificationId}`);
   }
 
-  // FIELD AGENT DATA VERIFICATION
-  static async createVerification(verificationData) {
-    return this.apiCall('/data-verification', {
+  // ORGANIZATION PROFILE MANAGEMENT
+  static async createOrganizationProfile(profileData) {
+    return this.apiCall('/admin/organization-profile', {
       method: 'POST',
-      body: JSON.stringify(verificationData),
+      body: JSON.stringify(profileData),
     });
   }
 
-  static async getMyVerifications() {
-    return this.apiCall('/data-verification/my-verifications');
+  static async getOrganizationProfile() {
+    return this.apiCall('/admin/organization-profile');
   }
 
-  static async getVerificationOrganizations() {
-    return this.apiCall('/data-verification/organizations');
+  static async addOrganizationLocation(locationData) {
+    return this.apiCall('/admin/organization-profile/locations', {
+      method: 'POST',
+      body: JSON.stringify(locationData),
+    });
   }
 
-  static async getVerificationUsers() {
-    return this.apiCall('/data-verification/users');
-  }
-
-  static async updateVerification(verificationId, verificationData) {
-    return this.apiCall(`/data-verification/${verificationId}`, {
+  static async updateOrganizationLocation(locationIndex, locationData) {
+    return this.apiCall(`/admin/organization-profile/locations/${locationIndex}`, {
       method: 'PUT',
-      body: JSON.stringify(verificationData),
+      body: JSON.stringify(locationData),
     });
   }
 
-  static async submitVerification(verificationId) {
-    return this.apiCall(`/data-verification/${verificationId}/submit`, {
+  static async deleteOrganizationLocation(locationIndex) {
+    return this.apiCall(`/admin/organization-profile/locations/${locationIndex}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async checkVerificationEligibility() {
+    return this.apiCall('/admin/organization-profile/verification/check');
+  }
+
+  static async submitForVerification() {
+    return this.apiCall('/admin/organization-profile/verification/submit', {
       method: 'POST',
     });
+  }
+
+  // VERIFIED BADGE PAYMENT
+  static async initializeVerifiedBadgePayment(paymentData) {
+    return this.apiCall('/payment/verified-badge/initialize', {
+      method: 'POST',
+      body: JSON.stringify(paymentData),
+    });
+  }
+
+  static async verifyVerifiedBadgePayment(transactionId) {
+    return this.apiCall('/payment/verified-badge/verify', {
+      method: 'POST',
+      body: JSON.stringify({ transactionId }),
+    });
+  }
+
+  // PUBLIC ORGANIZATION PROFILES
+  static async getAllPublicProfiles() {
+    return this.apiCall('/organization-profiles/public/all');
+  }
+
+  // SUPER ADMIN VERIFICATION MANAGEMENT
+  static async getPendingVerifications() {
+    return this.apiCall('/super-admin/verifications/pending');
+  }
+
+  static async approveVerification(profileId) {
+    return this.apiCall(`/super-admin/verifications/${profileId}/approve`, {
+      method: 'PUT',
+    });
+  }
+
+  static async rejectVerification(profileId, reason) {
+    return this.apiCall(`/super-admin/verifications/${profileId}/reject`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  // USER SUBSCRIPTION STATUS CHECK
+  static async checkUserSubscriptionStatus(userId) {
+    return this.apiCall(`/user-subscriptions/user/${userId}/status`);
   }
 
 
