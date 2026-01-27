@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,23 +18,91 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState('');
   const [transactionId, setTransactionId] = useState('');
+  const [pricing, setPricing] = useState({ amount: 50000, displayAmount: '500' }); // Default fallback
+  const [loadingPricing, setLoadingPricing] = useState(true);
+  const [userProfile, setUserProfile] = useState(null);
 
-  const VERIFIED_BADGE_PRICE = 50000; // ₦500 in kobo
+  useEffect(() => {
+    fetchPricing();
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await ApiService.getUserProfile();
+      if (response.success) {
+        setUserProfile(response.data.user);
+      }
+    } catch (error) {
+      console.log('Error fetching user profile:', error);
+    }
+  };
+
+  const fetchPricing = async () => {
+    try {
+      const response = await ApiService.getVerifiedBadgePricing();
+      console.log('🚨 PRICING API FULL RESPONSE:', JSON.stringify(response, null, 2));
+      
+      if (response.success && response.data) {
+        console.log('✅ API Success - Response data:', response.data);
+        
+        // Check different possible response structures
+        let amount;
+        if (response.data.amount) {
+          amount = Number(response.data.amount);
+        } else if (response.data.totalAmount) {
+          amount = Number(response.data.totalAmount);
+        } else if (response.data.price) {
+          amount = Number(response.data.price);
+        }
+        
+        console.log('💰 Extracted amount:', amount);
+        
+        if (amount && !isNaN(amount)) {
+          setPricing({
+            amount: amount,
+            displayAmount: amount.toString()
+          });
+          console.log('✅ Set pricing:', { amount, displayAmount: amount.toString() });
+        } else {
+          console.log('❌ Invalid amount, using fallback');
+          setPricing({ amount: 50000, displayAmount: '500' });
+        }
+      } else {
+        console.log('❌ API failed or no data, using fallback');
+        console.log('Response success:', response.success);
+        console.log('Response message:', response.message);
+        setPricing({ amount: 50000, displayAmount: '500' });
+      }
+    } catch (error) {
+      console.log('❌ API Error:', error);
+      setPricing({ amount: 50000, displayAmount: '500' });
+    } finally {
+      setLoadingPricing(false);
+    }
+  };
 
   const initializePayment = async () => {
+    if (!userProfile) {
+      Alert.alert('Error', 'User profile not loaded. Please try again.');
+      return;
+    }
+
     setLoading(true);
     try {
       const paymentData = {
-        amount: VERIFIED_BADGE_PRICE,
+        amount: pricing.amount,
         currency: 'NGN',
+        email: userProfile.email,
+        name: userProfile.fullName || `${userProfile.firstName} ${userProfile.lastName}`,
         redirect_url: 'https://your-app.com/payment-success',
       };
 
       const response = await ApiService.initializeVerifiedBadgePayment(paymentData);
       
-      if (response.success && response.data.authorization_url) {
-        setPaymentUrl(response.data.authorization_url);
-        setTransactionId(response.data.tx_ref);
+      if (response.success && (response.data.authorization_url || response.data.paymentLink)) {
+        setPaymentUrl(response.data.authorization_url || response.data.paymentLink);
+        setTransactionId(response.data.tx_ref || response.data.transactionRef);
         setShowPaymentModal(true);
       } else {
         Alert.alert('Error', response.message || 'Failed to initialize payment');
@@ -48,23 +116,48 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
 
   const handleWebViewNavigationStateChange = async (navState) => {
     const { url } = navState;
+    console.log('🌐 WebView navigation to:', url);
     
-    // Check if payment was completed
-    if (url.includes('payment-success') || url.includes('successful')) {
+    // Check if the URL contains success parameters from Flutterwave
+    if (url.includes('status=successful') || url.includes('successful')) {
+      console.log('✅ Payment successful, extracting transaction ID from URL');
+      
+      // Try to extract transaction_id from URL parameters
+      const urlParams = new URLSearchParams(url.split('?')[1] || '');
+      const flutterwaveTransactionId = urlParams.get('transaction_id') || urlParams.get('tx_ref');
+      
+      console.log('🔍 Extracted Flutterwave transaction ID:', flutterwaveTransactionId);
+      console.log('🔍 Our transaction ref:', transactionId);
+      
       setShowPaymentModal(false);
-      await verifyPayment();
-    } else if (url.includes('cancelled') || url.includes('failed')) {
+      
+      // Use Flutterwave's transaction ID if available, otherwise use our reference
+      const verificationId = flutterwaveTransactionId || transactionId;
+      console.log('🔍 Using transaction ID for verification:', verificationId);
+      
+      if (verificationId) {
+        await verifyPaymentWithId(verificationId);
+      } else {
+        Alert.alert('Error', 'Could not extract transaction ID from payment response');
+      }
+    } else if (url.includes('status=cancelled') || url.includes('status=failed') || url.includes('cancelled') || url.includes('failed')) {
+      console.log('❌ Payment cancelled or failed');
       setShowPaymentModal(false);
       Alert.alert('Payment Cancelled', 'Your payment was cancelled or failed');
     }
   };
 
-  const verifyPayment = async () => {
-    if (!transactionId) return;
+  const verifyPaymentWithId = async (txId) => {
+    if (!txId) {
+      console.log('❌ No transaction ID available for verification');
+      return;
+    }
 
+    console.log('🔍 Verifying payment with transaction ID:', txId);
     setLoading(true);
     try {
-      const response = await ApiService.verifyVerifiedBadgePayment(transactionId);
+      const response = await ApiService.verifyVerifiedBadgePayment(txId);
+      console.log('🔍 Verification response:', JSON.stringify(response, null, 2));
       
       if (response.success) {
         Alert.alert(
@@ -78,14 +171,18 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
           ]
         );
       } else {
+        console.log('❌ Verification failed:', response.message);
         Alert.alert('Payment Verification Failed', response.message || 'Please contact support');
       }
     } catch (error) {
+      console.log('❌ Verification error:', error);
       Alert.alert('Error', 'Failed to verify payment');
     } finally {
       setLoading(false);
     }
   };
+
+
 
   return (
     <View style={styles.container}>
@@ -138,14 +235,20 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
 
         <View style={styles.pricingCard}>
           <Text style={styles.cardTitle}>Pricing</Text>
-          <View style={styles.priceContainer}>
-            <Text style={styles.currency}>₦</Text>
-            <Text style={styles.price}>500</Text>
-            <Text style={styles.period}>one-time</Text>
-          </View>
-          <Text style={styles.priceNote}>
-            One-time payment for lifetime verification
-          </Text>
+          {loadingPricing ? (
+            <ActivityIndicator size="large" color="#7C3AED" style={{ marginVertical: 20 }} />
+          ) : (
+            <>
+              <View style={styles.priceContainer}>
+                <Text style={styles.currency}>₦</Text>
+                <Text style={styles.price}>{pricing.displayAmount}</Text>
+                <Text style={styles.period}>one-time</Text>
+              </View>
+              <Text style={styles.priceNote}>
+                One-time payment for lifetime verification
+              </Text>
+            </>
+          )}
         </View>
 
         <View style={styles.processCard}>
@@ -174,16 +277,18 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
         </View>
 
         <TouchableOpacity 
-          style={[styles.payButton, loading && styles.payButtonDisabled]} 
+          style={[styles.payButton, (loading || loadingPricing || !userProfile) && styles.payButtonDisabled]} 
           onPress={initializePayment}
-          disabled={loading}
+          disabled={loading || loadingPricing || !userProfile}
         >
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
               <Ionicons name="card" size={24} color="#FFFFFF" />
-              <Text style={styles.payButtonText}>Pay ₦500 Now</Text>
+              <Text style={styles.payButtonText}>
+                {loadingPricing ? 'Loading...' : `Pay ₦${pricing.displayAmount} Now`}
+              </Text>
             </>
           )}
         </TouchableOpacity>

@@ -28,9 +28,9 @@ const VerificationManagementScreen = ({ navigation }) => {
 
   const loadVerifications = async () => {
     try {
-      const response = await ApiService.getPendingVerifications();
+      const response = await ApiService.getPendingLocationVerifications();
       if (response.success) {
-        setVerifications(response.data.verifications || []);
+        setVerifications(response.data.pendingLocationVerifications || []);
       }
     } catch (error) {
       console.error('Error loading verifications:', error);
@@ -45,19 +45,19 @@ const VerificationManagementScreen = ({ navigation }) => {
     loadVerifications();
   };
 
-  const approveVerification = (profileId) => {
+  const approveVerification = (profileId, locationIndex) => {
     Alert.alert(
-      'Approve Verification',
-      'Are you sure you want to approve this organization for verification?',
+      'Approve Location Verification',
+      'Are you sure you want to approve this location for verification?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Approve',
           onPress: async () => {
             try {
-              const response = await ApiService.approveVerification(profileId);
+              const response = await ApiService.approveLocationVerification(profileId, locationIndex);
               if (response.success) {
-                Alert.alert('Success', 'Organization approved successfully');
+                Alert.alert('Success', 'Location approved successfully');
                 loadVerifications();
               } else {
                 Alert.alert('Error', response.message || 'Failed to approve');
@@ -83,8 +83,9 @@ const VerificationManagementScreen = ({ navigation }) => {
     }
 
     try {
-      const response = await ApiService.rejectVerification(
-        selectedVerification._id,
+      const response = await ApiService.rejectLocationVerification(
+        selectedVerification.profileId,
+        selectedVerification.locationIndex,
         rejectReason.trim()
       );
 
@@ -92,7 +93,7 @@ const VerificationManagementScreen = ({ navigation }) => {
         setShowRejectModal(false);
         setRejectReason('');
         setSelectedVerification(null);
-        Alert.alert('Success', 'Organization rejected successfully');
+        Alert.alert('Success', 'Location rejected successfully');
         loadVerifications();
       } else {
         Alert.alert('Error', response.message || 'Failed to reject');
@@ -146,43 +147,40 @@ const VerificationManagementScreen = ({ navigation }) => {
       >
         {verifications.length > 0 ? (
           verifications.map((verification) => (
-            <View key={verification._id} style={styles.verificationCard}>
+            <View key={`${verification.profileId}-${verification.locationIndex}`} style={styles.verificationCard}>
               <View style={styles.verificationHeader}>
                 <View style={styles.organizationInfo}>
-                  <Text style={styles.businessType}>{verification.businessType}</Text>
-                  <Text style={styles.organizationId}>ID: {verification._id}</Text>
+                  <Text style={styles.businessType}>{verification.location.brandName}</Text>
+                  <Text style={styles.organizationId}>Org: {verification.organizationId}</Text>
                   <Text style={styles.submissionDate}>
-                    Submitted: {formatDate(verification.createdAt)}
+                    Location: {verification.location.city}, {verification.location.state}
+                  </Text>
+                  <Text style={styles.submissionDate}>
+                    Fee: ₦{verification.location.cityRegionFee?.toLocaleString() || '0'}
                   </Text>
                 </View>
-                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(verification.verificationStatus) }]}>
-                  <Text style={styles.statusText}>
-                    {verification.verificationStatus?.toUpperCase() || 'PENDING'}
-                  </Text>
+                <View style={[styles.statusBadge, { backgroundColor: '#F59E0B' }]}>
+                  <Text style={styles.statusText}>PENDING VERIFICATION</Text>
                 </View>
               </View>
 
-              {verification.locations && verification.locations.length > 0 && (
-                <View style={styles.locationsSection}>
-                  <Text style={styles.sectionTitle}>Locations ({verification.locations.length})</Text>
-                  {verification.locations.slice(0, 2).map((location, index) => (
-                    <View key={index} style={styles.locationItem}>
-                      <Ionicons name="location" size={16} color="#7C3AED" />
-                      <Text style={styles.locationText}>{location.name} - {location.address}</Text>
-                    </View>
-                  ))}
-                  {verification.locations.length > 2 && (
-                    <Text style={styles.moreLocations}>
-                      +{verification.locations.length - 2} more locations
-                    </Text>
-                  )}
-                </View>
-              )}
+              <View style={styles.locationDetails}>
+                <Text style={styles.sectionTitle}>Location Details</Text>
+                <Text style={styles.locationText}>
+                  {verification.location.houseNumber} {verification.location.street}
+                </Text>
+                <Text style={styles.locationText}>
+                  {verification.location.cityRegion}, {verification.location.lga}
+                </Text>
+                {verification.location.landmark && (
+                  <Text style={styles.locationText}>Near: {verification.location.landmark}</Text>
+                )}
+              </View>
 
               <View style={styles.actionButtons}>
                 <TouchableOpacity 
                   style={[styles.actionButton, styles.approveButton]}
-                  onPress={() => approveVerification(verification._id)}
+                  onPress={() => approveVerification(verification.profileId, verification.locationIndex)}
                 >
                   <Ionicons name="checkmark" size={20} color="#FFFFFF" />
                   <Text style={styles.actionButtonText}>Approve</Text>
@@ -201,8 +199,8 @@ const VerificationManagementScreen = ({ navigation }) => {
         ) : (
           <View style={styles.emptyState}>
             <Ionicons name="checkmark-circle-outline" size={80} color="#7C3AED" />
-            <Text style={styles.emptyTitle}>No Pending Verifications</Text>
-            <Text style={styles.emptyText}>All verification requests have been processed</Text>
+            <Text style={styles.emptyTitle}>No Pending Location Verifications</Text>
+            <Text style={styles.emptyText}>All location verification requests have been processed</Text>
           </View>
         )}
       </ScrollView>
@@ -319,7 +317,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  locationsSection: {
+  locationDetails: {
     marginBottom: 20,
   },
   sectionTitle: {
@@ -359,7 +357,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   approveButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: '#7C3AED',
   },
   rejectButton: {
     backgroundColor: '#EF4444',

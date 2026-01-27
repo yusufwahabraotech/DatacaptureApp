@@ -62,11 +62,21 @@ const LoginScreen = ({ navigation, route }) => {
         if (userRole === 'ORGANIZATION' || userRole === 'ADMIN') {
           try {
             const subscriptionResponse = await ApiService.checkUserSubscriptionStatus(response.data.user._id);
-            if (subscriptionResponse.success && subscriptionResponse.data.redirectTo === 'subscription') {
+            console.log('Subscription check response:', subscriptionResponse);
+            
+            if (subscriptionResponse.success) {
+              if (subscriptionResponse.data.redirectTo === 'subscription') {
+                navigation.replace('SubscriptionSelection');
+                return;
+              }
+              // If redirectTo is 'dashboard' or user has active subscription, continue to dashboard
+            } else {
+              // If subscription check fails, redirect to subscription selection
               navigation.replace('SubscriptionSelection');
               return;
             }
           } catch (error) {
+            console.log('Subscription check error:', error);
             navigation.replace('SubscriptionSelection');
             return;
           }

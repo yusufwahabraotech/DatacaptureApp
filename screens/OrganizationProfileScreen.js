@@ -18,16 +18,43 @@ const OrganizationProfileScreen = ({ navigation }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [businessType, setBusinessType] = useState('registered');
   const [eligibility, setEligibility] = useState(null);
+  const [paymentRequired, setPaymentRequired] = useState(false);
 
   useEffect(() => {
     loadProfile();
-  }, []);
+    
+    // Listen for navigation focus to refresh profile
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadProfile();
+    });
+    
+    return unsubscribe;
+  }, [navigation]);
 
   const loadProfile = async () => {
     try {
       const response = await ApiService.getOrganizationProfile();
+      console.log('=== LOAD PROFILE DEBUG ===');
+      console.log('API Response:', JSON.stringify(response, null, 2));
+      
       if (response.success) {
-        setProfile(response.data);
+        // Check if we have profile data or just verification status
+        if (response.data.profile) {
+          // Full profile data
+          setProfile(response.data.profile);
+        } else if (response.data.verificationStatus) {
+          // Just verification status - create minimal profile
+          const profileData = {
+            businessType: 'registered',
+            verificationStatus: response.data.verificationStatus,
+            locations: [],
+            ...response.data
+          };
+          setProfile(profileData);
+        } else {
+          // Legacy format
+          setProfile(response.data);
+        }
         checkEligibility();
       } else if (response.message?.includes('not found')) {
         setProfile(null);
@@ -44,6 +71,12 @@ const OrganizationProfileScreen = ({ navigation }) => {
       const response = await ApiService.checkVerificationEligibility();
       if (response.success) {
         setEligibility(response.data);
+      }
+      
+      // Check if payment is required for verified badge
+      const paymentResponse = await ApiService.checkVerifiedBadgePaymentRequired();
+      if (paymentResponse.success) {
+        setPaymentRequired(paymentResponse.data.paymentRequired || false);
       }
     } catch (error) {
       console.error('Error checking eligibility:', error);
@@ -101,6 +134,15 @@ const OrganizationProfileScreen = ({ navigation }) => {
       case 'pending': return '#F59E0B';
       case 'rejected': return '#EF4444';
       default: return '#6B7280';
+    }
+  };
+
+  const getVerificationStatusText = (status) => {
+    switch (status) {
+      case 'verified': return 'Verified ✅';
+      case 'pending': return 'Pending Approval';
+      case 'unverified': return 'Unverified';
+      default: return 'Unverified';
     }
   };
 
@@ -188,7 +230,7 @@ const OrganizationProfileScreen = ({ navigation }) => {
             <View style={styles.profileInfo}>
               <Text style={styles.businessType}>{profile.businessType}</Text>
               <View style={[styles.statusBadge, { backgroundColor: getVerificationStatusColor(profile.verificationStatus) }]}>
-                <Text style={styles.statusText}>{profile.verificationStatus?.toUpperCase() || 'UNVERIFIED'}</Text>
+                <Text style={styles.statusText}>{getVerificationStatusText(profile.verificationStatus)}</Text>
               </View>
             </View>
           </View>
@@ -230,7 +272,7 @@ const OrganizationProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
           )}
 
-          {profile.verificationStatus !== 'verified' && (
+          {profile.verificationStatus !== 'verified' && paymentRequired && (
             <TouchableOpacity 
               style={styles.actionButton} 
               onPress={() => navigation.navigate('VerifiedBadgePayment')}

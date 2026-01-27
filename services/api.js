@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-const BASE_URL = 'http://172.20.10.4:3000/api';
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -1987,6 +1987,14 @@ class ApiService {
   }
 
   // VERIFIED BADGE PAYMENT
+  static async checkVerifiedBadgePaymentRequired() {
+    return this.apiCall('/payment/verified-badge/check-payment-required');
+  }
+
+  static async getVerifiedBadgePricing() {
+    return this.apiCall('/payment/verified-badge/pricing');
+  }
+
   static async initializeVerifiedBadgePayment(paymentData) {
     return this.apiCall('/payment/verified-badge/initialize', {
       method: 'POST',
@@ -2006,9 +2014,22 @@ class ApiService {
     return this.apiCall('/organization-profiles/public/all');
   }
 
-  // SUPER ADMIN VERIFICATION MANAGEMENT
-  static async getPendingVerifications() {
-    return this.apiCall('/super-admin/verifications/pending');
+  // SUPER ADMIN LOCATION VERIFICATION MANAGEMENT
+  static async getPendingLocationVerifications() {
+    return this.apiCall('/super-admin/location-verifications/pending');
+  }
+
+  static async approveLocationVerification(profileId, locationIndex) {
+    return this.apiCall(`/super-admin/location-verifications/${profileId}/${locationIndex}/approve`, {
+      method: 'PUT',
+    });
+  }
+
+  static async rejectLocationVerification(profileId, locationIndex, reason) {
+    return this.apiCall(`/super-admin/location-verifications/${profileId}/${locationIndex}/reject`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason }),
+    });
   }
 
   static async approveVerification(profileId) {
