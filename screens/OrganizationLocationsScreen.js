@@ -30,7 +30,7 @@ const OrganizationLocationsScreen = ({ navigation }) => {
     try {
       const response = await ApiService.getOrganizationProfile();
       if (response.success) {
-        setProfile(response.data);
+        setProfile(response.data.profile);
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -96,10 +96,15 @@ const OrganizationLocationsScreen = ({ navigation }) => {
             <View key={index} style={styles.locationCard}>
               <View style={styles.locationHeader}>
                 <View style={styles.locationInfo}>
-                  <Text style={styles.locationName}>{location.name}</Text>
-                  <Text style={styles.locationAddress}>{location.address}</Text>
-                  {location.description && (
-                    <Text style={styles.locationDescription}>{location.description}</Text>
+                  <Text style={styles.locationName}>{location.brandName}</Text>
+                  <Text style={styles.locationAddress}>
+                    {location.houseNumber} {location.street}, {location.city}, {location.state}
+                  </Text>
+                  <Text style={styles.locationDescription}>
+                    {location.locationType} • {location.lga} • {location.cityRegion}
+                  </Text>
+                  {location.landmark && (
+                    <Text style={styles.locationLandmark}>Near: {location.landmark}</Text>
                   )}
                 </View>
                 <View style={styles.locationActions}>
@@ -199,6 +204,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9CA3AF',
     fontStyle: 'italic',
+  },
+  locationLandmark: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+    marginTop: 2,
   },
   locationActions: {
     flexDirection: 'row',

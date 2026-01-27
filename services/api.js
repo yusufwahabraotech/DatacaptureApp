@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-const BASE_URL = 'http://192.168.0.183:3000/api';
+const BASE_URL = 'http://172.20.10.4:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -34,9 +34,15 @@ class ApiService {
     console.log('=== API CALL DEBUG ===');
     console.log('URL:', url);
     console.log('Method:', config.method || 'GET');
+    console.log('Has token:', !!token);
 
     try {
       const response = await fetch(url, config);
+      
+      console.log('=== RESPONSE DEBUG ===');
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         console.log(`API Error - Status: ${response.status}, URL: ${url}`);
@@ -49,35 +55,15 @@ class ApiService {
         };
       }
       
-      return await response.json();
+      const jsonResponse = await response.json();
+      console.log('=== SUCCESS RESPONSE ===');
+      console.log('Response data:', JSON.stringify(jsonResponse, null, 2));
+      return jsonResponse;
     } catch (error) {
       console.log('=== NETWORK ERROR DETAILS ===');
       console.log('Error name:', error.name);
       console.log('Error message:', error.message);
-      
-      // Try fallback URL if primary fails
-      if (error.message === 'Network request failed' && url.includes('onrender.com')) {
-        console.log('🔄 Trying fallback server...');
-        url = `${FALLBACK_URL}${endpoint}`;
-        console.log('Fallback URL:', url);
-        
-        try {
-          const fallbackResponse = await fetch(url, config);
-          
-          if (!fallbackResponse.ok) {
-            const error = await fallbackResponse.json().catch(() => ({ error: 'Unknown error' }));
-            return {
-              success: false,
-              message: error.message || `HTTP ${fallbackResponse.status}: ${fallbackResponse.statusText}`,
-              data: error
-            };
-          }
-          
-          return await fallbackResponse.json();
-        } catch (fallbackError) {
-          console.log('❌ Fallback also failed:', fallbackError.message);
-        }
-      }
+      console.log('Full error:', error);
       
       return {
         success: false,
@@ -1826,7 +1812,53 @@ class ApiService {
 
   static async getExternalLGAs(countryName, stateName) {
     try {
-      // Find country and state
+      // For Nigeria, provide comprehensive LGA data
+      if (countryName === 'Nigeria') {
+        const nigerianLGAs = {
+          'Lagos': [
+            'Agege', 'Ajeromi-Ifelodun', 'Alimosho', 'Amuwo-Odofin', 'Apapa',
+            'Badagry', 'Epe', 'Eti Osa', 'Ibeju-Lekki', 'Ifako-Ijaiye',
+            'Ikeja', 'Ikorodu', 'Kosofe', 'Lagos Island', 'Lagos Mainland',
+            'Mushin', 'Ojo', 'Oshodi-Isolo', 'Shomolu', 'Surulere'
+          ],
+          'Ogun': [
+            'Abeokuta North', 'Abeokuta South', 'Ado-Odo/Ota', 'Ewekoro', 'Ifo',
+            'Ijebu East', 'Ijebu North', 'Ijebu North East', 'Ijebu Ode', 'Ikenne',
+            'Imeko Afon', 'Ipokia', 'Obafemi Owode', 'Odeda', 'Odogbolu',
+            'Ogun Waterside', 'Remo North', 'Sagamu', 'Yewa North', 'Yewa South'
+          ],
+          'Kano': [
+            'Ajingi', 'Albasu', 'Bagwai', 'Bebeji', 'Bichi', 'Bunkure', 'Dala',
+            'Dambatta', 'Dawakin Kudu', 'Dawakin Tofa', 'Doguwa', 'Fagge',
+            'Gabasawa', 'Garko', 'Garun Mallam', 'Gaya', 'Gezawa', 'Gwale',
+            'Gwarzo', 'Kabo', 'Kano Municipal', 'Karaye', 'Kibiya', 'Kiru',
+            'Kumbotso', 'Kunchi', 'Kura', 'Madobi', 'Makoda', 'Minjibir',
+            'Nasarawa', 'Rano', 'Rimin Gado', 'Rogo', 'Shanono', 'Sumaila',
+            'Takai', 'Tarauni', 'Tofa', 'Tsanyawa', 'Tudun Wada', 'Ungogo',
+            'Warawa', 'Wudil'
+          ],
+          'Rivers': [
+            'Abua/Odual', 'Ahoada East', 'Ahoada West', 'Akuku-Toru', 'Andoni',
+            'Asari-Toru', 'Bonny', 'Degema', 'Eleme', 'Emuoha', 'Etche',
+            'Gokana', 'Ikwerre', 'Khana', 'Obio/Akpor', 'Ogba/Egbema/Ndoni',
+            'Ogu/Bolo', 'Okrika', 'Omuma', 'Opobo/Nkoro', 'Oyigbo',
+            'Port Harcourt', 'Tai'
+          ],
+          'Abuja': [
+            'Abaji', 'Bwari', 'Gwagwalada', 'Kuje', 'Kwali', 'Municipal Area Council'
+          ]
+        };
+
+        const lgas = nigerianLGAs[stateName];
+        if (lgas) {
+          return {
+            success: true,
+            data: { lgas: lgas.sort() }
+          };
+        }
+      }
+
+      // Fallback to original logic for other countries
       const countries = Country.getAllCountries();
       const country = countries.find(c => c.name === countryName);
       
@@ -1914,14 +1946,21 @@ class ApiService {
   }
 
   static async getOrganizationProfile() {
-    return this.apiCall('/admin/organization-profile');
+    console.log('🚨 GET ORGANIZATION PROFILE DEBUG 🚨');
+    const response = await this.apiCall('/admin/organization-profile');
+    console.log('Organization profile response:', JSON.stringify(response, null, 2));
+    return response;
   }
 
   static async addOrganizationLocation(locationData) {
-    return this.apiCall('/admin/organization-profile/locations', {
+    console.log('🚨 ADD ORGANIZATION LOCATION DEBUG 🚨');
+    console.log('Location data being sent:', JSON.stringify(locationData, null, 2));
+    const response = await this.apiCall('/admin/organization-profile/locations', {
       method: 'POST',
       body: JSON.stringify(locationData),
     });
+    console.log('Add location response:', JSON.stringify(response, null, 2));
+    return response;
   }
 
   static async updateOrganizationLocation(locationIndex, locationData) {
