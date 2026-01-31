@@ -20,6 +20,7 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
   const [packages, setPackages] = useState([]);
   const [packagePricing, setPackagePricing] = useState({});
   const [loading, setLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [selectedDuration, setSelectedDuration] = useState('yearly');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -31,9 +32,31 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
   const [includeVerifiedBadge, setIncludeVerifiedBadge] = useState(false);
 
   useEffect(() => {
-    fetchUserProfile();
-    fetchPackages();
+    checkExistingSubscription();
   }, []);
+
+  const checkExistingSubscription = async () => {
+    try {
+      console.log('🚨 CHECKING EXISTING SUBSCRIPTION 🚨');
+      const response = await ApiService.checkMySubscriptionStatus();
+      console.log('Subscription check response:', JSON.stringify(response, null, 2));
+      
+      if (response.success && response.data.hasActiveSubscription) {
+        console.log('✅ Active subscription found, redirecting to dashboard immediately');
+        setRedirecting(true);
+        navigation.replace('AdminDashboard');
+        return;
+      }
+      
+      console.log('❌ No active subscription, loading packages');
+      fetchUserProfile();
+      fetchPackages();
+    } catch (error) {
+      console.log('Error checking subscription:', error);
+      fetchUserProfile();
+      fetchPackages();
+    }
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -48,12 +71,12 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
 
   const fetchPackages = async () => {
     try {
-      const response = await ApiService.getAllSubscriptionPackages();
+      const response = await ApiService.getAvailablePackagesForOrganization();
       console.log('🚨 PACKAGES FETCH DEBUG 🚨');
       console.log('Packages response:', JSON.stringify(response, null, 2));
       
       if (response.success) {
-        const activePackages = response.data.packages.filter(pkg => pkg.isActive);
+        const activePackages = response.data.packages?.filter(pkg => pkg.isActive) || [];
         console.log('Active packages:', JSON.stringify(activePackages, null, 2));
         setPackages(activePackages);
         
@@ -189,11 +212,13 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
 
   const formatPrice = (price) => `₦${price.toLocaleString()}`;
 
-  if (loading) {
+  if (loading || redirecting) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#7C3AED" />
-        <Text style={styles.loadingText}>Loading subscription packages...</Text>
+        <Text style={styles.loadingText}>
+          {redirecting ? 'Redirecting to dashboard...' : 'Loading subscription packages...'}
+        </Text>
       </View>
     );
   }

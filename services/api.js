@@ -59,14 +59,10 @@ class ApiService {
       console.log('=== SUCCESS RESPONSE ===');
       console.log('Response data:', JSON.stringify(jsonResponse, null, 2));
       
-      // Check for subscription requirement
+      // Check for subscription requirement - but don't auto-redirect
       if (jsonResponse.requiresSubscription) {
-        console.log('🚨 SUBSCRIPTION REQUIRED - Redirecting to subscription selection');
-        // Use setTimeout to avoid navigation during API call
-        setTimeout(() => {
-          const { NavigationService } = require('../services/NavigationService');
-          NavigationService.navigate('SubscriptionSelection');
-        }, 100);
+        console.log('🚨 SUBSCRIPTION REQUIRED - but letting screens handle navigation');
+        // Let individual screens handle their own subscription checks and navigation
       }
       
       return jsonResponse;
@@ -2073,6 +2069,40 @@ class ApiService {
   // USER SUBSCRIPTION STATUS CHECK
   static async checkUserSubscriptionStatus(userId) {
     return this.apiCall(`/user-subscriptions/user/${userId}/status`);
+  }
+
+  // Check current user's subscription status
+  static async checkMySubscriptionStatus() {
+    try {
+      const profileResponse = await this.getUserProfile();
+      console.log('🚨 FULL PROFILE RESPONSE DEBUG 🚨');
+      console.log('Profile response:', JSON.stringify(profileResponse, null, 2));
+      
+      if (profileResponse.success && profileResponse.data.user) {
+        const user = profileResponse.data.user;
+        console.log('🚨 USER OBJECT DEBUG 🚨');
+        console.log('User keys:', Object.keys(user));
+        console.log('user._id:', user._id);
+        console.log('user.id:', user.id);
+        console.log('user.userId:', user.userId);
+        
+        // Try multiple possible userId fields
+        const userId = user._id || user.id || user.userId || user.ID;
+        console.log('Final userId:', userId);
+        
+        if (!userId) {
+          console.log('❌ No userId found in any field');
+          return { success: false, message: 'User ID not found in profile' };
+        }
+        
+        console.log('✅ Using userId:', userId);
+        return this.checkUserSubscriptionStatus(userId);
+      }
+      return { success: false, message: 'Failed to get user profile' };
+    } catch (error) {
+      console.log('Error in checkMySubscriptionStatus:', error);
+      return { success: false, message: 'Error checking subscription status' };
+    }
   }
 
   // LOGIN STATUS CHECK (New endpoint)

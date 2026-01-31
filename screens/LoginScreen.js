@@ -58,24 +58,29 @@ const LoginScreen = ({ navigation, route }) => {
         
         const userRole = response.data.user.role;
         
-        // Check login status for organization admins using new endpoint
+        // Check subscription status for organization admins
         if (userRole === 'ORGANIZATION') {
           try {
-            const loginStatusResponse = await ApiService.checkLoginStatus();
-            console.log('Login status response:', loginStatusResponse);
+            const subscriptionResponse = await ApiService.checkMySubscriptionStatus();
+            console.log('Subscription status response:', subscriptionResponse);
             
-            if (loginStatusResponse.success && loginStatusResponse.data.requiresSubscription) {
-              navigation.replace('SubscriptionSelection');
+            if (subscriptionResponse.success && subscriptionResponse.data.hasActiveSubscription) {
+              console.log('Active subscription found, going directly to dashboard');
+              navigation.replace('AdminDashboard', { showTutorial: true });
               return;
             }
+            
+            console.log('No active subscription, redirecting to subscription selection');
+            navigation.replace('SubscriptionSelection');
+            return;
           } catch (error) {
-            console.log('Login status check error:', error);
+            console.log('Subscription status check error:', error);
             navigation.replace('SubscriptionSelection');
             return;
           }
         }
         
-        // Navigate to appropriate dashboard only if subscription check passes
+        // Navigate to appropriate dashboard for non-organization users
         if (userRole === 'SUPER_ADMIN') {
           navigation.replace('SuperAdminDashboard', { showTutorial: true });
         } else if (userRole === 'ORGANIZATION') {

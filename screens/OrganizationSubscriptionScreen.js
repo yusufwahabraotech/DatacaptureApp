@@ -23,21 +23,31 @@ const OrganizationSubscriptionScreen = ({ navigation }) => {
 
   const fetchCurrentSubscription = async () => {
     try {
-      // This would be an organization-specific endpoint
-      const response = await ApiService.apiCall('/organization/subscription');
-      if (response.success) {
+      const response = await ApiService.getOrganizationSubscription();
+      console.log('🚨 SUBSCRIPTION CHECK DEBUG 🚨');
+      console.log('Subscription response:', JSON.stringify(response, null, 2));
+      
+      if (response.success && response.data.subscription) {
+        console.log('✅ Active subscription found:', response.data.subscription);
         setCurrentSubscription(response.data.subscription);
+      } else {
+        console.log('❌ No active subscription found');
+        setCurrentSubscription(null);
       }
     } catch (error) {
       console.log('Error fetching current subscription:', error);
+      setCurrentSubscription(null);
     }
   };
 
   const fetchAvailablePackages = async () => {
     try {
-      const response = await ApiService.getSuperAdminSubscriptions(1, 50, 'active');
+      const response = await ApiService.getAvailablePackagesForOrganization();
+      console.log('🚨 PACKAGES DEBUG 🚨');
+      console.log('Available packages response:', JSON.stringify(response, null, 2));
+      
       if (response.success) {
-        setAvailablePackages(response.data.packages);
+        setAvailablePackages(response.data.packages || []);
       }
     } catch (error) {
       console.log('Error fetching packages:', error);
