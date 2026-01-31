@@ -58,33 +58,27 @@ const LoginScreen = ({ navigation, route }) => {
         
         const userRole = response.data.user.role;
         
-        // Check subscription status for organization admins
-        if (userRole === 'ORGANIZATION' || userRole === 'ADMIN') {
+        // Check login status for organization admins using new endpoint
+        if (userRole === 'ORGANIZATION') {
           try {
-            const subscriptionResponse = await ApiService.checkUserSubscriptionStatus(response.data.user._id);
-            console.log('Subscription check response:', subscriptionResponse);
+            const loginStatusResponse = await ApiService.checkLoginStatus();
+            console.log('Login status response:', loginStatusResponse);
             
-            if (subscriptionResponse.success) {
-              if (subscriptionResponse.data.redirectTo === 'subscription') {
-                navigation.replace('SubscriptionSelection');
-                return;
-              }
-              // If redirectTo is 'dashboard' or user has active subscription, continue to dashboard
-            } else {
-              // If subscription check fails, redirect to subscription selection
+            if (loginStatusResponse.success && loginStatusResponse.data.requiresSubscription) {
               navigation.replace('SubscriptionSelection');
               return;
             }
           } catch (error) {
-            console.log('Subscription check error:', error);
+            console.log('Login status check error:', error);
             navigation.replace('SubscriptionSelection');
             return;
           }
         }
         
+        // Navigate to appropriate dashboard only if subscription check passes
         if (userRole === 'SUPER_ADMIN') {
           navigation.replace('SuperAdminDashboard', { showTutorial: true });
-        } else if (userRole === 'ORGANIZATION' || userRole === 'ADMIN') {
+        } else if (userRole === 'ORGANIZATION') {
           navigation.replace('AdminDashboard', { showTutorial: true });
         } else {
           navigation.replace('Dashboard', { showTutorial: true });

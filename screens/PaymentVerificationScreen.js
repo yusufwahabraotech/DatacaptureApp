@@ -13,7 +13,7 @@ const PaymentVerificationScreen = ({ route, navigation }) => {
   const [verifying, setVerifying] = useState(true);
   const [status, setStatus] = useState('verifying');
   
-  const { transactionId, status: paymentStatus } = route.params || {};
+  const { transactionId, status: paymentStatus, paymentType } = route.params || {};
 
   useEffect(() => {
     verifyPayment();
@@ -22,15 +22,30 @@ const PaymentVerificationScreen = ({ route, navigation }) => {
   const verifyPayment = async () => {
     try {
       if (paymentStatus === 'successful' && transactionId) {
-        const response = await ApiService.verifyPayment(transactionId);
+        let response;
+        
+        // Use appropriate verification endpoint based on payment type
+        if (paymentType === 'combined') {
+          response = await ApiService.verifyCombinedPayment(transactionId);
+        } else {
+          response = await ApiService.verifyPayment(transactionId);
+        }
         
         if (response.success) {
           setStatus('success');
           setTimeout(() => {
+            const successMessage = paymentType === 'combined' 
+              ? 'Your subscription has been activated and verified badge is pending approval.'
+              : 'Your subscription has been activated successfully.';
+              
             Alert.alert(
               'Success!',
-              'Your subscription has been activated successfully.',
+              successMessage,
               [
+                {
+                  text: 'View Organization Profile',
+                  onPress: () => navigation.replace('OrganizationProfile')
+                },
                 {
                   text: 'Continue to Dashboard',
                   onPress: () => navigation.replace('AdminDashboard')

@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { navigationRef } from './services/NavigationService';
 
 import SplashScreen from './screens/SplashScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
@@ -76,13 +77,14 @@ import AddLocationScreen from './screens/AddLocationScreen';
 import VerifiedBadgePaymentScreen from './screens/VerifiedBadgePaymentScreen';
 import VerificationManagementScreen from './screens/VerificationManagementScreen';
 import PublicOrganizationProfilesScreen from './screens/PublicOrganizationProfilesScreen';
+import CombinedPaymentScreen from './screens/CombinedPaymentScreen';
 
 const Stack = createStackNavigator();
 
 export default function App() {
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <StatusBar style="auto" />
         <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
@@ -161,6 +163,7 @@ export default function App() {
         <Stack.Screen name="OrganizationLocations" component={OrganizationLocationsScreen} />
         <Stack.Screen name="AddLocation" component={AddLocationScreen} />
         <Stack.Screen name="VerifiedBadgePayment" component={VerifiedBadgePaymentScreen} />
+        <Stack.Screen name="CombinedPayment" component={CombinedPaymentScreen} />
         <Stack.Screen name="VerificationManagement" component={VerificationManagementScreen} />
         <Stack.Screen name="PublicOrganizationProfiles" component={PublicOrganizationProfilesScreen} />
       </Stack.Navigator>

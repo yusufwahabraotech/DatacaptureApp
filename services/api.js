@@ -58,6 +58,17 @@ class ApiService {
       const jsonResponse = await response.json();
       console.log('=== SUCCESS RESPONSE ===');
       console.log('Response data:', JSON.stringify(jsonResponse, null, 2));
+      
+      // Check for subscription requirement
+      if (jsonResponse.requiresSubscription) {
+        console.log('🚨 SUBSCRIPTION REQUIRED - Redirecting to subscription selection');
+        // Use setTimeout to avoid navigation during API call
+        setTimeout(() => {
+          const { NavigationService } = require('../services/NavigationService');
+          NavigationService.navigate('SubscriptionSelection');
+        }, 100);
+      }
+      
       return jsonResponse;
     } catch (error) {
       console.log('=== NETWORK ERROR DETAILS ===');
@@ -1638,14 +1649,14 @@ class ApiService {
     console.log('🚨 PAYMENT INITIALIZATION DEBUG 🚨');
     console.log('Payment data being sent:', JSON.stringify(paymentData, null, 2));
     
-    return this.apiCall('/payments/initialize', {
+    return this.apiCall('/payment/initialize', {
       method: 'POST',
       body: JSON.stringify(paymentData),
     });
   }
 
   static async verifyPayment(transactionId) {
-    return this.apiCall('/payments/verify', {
+    return this.apiCall('/payment/verify', {
       method: 'POST',
       body: JSON.stringify({ transactionId }),
     });
@@ -2019,6 +2030,14 @@ class ApiService {
     return this.apiCall('/super-admin/location-verifications/pending');
   }
 
+  static async getRejectedLocationVerifications() {
+    return this.apiCall('/super-admin/location-verifications/rejected');
+  }
+
+  static async getVerifiedLocationVerifications() {
+    return this.apiCall('/super-admin/location-verifications/verified');
+  }
+
   static async approveLocationVerification(profileId, locationIndex) {
     return this.apiCall(`/super-admin/location-verifications/${profileId}/${locationIndex}/approve`, {
       method: 'PUT',
@@ -2029,6 +2048,12 @@ class ApiService {
     return this.apiCall(`/super-admin/location-verifications/${profileId}/${locationIndex}/reject`, {
       method: 'PUT',
       body: JSON.stringify({ reason }),
+    });
+  }
+
+  static async sendLocationRejectionEmail(profileId, locationIndex) {
+    return this.apiCall(`/super-admin/location-verifications/${profileId}/${locationIndex}/send-rejection-email`, {
+      method: 'POST',
     });
   }
 
@@ -2048,6 +2073,34 @@ class ApiService {
   // USER SUBSCRIPTION STATUS CHECK
   static async checkUserSubscriptionStatus(userId) {
     return this.apiCall(`/user-subscriptions/user/${userId}/status`);
+  }
+
+  // LOGIN STATUS CHECK (New endpoint)
+  static async checkLoginStatus() {
+    return this.apiCall('/admin/login-status');
+  }
+
+  // COMBINED PAYMENT (Subscription + Verified Badge)
+  static async initializeCombinedPayment(paymentData) {
+    console.log('🚨 COMBINED PAYMENT INITIALIZATION DEBUG 🚨');
+    console.log('Combined payment data being sent:', JSON.stringify(paymentData, null, 2));
+    
+    return this.apiCall('/payment/combined/initialize', {
+      method: 'POST',
+      body: JSON.stringify(paymentData),
+    });
+  }
+
+  static async verifyCombinedPayment(transactionId) {
+    return this.apiCall('/payment/combined/verify', {
+      method: 'POST',
+      body: JSON.stringify({ transactionId }),
+    });
+  }
+
+  // CITY REGIONS (for verified badge pricing)
+  static async getCityRegions() {
+    return this.apiCall('/super-admin/locations');
   }
 
 

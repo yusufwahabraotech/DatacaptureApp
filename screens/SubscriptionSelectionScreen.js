@@ -28,6 +28,7 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
   const [transactionRef, setTransactionRef] = useState('');
   const [promoCode, setPromoCode] = useState('');
   const [userProfile, setUserProfile] = useState(null);
+  const [includeVerifiedBadge, setIncludeVerifiedBadge] = useState(false);
 
   useEffect(() => {
     fetchUserProfile();
@@ -106,11 +107,21 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
 
   const handleSelectPackage = (pkg) => {
     setSelectedPackage(pkg);
+    setIncludeVerifiedBadge(false); // Reset verified badge option
     setShowPaymentModal(true);
   };
 
   const handlePayment = async () => {
     if (!selectedPackage || !userProfile) return;
+
+    // If verified badge is selected, navigate to combined payment
+    if (includeVerifiedBadge) {
+      navigation.navigate('CombinedPayment', {
+        selectedPackage,
+        selectedDuration
+      });
+      return;
+    }
 
     console.log('🚨 PAYMENT HANDLER DEBUG 🚨');
     console.log('Selected package:', JSON.stringify(selectedPackage, null, 2));
@@ -316,6 +327,37 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
                     placeholder="Enter promo code"
                     placeholderTextColor="#9CA3AF"
                   />
+                </View>
+
+                <View style={styles.verifiedBadgeSection}>
+                  <Text style={styles.sectionTitle}>Verified Badge (Optional):</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.verifiedBadgeOption,
+                      includeVerifiedBadge && styles.verifiedBadgeSelected
+                    ]}
+                    onPress={() => setIncludeVerifiedBadge(!includeVerifiedBadge)}
+                  >
+                    <View style={styles.verifiedBadgeContent}>
+                      <View style={styles.verifiedBadgeInfo}>
+                        <Text style={[
+                          styles.verifiedBadgeTitle,
+                          includeVerifiedBadge && styles.verifiedBadgeSelectedText
+                        ]}>Add Verified Badge</Text>
+                        <Text style={styles.verifiedBadgeDescription}>
+                          Enhance credibility and allow multiple locations
+                        </Text>
+                      </View>
+                      <View style={[
+                        styles.checkbox,
+                        includeVerifiedBadge && styles.checkboxSelected
+                      ]}>
+                        {includeVerifiedBadge && (
+                          <Ionicons name="checkmark" size={16} color="white" />
+                        )}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
                 </View>
 
                 <View style={styles.totalSection}>
@@ -535,6 +577,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
   },
+  combinedButton: {
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  combinedButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -606,6 +660,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
+  },
+  verifiedBadgeSection: {
+    marginBottom: 20,
+  },
+  verifiedBadgeOption: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 16,
+  },
+  verifiedBadgeSelected: {
+    borderColor: '#7C3AED',
+    backgroundColor: '#F5F3FF',
+  },
+  verifiedBadgeContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  verifiedBadgeInfo: {
+    flex: 1,
+  },
+  verifiedBadgeTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  verifiedBadgeSelectedText: {
+    color: '#7C3AED',
+  },
+  verifiedBadgeDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
   },
   totalSection: {
     flexDirection: 'row',

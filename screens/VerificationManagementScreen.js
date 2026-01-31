@@ -21,16 +21,29 @@ const VerificationManagementScreen = ({ navigation }) => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedVerification, setSelectedVerification] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('pending');
 
   useEffect(() => {
     loadVerifications();
-  }, []);
+  }, [activeFilter]);
 
   const loadVerifications = async () => {
     try {
-      const response = await ApiService.getPendingLocationVerifications();
+      let response;
+      if (activeFilter === 'pending') {
+        response = await ApiService.getPendingLocationVerifications();
+      } else if (activeFilter === 'rejected') {
+        response = await ApiService.getRejectedLocationVerifications();
+      } else if (activeFilter === 'verified') {
+        response = await ApiService.getVerifiedLocationVerifications();
+      }
+      
       if (response.success) {
-        setVerifications(response.data.pendingLocationVerifications || []);
+        const key = activeFilter === 'pending' ? 'pendingLocationVerifications' : 
+                   activeFilter === 'rejected' ? 'rejectedLocationVerifications' : 
+                   'verifiedLocationVerifications';
+        setVerifications(response.data[key] || []);
       }
     } catch (error) {
       console.error('Error loading verifications:', error);
@@ -74,6 +87,28 @@ const VerificationManagementScreen = ({ navigation }) => {
   const openRejectModal = (verification) => {
     setSelectedVerification(verification);
     setShowRejectModal(true);
+  };
+
+  const sendRejectionEmail = async (profileId, locationIndex) => {
+    setSendingEmail(true);
+    try {
+      const response = await ApiService.sendLocationRejectionEmail(profileId, locationIndex);
+      
+      if (response.success) {
+        Alert.alert(
+          'Email Sent Successfully',
+          `Rejection notification sent to ${response.data.recipientEmail}`,
+          [{ text: 'OK' }]
+        );
+        loadVerifications(); // Refresh to show updated email status
+      } else {
+        Alert.alert('Error', response.message || 'Failed to send email');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to send rejection email');
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   const rejectVerification = async () => {
@@ -139,6 +174,27 @@ const VerificationManagementScreen = ({ navigation }) => {
         <Text style={styles.headerTitle}>Verification Management</Text>
       </View>
 
+      <View style={styles.filterContainer}>
+        <TouchableOpacity 
+          style={[styles.filterButton, activeFilter === 'pending' && styles.activeFilter]}
+          onPress={() => setActiveFilter('pending')}
+        >
+          <Text style={[styles.filterText, activeFilter === 'pending' && styles.activeFilterText]}>Pending</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.filterButton, activeFilter === 'rejected' && styles.activeFilter]}
+          onPress={() => setActiveFilter('rejected')}
+        >
+          <Text style={[styles.filterText, activeFilter === 'rejected' && styles.activeFilterText]}>Rejected</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.filterButton, activeFilter === 'verified' && styles.activeFilter]}
+          onPress={() => setActiveFilter('verified')}
+        >
+          <Text style={[styles.filterText, activeFilter === 'verified' && styles.activeFilterText]}>Verified</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView 
         style={styles.content}
         refreshControl={
@@ -147,7 +203,7 @@ const VerificationManagementScreen = ({ navigation }) => {
       >
         {verifications.length > 0 ? (
           verifications.map((verification) => (
-            <View key={`${verification.profileId}-${verification.locationIndex}`} style={styles.verificationCard}>
+            <View key={`${verification.profileId}-${verification.locationIndex}-${activeFilter}`} style={styles.verificationCard}>
               <View style={styles.verificationHeader}>
                 <View style={styles.organizationInfo}>
                   <Text style={styles.businessType}>{verification.location.brandName}</Text>
@@ -159,8 +215,11 @@ const VerificationManagementScreen = ({ navigation }) => {
                     Fee: ₦{verification.location.cityRegionFee?.toLocaleString() || '0'}
                   </Text>
                 </View>
-                <View style={[styles.statusBadge, { backgroundColor: '#F59E0B' }]}>
-                  <Text style={styles.statusText}>PENDING VERIFICATION</Text>
+                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(activeFilter) }]}>
+                  <Text style={styles.statusText}>
+                    {activeFilter === 'pending' ? 'PENDING VERIFICATION' : 
+                     activeFilter === 'rejected' ? 'REJECTED' : 'VERIFIED'}
+                  </Text>
                 </View>
               </View>
 
@@ -178,29 +237,53 @@ const VerificationManagementScreen = ({ navigation }) => {
               </View>
 
               <View style={styles.actionButtons}>
-                <TouchableOpacity 
-                  style={[styles.actionButton, styles.approveButton]}
-                  onPress={() => approveVerification(verification.profileId, verification.locationIndex)}
-                >
-                  <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                  <Text style={styles.actionButtonText}>Approve</Text>
-                </TouchableOpacity>
+                {activeFilter === 'pending' ? (
+                  <>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.approveButton]}
+                      onPress={() => approveVerification(verification.profileId, verification.locationIndex)}
+                    >
+                      <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                      <Text style={styles.actionButtonText}>Approve</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={[styles.actionButton, styles.rejectButton]}
-                  onPress={() => openRejectModal(verification)}
-                >
-                  <Ionicons name="close" size={20} color="#FFFFFF" />
-                  <Text style={styles.actionButtonText}>Reject</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.rejectButton]}
+                      onPress={() => openRejectModal(verification)}
+                    >
+                      <Ionicons name="close" size={20} color="#FFFFFF" />
+                      <Text style={styles.actionButtonText}>Reject</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : activeFilter === 'rejected' ? (
+                  verification.location.emailSent ? (
+                    <View style={[styles.actionButton, styles.emailSentButton]}>
+                      <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                      <Text style={styles.emailSentText}>Email sent on {new Date(verification.location.emailSentAt).toLocaleDateString()}</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.emailButton]}
+                      onPress={() => sendRejectionEmail(verification.profileId, verification.locationIndex)}
+                      disabled={sendingEmail}
+                    >
+                      {sendingEmail ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Ionicons name="mail" size={20} color="#FFFFFF" />
+                      )}
+                      <Text style={styles.actionButtonText}>Send Email</Text>
+                    </TouchableOpacity>
+                  )
+                ) : null}
               </View>
             </View>
           ))
         ) : (
           <View style={styles.emptyState}>
             <Ionicons name="checkmark-circle-outline" size={80} color="#7C3AED" />
-            <Text style={styles.emptyTitle}>No Pending Location Verifications</Text>
-            <Text style={styles.emptyText}>All location verification requests have been processed</Text>
+            <Text style={styles.emptyTitle}>No {activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)} Verifications</Text>
+            <Text style={styles.emptyText}>No {activeFilter} location verification requests found</Text>
           </View>
         )}
       </ScrollView>
@@ -267,6 +350,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 15,
     color: '#1F2937',
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    marginHorizontal: 5,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  activeFilter: {
+    backgroundColor: '#7C3AED',
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  activeFilterText: {
+    color: '#FFFFFF',
   },
   content: {
     flex: 1,
@@ -361,6 +472,20 @@ const styles = StyleSheet.create({
   },
   rejectButton: {
     backgroundColor: '#EF4444',
+  },
+  emailButton: {
+    backgroundColor: '#3B82F6',
+  },
+  emailSentButton: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  emailSentText: {
+    color: '#10B981',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 5,
   },
   actionButtonText: {
     color: '#FFFFFF',
