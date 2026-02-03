@@ -116,6 +116,12 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
       onPress: () => navigation.navigate('LocationManagement')
     },
     {
+      title: 'Default Pricing',
+      subtitle: 'Set default pricing for locations',
+      icon: 'pricetag',
+      onPress: () => navigation.navigate('DefaultPricingManagement')
+    },
+    {
       title: 'Paid Subscriptions',
       subtitle: 'View all paid subscriptions',
       icon: 'card',

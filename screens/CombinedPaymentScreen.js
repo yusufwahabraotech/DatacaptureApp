@@ -311,13 +311,18 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
 
   const calculateTotalFees = () => {
     const subscriptionAmount = calculatePackagePrice();
-    const verifiedBadgeAmount = savedLocations.reduce((sum, location) => 
+    // Only include locations that are not paid for and not rejected+paid
+    const eligibleLocations = savedLocations.filter(location => 
+      !location.isPaidFor || location.verificationStatus !== 'rejected'
+    );
+    const verifiedBadgeAmount = eligibleLocations.reduce((sum, location) => 
       sum + (location.fee || 0), 0
     );
     return {
       subscriptionAmount,
       verifiedBadgeAmount,
-      totalAmount: subscriptionAmount + verifiedBadgeAmount
+      totalAmount: subscriptionAmount + verifiedBadgeAmount,
+      eligibleLocations: eligibleLocations.length
     };
   };
 
@@ -585,7 +590,7 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
         </View>
 
         {/* Payment Summary */}
-        {savedLocations.length > 0 && (
+        {savedLocations.length > 0 && calculateTotalFees().eligibleLocations > 0 && (
           <View style={styles.paymentSummary}>
             <Text style={styles.sectionTitle}>Payment Summary</Text>
             <View style={styles.summaryRow}>
@@ -593,7 +598,7 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
               <Text style={styles.summaryAmount}>{formatPrice(calculateTotalFees().subscriptionAmount)}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Verified Badge ({savedLocations.length} locations):</Text>
+              <Text style={styles.summaryLabel}>Verified Badge ({calculateTotalFees().eligibleLocations} locations):</Text>
               <Text style={styles.summaryAmount}>{formatPrice(calculateTotalFees().verifiedBadgeAmount)}</Text>
             </View>
             <View style={[styles.summaryRow, styles.totalRow]}>
@@ -603,7 +608,7 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
           </View>
         )}
 
-        {savedLocations.length > 0 && (
+        {savedLocations.length > 0 && calculateTotalFees().eligibleLocations > 0 && (
           <TouchableOpacity 
             style={styles.payButton} 
             onPress={handleCombinedPayment}
@@ -615,6 +620,14 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
               <Text style={styles.payButtonText}>Proceed to Payment</Text>
             )}
           </TouchableOpacity>
+        )}
+
+        {savedLocations.length > 0 && calculateTotalFees().eligibleLocations === 0 && (
+          <View style={styles.noPaymentNeeded}>
+            <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+            <Text style={styles.noPaymentTitle}>All Locations Paid</Text>
+            <Text style={styles.noPaymentText}>No additional payment required for your locations</Text>
+          </View>
         )}
       </ScrollView>
 
@@ -1133,6 +1146,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#F59E0B',
+  },
+  savedLocationFee: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  noPaymentNeeded: {
+    alignItems: 'center',
+    padding: 40,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  noPaymentTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#10B981',
+    marginTop: 12,
+  },
+  noPaymentText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });
 

@@ -46,6 +46,13 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
       if (response.success && response.data) {
         console.log('✅ API Success - Response data:', response.data);
         
+        // Check if there are any unpaid locations that need payment
+        if (response.data.totalAmount === 0 || response.data.unpaidLocations === 0) {
+          console.log('✅ No payment required - all locations are paid');
+          setPricing({ amount: 0, displayAmount: '0', noPaymentRequired: true });
+          return;
+        }
+        
         // Check different possible response structures
         let amount;
         if (response.data.amount) {
@@ -61,22 +68,23 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
         if (amount && !isNaN(amount)) {
           setPricing({
             amount: amount,
-            displayAmount: amount.toString()
+            displayAmount: amount.toString(),
+            noPaymentRequired: false
           });
           console.log('✅ Set pricing:', { amount, displayAmount: amount.toString() });
         } else {
-          console.log('❌ Invalid amount, using fallback');
-          setPricing({ amount: 50000, displayAmount: '500' });
+          console.log('❌ Invalid amount, no payment required');
+          setPricing({ amount: 0, displayAmount: '0', noPaymentRequired: true });
         }
       } else {
-        console.log('❌ API failed or no data, using fallback');
+        console.log('❌ API failed or no data, no payment required');
         console.log('Response success:', response.success);
         console.log('Response message:', response.message);
-        setPricing({ amount: 50000, displayAmount: '500' });
+        setPricing({ amount: 0, displayAmount: '0', noPaymentRequired: true });
       }
     } catch (error) {
       console.log('❌ API Error:', error);
-      setPricing({ amount: 50000, displayAmount: '500' });
+      setPricing({ amount: 0, displayAmount: '0', noPaymentRequired: true });
     } finally {
       setLoadingPricing(false);
     }
@@ -237,6 +245,14 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
           <Text style={styles.cardTitle}>Pricing</Text>
           {loadingPricing ? (
             <ActivityIndicator size="large" color="#7C3AED" style={{ marginVertical: 20 }} />
+          ) : pricing.noPaymentRequired ? (
+            <View style={styles.noPaymentContainer}>
+              <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+              <Text style={styles.noPaymentTitle}>All Locations Paid</Text>
+              <Text style={styles.noPaymentText}>
+                No additional payment required for verified badge
+              </Text>
+            </View>
           ) : (
             <>
               <View style={styles.priceContainer}>
@@ -277,12 +293,17 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
         </View>
 
         <TouchableOpacity 
-          style={[styles.payButton, (loading || loadingPricing || !userProfile) && styles.payButtonDisabled]} 
+          style={[styles.payButton, (loading || loadingPricing || !userProfile || pricing.noPaymentRequired) && styles.payButtonDisabled]} 
           onPress={initializePayment}
-          disabled={loading || loadingPricing || !userProfile}
+          disabled={loading || loadingPricing || !userProfile || pricing.noPaymentRequired}
         >
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />
+          ) : pricing.noPaymentRequired ? (
+            <>
+              <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+              <Text style={styles.payButtonText}>Already Paid</Text>
+            </>
           ) : (
             <>
               <Ionicons name="card" size={24} color="#FFFFFF" />
@@ -500,6 +521,22 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
+  },
+  noPaymentContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  noPaymentTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#10B981',
+    marginTop: 12,
+  },
+  noPaymentText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });
 

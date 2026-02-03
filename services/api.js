@@ -2133,6 +2133,55 @@ class ApiService {
     return this.apiCall('/super-admin/locations');
   }
 
+  // SUPER ADMIN DEFAULT PRICING MANAGEMENT
+  static async createDefaultPricing(pricingData) {
+    return this.apiCall('/super-admin/default-pricing', {
+      method: 'POST',
+      body: JSON.stringify(pricingData),
+    });
+  }
+
+  static async getAllDefaultPricing(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.country) queryParams.append('country', params.country);
+    if (params.state) queryParams.append('state', params.state);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/super-admin/default-pricing${queryString ? '?' + queryString : ''}`;
+    return this.apiCall(endpoint);
+  }
+
+  static async getDefaultPricingById(pricingId) {
+    return this.apiCall(`/super-admin/default-pricing/${pricingId}`);
+  }
+
+  static async updateDefaultPricing(pricingId, pricingData) {
+    return this.apiCall(`/super-admin/default-pricing/${pricingId}`, {
+      method: 'PUT',
+      body: JSON.stringify(pricingData),
+    });
+  }
+
+  static async deleteDefaultPricing(pricingId) {
+    return this.apiCall(`/super-admin/default-pricing/${pricingId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async testLocationPricing(locationData) {
+    const queryParams = new URLSearchParams();
+    if (locationData.country) queryParams.append('country', locationData.country);
+    if (locationData.state) queryParams.append('state', locationData.state);
+    if (locationData.lga) queryParams.append('lga', locationData.lga);
+    if (locationData.city) queryParams.append('city', locationData.city);
+    if (locationData.cityRegion) queryParams.append('cityRegion', locationData.cityRegion);
+    
+    const queryString = queryParams.toString();
+    return this.apiCall(`/super-admin/pricing/location?${queryString}`);
+  }
+
 
 }
 

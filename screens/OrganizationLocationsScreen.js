@@ -49,26 +49,29 @@ const OrganizationLocationsScreen = ({ navigation }) => {
       console.log('API Response:', JSON.stringify(response, null, 2));
       
       if (response.success) {
+        let profileData;
+        
         // Handle different response structures
         if (response.data.profile) {
           console.log('Using response.data.profile');
-          const profileData = response.data.profile;
-          
-          // Clean up locations data from Mongoose documents
-          if (profileData.locations && profileData.locations.length > 0) {
-            profileData.locations = profileData.locations.map(location => {
-              // Extract clean data from Mongoose document
-              return location._doc || location;
-            });
-          }
-          
-          setProfile(profileData);
+          profileData = response.data.profile;
         } else {
           console.log('Using response.data directly');
-          setProfile(response.data);
+          profileData = response.data;
         }
+        
+        // Ensure locations array exists and is properly formatted
+        if (!profileData.locations) {
+          profileData.locations = [];
+        }
+        
+        console.log('Final profile data:', JSON.stringify(profileData, null, 2));
+        console.log('Locations count:', profileData.locations?.length || 0);
+        
+        setProfile(profileData);
       } else {
         console.log('API response not successful:', response.message);
+        setProfile(null);
       }
       
       // Check if payment is required for verified badge

@@ -78,6 +78,7 @@ import VerifiedBadgePaymentScreen from './screens/VerifiedBadgePaymentScreen';
 import VerificationManagementScreen from './screens/VerificationManagementScreen';
 import PublicOrganizationProfilesScreen from './screens/PublicOrganizationProfilesScreen';
 import CombinedPaymentScreen from './screens/CombinedPaymentScreen';
+import DefaultPricingManagementScreen from './screens/DefaultPricingManagementScreen';
 
 const Stack = createStackNavigator();
 
@@ -166,6 +167,7 @@ export default function App() {
         <Stack.Screen name="CombinedPayment" component={CombinedPaymentScreen} />
         <Stack.Screen name="VerificationManagement" component={VerificationManagementScreen} />
         <Stack.Screen name="PublicOrganizationProfiles" component={PublicOrganizationProfilesScreen} />
+        <Stack.Screen name="DefaultPricingManagement" component={DefaultPricingManagementScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>
