@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-const BASE_URL = 'http://192.168.0.183:3000/api';
+const BASE_URL = 'http://192.168.1.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -2133,6 +2133,41 @@ class ApiService {
     return this.apiCall('/super-admin/locations');
   }
 
+  // LOCATION OPTIONS (New endpoints for city regions and hierarchy)
+  static async getLocationHierarchy(level, params = {}) {
+    const queryParams = new URLSearchParams({ level, ...params });
+    return this.apiCall(`/admin/location-options/hierarchy?${queryParams}`);
+  }
+
+  static async getCityRegionOptions(params = {}) {
+    const queryParams = new URLSearchParams(params);
+    return this.apiCall(`/admin/location-options/city-regions?${queryParams}`);
+  }
+
+  // Get cities for a specific country, state, and LGA
+  static async getCities(country, state, lga) {
+    const params = new URLSearchParams({ country, state, lga });
+    return this.apiCall(`/admin/location-options/cities?${params}`);
+  }
+
+  // Get city regions with pricing for a specific location
+  static async getCityRegions(country, state, lga, city) {
+    const params = new URLSearchParams({ country, state, lga, city });
+    return this.apiCall(`/admin/location-options/city-regions?${params}`);
+  }
+
+  // Get cities for a specific country, state, and LGA
+  static async getCities(country, state, lga) {
+    const params = new URLSearchParams({ country, state, lga });
+    return this.apiCall(`/admin/location-options/cities?${params}`);
+  }
+
+  // Get city regions with pricing for a specific location
+  static async getCityRegions(country, state, lga, city) {
+    const params = new URLSearchParams({ country, state, lga, city });
+    return this.apiCall(`/admin/location-options/city-regions?${params}`);
+  }
+
   // SUPER ADMIN DEFAULT PRICING MANAGEMENT
   static async createDefaultPricing(pricingData) {
     return this.apiCall('/super-admin/default-pricing', {
@@ -2180,6 +2215,91 @@ class ApiService {
     
     const queryString = queryParams.toString();
     return this.apiCall(`/super-admin/pricing/location?${queryString}`);
+  }
+
+  // GALLERY MANAGEMENT
+  static async getGalleryItems(filters = {}) {
+    const params = new URLSearchParams({
+      page: filters.page || 1,
+      limit: filters.limit || 10,
+      ...(filters.category && { category: filters.category }),
+      ...(filters.minPrice && { minPrice: filters.minPrice }),
+      ...(filters.maxPrice && { maxPrice: filters.maxPrice }),
+      sortBy: filters.sortBy || 'createdAt',
+      sortOrder: filters.sortOrder || 'desc'
+    });
+
+    return this.apiCall(`/admin/gallery?${params}`);
+  }
+
+  static async getGalleryItem(itemId) {
+    return this.apiCall(`/admin/gallery/${itemId}`);
+  }
+
+  static async createGalleryItem(itemData) {
+    return this.apiCall('/admin/gallery', {
+      method: 'POST',
+      body: JSON.stringify(itemData),
+    });
+  }
+
+  static async updateGalleryItem(itemId, itemData) {
+    return this.apiCall(`/admin/gallery/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(itemData),
+    });
+  }
+
+  static async deleteGalleryItem(itemId) {
+    return this.apiCall(`/admin/gallery/${itemId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async uploadGalleryImage(itemId, imageFile) {
+    const formData = new FormData();
+    formData.append('image', {
+      uri: imageFile.uri,
+      type: 'image/jpeg',
+      name: 'image.jpg',
+    });
+
+    return this.apiCall(`/admin/gallery/${itemId}/upload-image`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+  }
+
+  static async uploadGalleryVideo(itemId, videoFile) {
+    const formData = new FormData();
+    formData.append('video', {
+      uri: videoFile.uri,
+      type: 'video/mp4',
+      name: 'video.mp4',
+    });
+
+    return this.apiCall(`/admin/gallery/${itemId}/upload-video`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+  }
+
+  static async getGalleryCategories() {
+    return this.apiCall('/admin/gallery/categories');
+  }
+
+  static async getGalleryMediaUsage() {
+    return this.apiCall('/admin/gallery/media-usage');
+  }
+
+  static async getGalleryLocations() {
+    return this.apiCall('/admin/gallery/locations');
   }
 
 

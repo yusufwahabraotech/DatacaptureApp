@@ -79,6 +79,9 @@ import VerificationManagementScreen from './screens/VerificationManagementScreen
 import PublicOrganizationProfilesScreen from './screens/PublicOrganizationProfilesScreen';
 import CombinedPaymentScreen from './screens/CombinedPaymentScreen';
 import DefaultPricingManagementScreen from './screens/DefaultPricingManagementScreen';
+import GalleryManagementScreen from './screens/GalleryManagementScreen';
+import CreateGalleryItemScreen from './screens/CreateGalleryItemScreen';
+import EditGalleryItemScreen from './screens/EditGalleryItemScreen';
 
 const Stack = createStackNavigator();
 
@@ -168,6 +171,11 @@ export default function App() {
         <Stack.Screen name="VerificationManagement" component={VerificationManagementScreen} />
         <Stack.Screen name="PublicOrganizationProfiles" component={PublicOrganizationProfilesScreen} />
         <Stack.Screen name="DefaultPricingManagement" component={DefaultPricingManagementScreen} />
+        
+        {/* Gallery Management Screens */}
+        <Stack.Screen name="GalleryManagement" component={GalleryManagementScreen} />
+        <Stack.Screen name="CreateGalleryItem" component={CreateGalleryItemScreen} />
+        <Stack.Screen name="EditGalleryItem" component={EditGalleryItemScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

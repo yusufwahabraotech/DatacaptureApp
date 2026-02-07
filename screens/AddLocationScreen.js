@@ -80,6 +80,10 @@ const AddLocationScreen = ({ navigation, route }) => {
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [lgas, setLgas] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [cityRegionOptions, setCityRegionOptions] = useState([]);
+  const [showCustomCity, setShowCustomCity] = useState(false);
+  const [showCustomCityRegion, setShowCustomCityRegion] = useState(false);
 
   useEffect(() => {
     loadCountries();
@@ -104,6 +108,12 @@ const AddLocationScreen = ({ navigation, route }) => {
         loadStates(editingLocation.country);
         if (editingLocation.state) {
           loadLGAs(editingLocation.country, editingLocation.state);
+          if (editingLocation.lga) {
+            loadCities(editingLocation.country, editingLocation.state, editingLocation.lga);
+            if (editingLocation.city) {
+              loadCityRegions(editingLocation.country, editingLocation.state, editingLocation.lga, editingLocation.city);
+            }
+          }
         }
       }
     }
@@ -113,7 +123,7 @@ const AddLocationScreen = ({ navigation, route }) => {
     try {
       const response = await ApiService.getExternalCountries();
       if (response.success) {
-        setCountries(response.data.countries);
+        setCountries(response.data.countries.map(c => c.name) || []);
       }
     } catch (error) {
       console.error('Error loading countries:', error);
@@ -124,8 +134,10 @@ const AddLocationScreen = ({ navigation, route }) => {
     try {
       const response = await ApiService.getExternalStates(countryName);
       if (response.success) {
-        setStates(response.data.states);
+        setStates(response.data.states.map(s => s.name) || []);
         setLgas([]);
+        setCities([]);
+        setCityRegionOptions([]);
       }
     } catch (error) {
       console.error('Error loading states:', error);
@@ -136,27 +148,100 @@ const AddLocationScreen = ({ navigation, route }) => {
     try {
       const response = await ApiService.getExternalLGAs(countryName, stateName);
       if (response.success) {
-        setLgas(response.data.lgas);
+        setLgas(response.data.lgas || []);
+        setCities([]);
+        setCityRegionOptions([]);
       }
     } catch (error) {
       console.error('Error loading LGAs:', error);
     }
   };
 
+  const loadCities = async (country, state, lga) => {
+    try {
+      const response = await ApiService.getCities(country, state, lga);
+      if (response.success) {
+        const cityOptions = [...(response.data.cities || []), 'Others'];
+        setCities(cityOptions);
+      }
+    } catch (error) {
+      console.error('Error loading cities:', error);
+      setCities(['Others']);
+    }
+  };
+
+  const loadCityRegions = async (country, state, lga, city) => {
+    try {
+      const response = await ApiService.getCityRegions(country, state, lga, city);
+      if (response.success) {
+        const options = response.data.cityRegions.map(cr => ({
+          label: `${cr.name} (₦${(cr.fee || 0).toLocaleString()})`,
+          value: cr.name,
+          fee: cr.fee || 0
+        }));
+        options.push({ label: 'Others (Enter custom)', value: 'Others', fee: 0 });
+        setCityRegionOptions(options);
+      }
+    } catch (error) {
+      console.error('Error loading city regions:', error);
+      setCityRegionOptions([{ label: 'Others (Enter custom)', value: 'Others', fee: 0 }]);
+    }
+  };
+
   const onCountryChange = (country) => {
-    setLocationData({...locationData, country, state: '', lga: ''});
+    setLocationData({...locationData, country, state: '', lga: '', city: '', cityRegion: ''});
     setStates([]);
     setLgas([]);
+    setCities([]);
+    setCityRegionOptions([]);
+    setShowCustomCityRegion(false);
     if (country) {
       loadStates(country);
     }
   };
 
   const onStateChange = (state) => {
-    setLocationData({...locationData, state, lga: ''});
+    setLocationData({...locationData, state, lga: '', city: '', cityRegion: ''});
     setLgas([]);
+    setCities([]);
+    setCityRegionOptions([]);
+    setShowCustomCityRegion(false);
     if (state && locationData.country) {
       loadLGAs(locationData.country, state);
+    }
+  };
+
+  const onLGAChange = (lga) => {
+    setLocationData({...locationData, lga, city: '', cityRegion: ''});
+    setShowCustomCity(false);
+    setShowCustomCityRegion(false);
+    if (lga && locationData.country && locationData.state) {
+      loadCities(locationData.country, locationData.state, lga);
+    }
+    setCityRegionOptions([{ label: 'Others (Enter custom)', value: 'Others', fee: 0 }]);
+  };
+
+  const onCityChange = (city) => {
+    if (city === 'Others') {
+      setShowCustomCity(true);
+      setLocationData({...locationData, city: '', cityRegion: ''});
+    } else {
+      setShowCustomCity(false);
+      setLocationData({...locationData, city, cityRegion: ''});
+      setShowCustomCityRegion(false);
+      if (city && locationData.country && locationData.state && locationData.lga) {
+        loadCityRegions(locationData.country, locationData.state, locationData.lga, city);
+      }
+    }
+  };
+
+  const onCityRegionChange = (cityRegion) => {
+    if (cityRegion === 'Others') {
+      setShowCustomCityRegion(true);
+      setLocationData({...locationData, cityRegion: ''});
+    } else {
+      setShowCustomCityRegion(false);
+      setLocationData({...locationData, cityRegion});
     }
   };
 
@@ -177,12 +262,11 @@ const AddLocationScreen = ({ navigation, route }) => {
   };
 
   const canProceedToStep3 = () => {
-    return locationData.country && locationData.state && locationData.lga;
+    return locationData.country && locationData.state && locationData.lga && locationData.city;
   };
 
   const canSubmit = () => {
-    return locationData.city.trim() && locationData.cityRegion.trim() && 
-           locationData.houseNumber.trim() && locationData.street.trim();
+    return locationData.cityRegion.trim() && locationData.houseNumber.trim() && locationData.street.trim();
   };
 
   const handleSubmit = async () => {
@@ -278,14 +362,14 @@ const AddLocationScreen = ({ navigation, route }) => {
             <CustomDropdown
               placeholder="Select Country *"
               value={locationData.country}
-              options={countries.map(c => ({ label: c.name, value: c.name }))}
+              options={countries.map(c => ({ label: c, value: c }))}
               onSelect={onCountryChange}
             />
             
             <CustomDropdown
               placeholder="Select State *"
               value={locationData.state}
-              options={states.map(s => ({ label: s.name, value: s.name }))}
+              options={states.map(s => ({ label: s, value: s }))}
               onSelect={onStateChange}
               disabled={states.length === 0}
             />
@@ -294,9 +378,26 @@ const AddLocationScreen = ({ navigation, route }) => {
               placeholder="Select LGA *"
               value={locationData.lga}
               options={lgas.map(lga => ({ label: lga, value: lga }))}
-              onSelect={(lga) => setLocationData({...locationData, lga})}
+              onSelect={onLGAChange}
               disabled={lgas.length === 0}
             />
+            
+            <CustomDropdown
+              placeholder="Select City *"
+              value={locationData.city}
+              options={cities.map(city => ({ label: city, value: city }))}
+              onSelect={onCityChange}
+            />
+            
+            {showCustomCity && (
+              <TextInput
+                style={styles.input}
+                placeholder="Enter Custom City *"
+                placeholderTextColor="#9CA3AF"
+                value={locationData.city}
+                onChangeText={(text) => setLocationData({...locationData, city: text})}
+              />
+            )}
           </ScrollView>
         );
       
@@ -305,21 +406,22 @@ const AddLocationScreen = ({ navigation, route }) => {
           <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
             <Text style={styles.stepTitle}>Address Details</Text>
             
-            <TextInput
-              style={styles.input}
-              placeholder="City *"
-              placeholderTextColor="#9CA3AF"
-              value={locationData.city}
-              onChangeText={(text) => setLocationData({...locationData, city: text})}
+            <CustomDropdown
+              placeholder="Select City Region *"
+              value={locationData.cityRegion}
+              options={cityRegionOptions}
+              onSelect={onCityRegionChange}
             />
             
-            <TextInput
-              style={styles.input}
-              placeholder="City Region *"
-              placeholderTextColor="#9CA3AF"
-              value={locationData.cityRegion}
-              onChangeText={(text) => setLocationData({...locationData, cityRegion: text})}
-            />
+            {showCustomCityRegion && (
+              <TextInput
+                style={styles.input}
+                placeholder="Enter Custom City Region *"
+                placeholderTextColor="#9CA3AF"
+                value={locationData.cityRegion}
+                onChangeText={(text) => setLocationData({...locationData, cityRegion: text})}
+              />
+            )}
             
             <TextInput
               style={styles.input}

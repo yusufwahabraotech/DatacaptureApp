@@ -173,6 +173,12 @@ const AdminDashboardScreen = ({ navigation }) => {
       subtitle: 'Manage profile & verification',
       icon: 'business',
       onPress: () => navigation.navigate('OrganizationProfile')
+    },
+    {
+      title: 'Gallery Management',
+      subtitle: 'Manage product gallery',
+      icon: 'images',
+      onPress: () => navigation.navigate('GalleryManagement')
     }
   ];
 

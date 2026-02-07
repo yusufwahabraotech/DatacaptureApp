@@ -25,7 +25,15 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
   useEffect(() => {
     fetchPricing();
     fetchUserProfile();
-  }, []);
+    
+    // Add focus listener to refresh pricing when returning to screen
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('🔄 VerifiedBadgePaymentScreen focused - refreshing pricing');
+      fetchPricing();
+    });
+    
+    return unsubscribe;
+  }, [navigation]);
 
   const fetchUserProfile = async () => {
     try {
@@ -40,6 +48,26 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
 
   const fetchPricing = async () => {
     try {
+      // First get organization profile to compare pricing
+      const profileResponse = await ApiService.getOrganizationProfile();
+      console.log('🏢 ORGANIZATION PROFILE FOR PRICING COMPARISON:', JSON.stringify(profileResponse, null, 2));
+      
+      if (profileResponse.success && profileResponse.data.profile) {
+        const locations = profileResponse.data.profile.locations || [];
+        const unpaidLocations = locations.filter(loc => {
+          // Only exclude locations that are rejected AND paid for
+          const isRejectedAndPaid = loc.verificationStatus === 'rejected' && loc.isPaidFor;
+          return !isRejectedAndPaid;
+        });
+        console.log('💰 UNPAID LOCATIONS FROM PROFILE:');
+        unpaidLocations.forEach((loc, index) => {
+          console.log(`  ${index + 1}. ${loc.brandName} - ${loc.cityRegion}: ₦${loc.cityRegionFee || 0}`);
+        });
+        const profileTotal = unpaidLocations.reduce((sum, loc) => sum + (loc.cityRegionFee || 0), 0);
+        console.log('💰 PROFILE CALCULATED TOTAL:', profileTotal);
+      }
+      
+      // Now get pricing from the verified badge pricing API
       const response = await ApiService.getVerifiedBadgePricing();
       console.log('🚨 PRICING API FULL RESPONSE:', JSON.stringify(response, null, 2));
       

@@ -60,9 +60,29 @@ const OrganizationLocationsScreen = ({ navigation }) => {
           profileData = response.data;
         }
         
-        // Ensure locations array exists and is properly formatted
+        // Ensure locations array exists and clean up Mongoose documents
         if (!profileData.locations) {
           profileData.locations = [];
+        } else if (profileData.locations.length > 0) {
+          // Clean up Mongoose document metadata
+          profileData.locations = profileData.locations.map(location => {
+            // If it's a Mongoose document, extract the clean data
+            if (location._doc) {
+              return location._doc;
+            }
+            // If it has Mongoose metadata but no _doc, clean it manually
+            if (location.$__ || location.$isNew !== undefined) {
+              const cleanLocation = {};
+              Object.keys(location).forEach(key => {
+                if (!key.startsWith('$') && !key.startsWith('_') && key !== '__v' && key !== '__index') {
+                  cleanLocation[key] = location[key];
+                }
+              });
+              return cleanLocation;
+            }
+            // Already clean data
+            return location;
+          });
         }
         
         console.log('Final profile data:', JSON.stringify(profileData, null, 2));

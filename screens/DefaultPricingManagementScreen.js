@@ -67,6 +67,8 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [lgas, setLgas] = useState([]);
+  const [showCustomCountry, setShowCustomCountry] = useState(false);
+  const [showCustomState, setShowCustomState] = useState(false);
   const [formData, setFormData] = useState({
     country: '',
     state: '',
@@ -129,19 +131,34 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
   };
 
   const onCountryChange = (country) => {
-    setFormData({...formData, country, state: '', lga: '', city: ''});
-    setStates([]);
-    setLgas([]);
-    if (country) {
-      loadStates(country);
+    if (country === 'Others') {
+      setShowCustomCountry(true);
+      setFormData({...formData, country: '', state: '', lga: '', city: ''});
+      setStates([]);
+      setLgas([]);
+    } else {
+      setShowCustomCountry(false);
+      setFormData({...formData, country, state: '', lga: '', city: ''});
+      setStates([]);
+      setLgas([]);
+      if (country) {
+        loadStates(country);
+      }
     }
   };
 
   const onStateChange = (state) => {
-    setFormData({...formData, state, lga: '', city: ''});
-    setLgas([]);
-    if (state && formData.country) {
-      loadLGAs(formData.country, state);
+    if (state === 'Others') {
+      setShowCustomState(true);
+      setFormData({...formData, state: '', lga: '', city: ''});
+      setLgas([]);
+    } else {
+      setShowCustomState(false);
+      setFormData({...formData, state, lga: '', city: ''});
+      setLgas([]);
+      if (state && formData.country) {
+        loadLGAs(formData.country, state);
+      }
     }
   };
 
@@ -303,17 +320,36 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
                 <CustomDropdown
                   placeholder="Select Country *"
                   value={formData.country}
-                  options={countries.map(c => ({ label: c.name, value: c.name }))}
+                  options={[...countries.map(c => ({ label: c.name, value: c.name })), { label: 'Others', value: 'Others' }]}
                   onSelect={onCountryChange}
                 />
+                
+                {showCustomCountry && (
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter Custom Country *"
+                    placeholderTextColor="#6B7280"
+                    value={formData.country}
+                    onChangeText={(country) => setFormData({...formData, country})}
+                  />
+                )}
                 
                 <CustomDropdown
                   placeholder="Select State (Optional)"
                   value={formData.state}
-                  options={states.map(s => ({ label: s.name, value: s.name }))}
+                  options={[...states.map(s => ({ label: s.name, value: s.name })), { label: 'Others', value: 'Others' }]}
                   onSelect={onStateChange}
-                  disabled={states.length === 0}
                 />
+                
+                {showCustomState && (
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter Custom State"
+                    placeholderTextColor="#6B7280"
+                    value={formData.state}
+                    onChangeText={(state) => setFormData({...formData, state})}
+                  />
+                )}
                 
                 <CustomDropdown
                   placeholder="Select LGA (Optional)"
