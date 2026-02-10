@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-const BASE_URL = 'http://192.168.1.183:3000/api';
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -2302,6 +2302,98 @@ class ApiService {
     return this.apiCall('/admin/gallery/locations');
   }
 
+  // SUPER ADMIN INDUSTRY MANAGEMENT
+  static async createIndustry(industryData) {
+    return this.apiCall('/super-admin/industries', {
+      method: 'POST',
+      body: JSON.stringify(industryData),
+    });
+  }
+
+  static async getAllIndustries() {
+    return this.apiCall('/super-admin/industries');
+  }
+
+  static async getIndustryById(industryId) {
+    return this.apiCall(`/super-admin/industries/${industryId}`);
+  }
+
+  static async updateIndustry(industryId, industryData) {
+    return this.apiCall(`/super-admin/industries/${industryId}`, {
+      method: 'PUT',
+      body: JSON.stringify(industryData),
+    });
+  }
+
+  static async deleteIndustry(industryId) {
+    return this.apiCall(`/super-admin/industries/${industryId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // SUPER ADMIN CATEGORY MANAGEMENT
+  static async createCategory(categoryData) {
+    return this.apiCall('/super-admin/categories', {
+      method: 'POST',
+      body: JSON.stringify(categoryData),
+    });
+  }
+
+  static async getAllCategories(industryId = null) {
+    const endpoint = industryId 
+      ? `/super-admin/categories?industryId=${industryId}`
+      : '/super-admin/categories';
+    return this.apiCall(endpoint);
+  }
+
+  static async getCategoryById(categoryId) {
+    return this.apiCall(`/super-admin/categories/${categoryId}`);
+  }
+
+  static async updateCategory(categoryId, categoryData) {
+    return this.apiCall(`/super-admin/categories/${categoryId}`, {
+      method: 'PUT',
+      body: JSON.stringify(categoryData),
+    });
+  }
+
+  static async deleteCategory(categoryId) {
+    return this.apiCall(`/super-admin/categories/${categoryId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // SUPER ADMIN PICKUP CENTER MANAGEMENT
+  static async createPickupCenter(centerData) {
+    return this.apiCall('/super-admin/pickup-centers', {
+      method: 'POST',
+      body: JSON.stringify(centerData),
+    });
+  }
+
+  static async getAllPickupCenters(isActive = null) {
+    const endpoint = isActive && isActive !== 'all'
+      ? `/super-admin/pickup-centers?isActive=${isActive}`
+      : '/super-admin/pickup-centers';
+    return this.apiCall(endpoint);
+  }
+
+  static async getPickupCenterById(centerId) {
+    return this.apiCall(`/super-admin/pickup-centers/${centerId}`);
+  }
+
+  static async updatePickupCenter(centerId, centerData) {
+    return this.apiCall(`/super-admin/pickup-centers/${centerId}`, {
+      method: 'PUT',
+      body: JSON.stringify(centerData),
+    });
+  }
+
+  static async deletePickupCenter(centerId) {
+    return this.apiCall(`/super-admin/pickup-centers/${centerId}`, {
+      method: 'DELETE',
+    });
+  }
 
 }
 

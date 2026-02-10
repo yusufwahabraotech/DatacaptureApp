@@ -98,6 +98,24 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
 
   const quickActions = [
     {
+      title: 'Industry Management',
+      subtitle: 'Create and manage industries',
+      icon: 'business',
+      onPress: () => navigation.navigate('IndustryManagement')
+    },
+    {
+      title: 'Category Management',
+      subtitle: 'Manage categories within industries',
+      icon: 'folder',
+      onPress: () => navigation.navigate('CategoryManagement')
+    },
+    {
+      title: 'Pickup Centers',
+      subtitle: 'Manage pickup center locations',
+      icon: 'location',
+      onPress: () => navigation.navigate('PickupCenterManagement')
+    },
+    {
       title: 'Data Verification',
       subtitle: 'Manage field verification system',
       icon: 'shield-checkmark',
@@ -106,13 +124,13 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
     {
       title: 'Manage Organizations',
       subtitle: 'View and manage all organizations',
-      icon: 'business',
+      icon: 'business-outline',
       onPress: () => navigation.navigate('OrganizationManagement')
     },
     {
       title: 'Location Management',
       subtitle: 'Manage location hierarchy and fees',
-      icon: 'location',
+      icon: 'map',
       onPress: () => navigation.navigate('LocationManagement')
     },
     {
@@ -160,7 +178,7 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
     {
       title: 'Verification Management',
       subtitle: 'Approve organization verifications',
-      icon: 'shield-checkmark',
+      icon: 'shield-checkmark-outline',
       onPress: () => navigation.navigate('VerificationManagement')
     },
     {

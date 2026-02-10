@@ -82,6 +82,9 @@ import DefaultPricingManagementScreen from './screens/DefaultPricingManagementSc
 import GalleryManagementScreen from './screens/GalleryManagementScreen';
 import CreateGalleryItemScreen from './screens/CreateGalleryItemScreen';
 import EditGalleryItemScreen from './screens/EditGalleryItemScreen';
+import IndustryManagementScreen from './screens/IndustryManagementScreen';
+import CategoryManagementScreen from './screens/CategoryManagementScreen';
+import PickupCenterManagementScreen from './screens/PickupCenterManagementScreen';
 
 const Stack = createStackNavigator();
 
@@ -176,6 +179,11 @@ export default function App() {
         <Stack.Screen name="GalleryManagement" component={GalleryManagementScreen} />
         <Stack.Screen name="CreateGalleryItem" component={CreateGalleryItemScreen} />
         <Stack.Screen name="EditGalleryItem" component={EditGalleryItemScreen} />
+        
+        {/* Super Admin Management Screens */}
+        <Stack.Screen name="IndustryManagement" component={IndustryManagementScreen} />
+        <Stack.Screen name="CategoryManagement" component={CategoryManagementScreen} />
+        <Stack.Screen name="PickupCenterManagement" component={PickupCenterManagementScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>
