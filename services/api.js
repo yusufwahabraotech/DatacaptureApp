@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-const BASE_URL = 'http://192.168.0.183:3000/api';
+const BASE_URL = 'http://192.168.1.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -2302,6 +2302,22 @@ class ApiService {
     return this.apiCall('/admin/gallery/locations');
   }
 
+  // GALLERY INDUSTRY/CATEGORY INTEGRATION
+  static async getGalleryIndustries() {
+    return this.apiCall('/admin/gallery/industries');
+  }
+
+  static async getGalleryCategories(industryId = null) {
+    const endpoint = industryId 
+      ? `/admin/gallery/categories?industryId=${industryId}`
+      : '/admin/gallery/categories';
+    return this.apiCall(endpoint);
+  }
+
+  static async getPlatformCodePreview() {
+    return this.apiCall('/admin/gallery/preview-code');
+  }
+
   // SUPER ADMIN INDUSTRY MANAGEMENT
   static async createIndustry(industryData) {
     return this.apiCall('/super-admin/industries', {
@@ -2391,6 +2407,40 @@ class ApiService {
 
   static async deletePickupCenter(centerId) {
     return this.apiCall(`/super-admin/pickup-centers/${centerId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // SUPER ADMIN PLATFORM COMMISSION MANAGEMENT
+  static async createPlatformCommission(commissionData) {
+    return this.apiCall('/super-admin/platform-commissions', {
+      method: 'POST',
+      body: JSON.stringify(commissionData),
+    });
+  }
+
+  static async getAllPlatformCommissions(industryId = null, categoryId = null) {
+    let endpoint = '/super-admin/platform-commissions';
+    const params = [];
+    if (industryId) params.push(`industryId=${industryId}`);
+    if (categoryId) params.push(`categoryId=${categoryId}`);
+    if (params.length > 0) endpoint += `?${params.join('&')}`;
+    return this.apiCall(endpoint);
+  }
+
+  static async getPlatformCommissionByCategory(categoryId) {
+    return this.apiCall(`/super-admin/platform-commissions/category/${categoryId}`);
+  }
+
+  static async updatePlatformCommission(commissionId, commissionData) {
+    return this.apiCall(`/super-admin/platform-commissions/${commissionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(commissionData),
+    });
+  }
+
+  static async deletePlatformCommission(commissionId) {
+    return this.apiCall(`/super-admin/platform-commissions/${commissionId}`, {
       method: 'DELETE',
     });
   }

@@ -20,14 +20,16 @@ import ApiService from '../services/api';
 const CreateGalleryItemScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
     description: '',
-    category: '',
+    itemType: '',
+    industryId: '',
+    categoryId: '',
     sku: '',
     upc: '',
     platformUniqueCode: '',
     totalAvailableQuantity: '0',
     priceInDollars: '0.00',
     discountPercentage: '0',
-    platformChargePercentage: '5',
+    upfrontPaymentPercentage: '0',
     startDate: '',
     startTime: '09:00',
     endDate: '',
@@ -38,12 +40,20 @@ const CreateGalleryItemScreen = ({ navigation }) => {
   });
 
   const [locations, setLocations] = useState([]);
+  const [industries, setIndustries] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [commissionRate, setCommissionRate] = useState(0);
+  const [platformCodePreview, setPlatformCodePreview] = useState({
+    platformUniqueCode: '',
+    orgProductNumber: 0,
+    globalProductNumber: 0,
+  });
   const [selectedImages, setSelectedImages] = useState([]);
   const [selectedVideos, setSelectedVideos] = useState([]);
   const [mediaUsage, setMediaUsage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [industryModalVisible, setIndustryModalVisible] = useState(false);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [startTime, setStartTime] = useState(null);
@@ -55,9 +65,28 @@ const CreateGalleryItemScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchLocations();
-    fetchCategories();
+    fetchIndustries();
     fetchMediaUsage();
+    fetchPlatformCodePreview();
   }, []);
+
+  useEffect(() => {
+    if (formData.industryId) {
+      fetchCategoriesForIndustry(formData.industryId);
+    } else {
+      setCategories([]);
+      setFormData(prev => ({ ...prev, categoryId: '' }));
+      setCommissionRate(0);
+    }
+  }, [formData.industryId]);
+
+  useEffect(() => {
+    if (formData.categoryId) {
+      fetchCommissionRate(formData.categoryId);
+    } else {
+      setCommissionRate(0);
+    }
+  }, [formData.categoryId]);
 
   const fetchLocations = async () => {
     try {
@@ -70,28 +99,49 @@ const CreateGalleryItemScreen = ({ navigation }) => {
     }
   };
 
-  const fetchCategories = async () => {
+  const fetchIndustries = async () => {
     try {
-      const categories = [
-        'Electronics',
-        'Clothing & Fashion',
-        'Home & Garden',
-        'Sports & Outdoors',
-        'Health & Beauty',
-        'Books & Media',
-        'Toys & Games',
-        'Automotive',
-        'Food & Beverages',
-        'Jewelry & Accessories',
-        'Art & Crafts',
-        'Pet Supplies',
-        'Office Supplies',
-        'Musical Instruments',
-        'Travel & Luggage'
-      ];
-      setCategories(categories);
+      const result = await ApiService.getGalleryIndustries();
+      if (result.success) {
+        setIndustries(result.data.industries);
+      }
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
+      Alert.alert('Error', 'Failed to fetch industries');
+    }
+  };
+
+  const fetchCategoriesForIndustry = async (industryId) => {
+    try {
+      const result = await ApiService.getGalleryCategories(industryId);
+      if (result.success) {
+        setCategories(result.data.categories);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to fetch categories');
+    }
+  };
+
+  const fetchCommissionRate = async (categoryId) => {
+    try {
+      // Use the admin gallery endpoint to get commission by category
+      const result = await ApiService.apiCall(`/admin/gallery/commission/${categoryId}`);
+      if (result.success) {
+        setCommissionRate(result.data.commission.commissionRate);
+      }
+    } catch (error) {
+      console.error('Failed to fetch commission rate:', error);
+      setCommissionRate(0);
+    }
+  };
+
+  const fetchPlatformCodePreview = async () => {
+    try {
+      const result = await ApiService.getPlatformCodePreview();
+      if (result.success) {
+        setPlatformCodePreview(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch platform code preview:', error);
     }
   };
 
@@ -161,7 +211,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
   };
 
   const createGalleryItem = async () => {
-    if (!formData.description.trim() || !formData.category || !formData.locationIndex) {
+    if (!formData.description.trim() || !formData.itemType || !formData.industryId || !formData.categoryId || !formData.locationIndex) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -169,14 +219,25 @@ const CreateGalleryItemScreen = ({ navigation }) => {
     setLoading(true);
 
     try {
-      // Create gallery item
+      // Create gallery item with new structure
       const result = await ApiService.createGalleryItem({
-        ...formData,
-        locationIndex: parseInt(formData.locationIndex),
+        description: formData.description,
+        itemType: formData.itemType,
+        industryId: formData.industryId,
+        categoryId: formData.categoryId,
+        sku: formData.sku,
+        upc: formData.upc,
         totalAvailableQuantity: parseInt(formData.totalAvailableQuantity) || 0,
         priceInDollars: parseFloat(formData.priceInDollars) || 0,
         discountPercentage: parseFloat(formData.discountPercentage) || 0,
-        platformChargePercentage: parseFloat(formData.platformChargePercentage) || 5,
+        upfrontPaymentPercentage: parseFloat(formData.upfrontPaymentPercentage) || 0,
+        startDate: formData.startDate,
+        startTime: formData.startTime,
+        endDate: formData.endDate,
+        endTime: formData.endTime,
+        visibilityToPublic: formData.visibilityToPublic,
+        notes: formData.notes,
+        locationIndex: parseInt(formData.locationIndex),
       });
 
       if (!result.success) {
@@ -260,9 +321,15 @@ const CreateGalleryItemScreen = ({ navigation }) => {
   const calculateActualAmount = () => {
     const price = parseFloat(formData.priceInDollars) || 0;
     const discount = parseFloat(formData.discountPercentage) || 0;
-    const platformCharge = parseFloat(formData.platformChargePercentage) || 0;
+    const platformCharge = commissionRate || 0;
     
     return price - (price * discount / 100) + (price * platformCharge / 100);
+  };
+
+  const calculateUpfrontAmount = () => {
+    const actualAmount = calculateActualAmount();
+    const upfrontPercentage = parseFloat(formData.upfrontPaymentPercentage) || 0;
+    return actualAmount * (upfrontPercentage / 100);
   };
 
   return (
@@ -306,6 +373,35 @@ const CreateGalleryItemScreen = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
           ))}
+        </View>
+
+        {/* Item Type Selection */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Item Type *</Text>
+          <View style={styles.radioGroup}>
+            <TouchableOpacity
+              style={styles.radioItem}
+              onPress={() => setFormData({...formData, itemType: 'product'})}
+            >
+              <View style={styles.radioButton}>
+                {formData.itemType === 'product' && (
+                  <View style={styles.radioButtonSelected} />
+                )}
+              </View>
+              <Text style={styles.radioText}>Product</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.radioItem}
+              onPress={() => setFormData({...formData, itemType: 'service'})}
+            >
+              <View style={styles.radioButton}>
+                {formData.itemType === 'service' && (
+                  <View style={styles.radioButtonSelected} />
+                )}
+              </View>
+              <Text style={styles.radioText}>Service</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Media Upload */}
@@ -379,19 +475,70 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             numberOfLines={3}
           />
 
-          <Text style={styles.inputLabel}>Category *</Text>
+          <Text style={styles.inputLabel}>Industry *</Text>
           <TouchableOpacity
             style={styles.dropdownButton}
-            onPress={() => setCategoryModalVisible(true)}
+            onPress={() => setIndustryModalVisible(true)}
           >
             <Text style={[
               styles.dropdownText,
-              !formData.category && styles.placeholderText
+              !formData.industryId && styles.placeholderText
             ]}>
-              {formData.category || 'Select Category'}
+              {formData.industryId ? industries.find(i => i.id === formData.industryId)?.name : 'Select Industry'}
             </Text>
             <Ionicons name="chevron-down" size={20} color="#666" />
           </TouchableOpacity>
+
+          <Text style={styles.inputLabel}>Category *</Text>
+          <TouchableOpacity
+            style={[styles.dropdownButton, !formData.industryId && styles.disabledButton]}
+            onPress={() => formData.industryId && setCategoryModalVisible(true)}
+            disabled={!formData.industryId}
+          >
+            <Text style={[
+              styles.dropdownText,
+              !formData.categoryId && styles.placeholderText
+            ]}>
+              {formData.categoryId ? categories.find(c => c.id === formData.categoryId)?.name : 'Select Category'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#666" />
+          </TouchableOpacity>
+
+          {commissionRate > 0 && (
+            <View style={styles.commissionInfo}>
+              <Text style={styles.commissionText}>Platform Commission: {commissionRate}%</Text>
+            </View>
+          )}
+
+          <Modal
+            visible={industryModalVisible}
+            transparent
+            animationType="slide"
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Select Industry</Text>
+                {industries.map((industry) => (
+                  <TouchableOpacity
+                    key={industry.id}
+                    style={styles.modalItem}
+                    onPress={() => {
+                      setFormData({...formData, industryId: industry.id, categoryId: ''});
+                      setIndustryModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.modalItemText}>{industry.name}</Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setIndustryModalVisible(false)}
+                >
+                  <Text style={styles.modalCloseText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
 
           <Modal
             visible={categoryModalVisible}
@@ -403,14 +550,14 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                 <Text style={styles.modalTitle}>Select Category</Text>
                 {categories.map((category) => (
                   <TouchableOpacity
-                    key={category}
+                    key={category.id}
                     style={styles.modalItem}
                     onPress={() => {
-                      setFormData({...formData, category});
+                      setFormData({...formData, categoryId: category.id});
                       setCategoryModalVisible(false);
                     }}
                   >
-                    <Text style={styles.modalItemText}>{category}</Text>
+                    <Text style={styles.modalItemText}>{category.name}</Text>
                   </TouchableOpacity>
                 ))}
                 <TouchableOpacity
@@ -439,13 +586,21 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             onChangeText={(text) => setFormData({...formData, upc: text})}
           />
 
-          <Text style={styles.inputLabel}>Platform Unique Code</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter platform unique code"
-            value={formData.platformUniqueCode}
-            onChangeText={(text) => setFormData({...formData, platformUniqueCode: text})}
-          />
+          <Text style={styles.inputLabel}>Platform Unique Code (Auto-generated)</Text>
+          <View style={styles.platformCodeContainer}>
+            <TextInput
+              style={[styles.input, styles.platformCodeInput]}
+              value={platformCodePreview.platformUniqueCode}
+              editable={false}
+              placeholder="Will be auto-generated"
+            />
+            <View style={styles.platformCodeBadge}>
+              <Text style={styles.platformCodeText}>AUTO</Text>
+            </View>
+          </View>
+          <Text style={styles.platformCodeInfo}>
+            This will be product #{platformCodePreview.orgProductNumber} in your organization and #{platformCodePreview.globalProductNumber} globally
+          </Text>
 
           <Text style={styles.inputLabel}>Total Available Quantity</Text>
           <TextInput
@@ -474,14 +629,32 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             keyboardType="numeric"
           />
 
-          <Text style={styles.inputLabel}>Platform Charge (%)</Text>
+          <Text style={styles.inputLabel}>Upfront Payment (%) - Optional</Text>
           <TextInput
             style={styles.input}
-            placeholder="5"
-            value={formData.platformChargePercentage}
-            onChangeText={(text) => setFormData({...formData, platformChargePercentage: text})}
+            placeholder="0"
+            value={formData.upfrontPaymentPercentage}
+            onChangeText={(text) => setFormData({...formData, upfrontPaymentPercentage: text})}
             keyboardType="numeric"
           />
+          {parseFloat(formData.upfrontPaymentPercentage) > 0 && (
+            <View style={styles.upfrontInfo}>
+              <Text style={styles.upfrontText}>Upfront Amount: ₦{calculateUpfrontAmount().toFixed(2)}</Text>
+            </View>
+          )}
+
+          <Text style={styles.inputLabel}>Platform Charge (%)</Text>
+          <View style={styles.platformChargeContainer}>
+            <TextInput
+              style={[styles.input, styles.platformChargeInput]}
+              value={commissionRate.toString()}
+              editable={false}
+              placeholder="Auto-fetched from category"
+            />
+            <View style={styles.platformChargeBadge}>
+              <Text style={styles.platformChargeText}>AUTO</Text>
+            </View>
+          </View>
 
           <View style={styles.calculatedPrice}>
             <Text style={styles.calculatedPriceLabel}>Actual Amount:</Text>
@@ -823,6 +996,99 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#7B2CBF',
+  },
+  commissionInfo: {
+    backgroundColor: '#E8F5E8',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  commissionText: {
+    fontSize: 14,
+    color: '#2E7D32',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  disabledButton: {
+    backgroundColor: '#F5F5F5',
+    borderColor: '#DDD',
+  },
+  readOnlyInput: {
+    backgroundColor: '#F0F0F0',
+    color: '#666',
+  },
+  platformChargeContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  platformChargeInput: {
+    backgroundColor: '#E8F5E8',
+    borderColor: '#4CAF50',
+    borderWidth: 2,
+    color: '#2E7D32',
+    fontWeight: 'bold',
+    fontSize: 16,
+    paddingRight: 60,
+  },
+  platformChargeBadge: {
+    position: 'absolute',
+    right: 8,
+    top: 8,
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  platformChargeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  platformCodeContainer: {
+    position: 'relative',
+    marginBottom: 8,
+  },
+  platformCodeInput: {
+    backgroundColor: '#F0F8FF',
+    borderColor: '#2196F3',
+    borderWidth: 2,
+    color: '#1565C0',
+    fontWeight: 'bold',
+    fontSize: 14,
+    paddingRight: 60,
+  },
+  platformCodeBadge: {
+    position: 'absolute',
+    right: 8,
+    top: 8,
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  platformCodeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  platformCodeInfo: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  upfrontInfo: {
+    backgroundColor: '#FFF3E0',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  upfrontText: {
+    fontSize: 14,
+    color: '#E65100',
+    fontWeight: '500',
+    textAlign: 'center',
   },
   mediaUsage: {
     flexDirection: 'row',

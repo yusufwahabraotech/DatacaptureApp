@@ -85,6 +85,7 @@ import EditGalleryItemScreen from './screens/EditGalleryItemScreen';
 import IndustryManagementScreen from './screens/IndustryManagementScreen';
 import CategoryManagementScreen from './screens/CategoryManagementScreen';
 import PickupCenterManagementScreen from './screens/PickupCenterManagementScreen';
+import PlatformCommissionManagementScreen from './screens/PlatformCommissionManagementScreen';
 
 const Stack = createStackNavigator();
 
@@ -184,6 +185,7 @@ export default function App() {
         <Stack.Screen name="IndustryManagement" component={IndustryManagementScreen} />
         <Stack.Screen name="CategoryManagement" component={CategoryManagementScreen} />
         <Stack.Screen name="PickupCenterManagement" component={PickupCenterManagementScreen} />
+        <Stack.Screen name="PlatformCommissionManagement" component={PlatformCommissionManagementScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

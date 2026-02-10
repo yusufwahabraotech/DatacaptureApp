@@ -116,6 +116,12 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
       onPress: () => navigation.navigate('PickupCenterManagement')
     },
     {
+      title: 'Platform Commissions',
+      subtitle: 'Set commission rates by category',
+      icon: 'cash',
+      onPress: () => navigation.navigate('PlatformCommissionManagement')
+    },
+    {
       title: 'Data Verification',
       subtitle: 'Manage field verification system',
       icon: 'shield-checkmark',
