@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
 
-const GalleryManagementScreen = ({ navigation }) => {
+const GalleryManagementScreen = ({ navigation, route }) => {
   const [galleryItems, setGalleryItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -33,6 +33,18 @@ const GalleryManagementScreen = ({ navigation }) => {
     fetchGalleryItems();
     fetchMediaUsage();
   }, [filters]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (route.params?.refresh) {
+        fetchGalleryItems();
+        navigation.setParams({ refresh: false });
+      } else {
+        fetchGalleryItems();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, route.params]);
 
   const fetchGalleryItems = async () => {
     try {
@@ -91,6 +103,9 @@ const GalleryManagementScreen = ({ navigation }) => {
         <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
       )}
       <View style={styles.itemContent}>
+        <Text style={styles.itemName} numberOfLines={1}>
+          {item.name || 'Unnamed Item'}
+        </Text>
         <Text style={styles.itemDescription} numberOfLines={2}>
           {item.description}
         </Text>
@@ -282,9 +297,15 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
   },
-  itemDescription: {
-    fontSize: 14,
+  itemName: {
+    fontSize: 16,
     fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  itemDescription: {
+    fontSize: 13,
+    color: '#666',
     marginBottom: 4,
   },
   itemCategory: {

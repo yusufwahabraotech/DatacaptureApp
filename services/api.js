@@ -2318,6 +2318,25 @@ class ApiService {
     return this.apiCall('/admin/gallery/preview-code');
   }
 
+  // PUBLIC PRODUCT SEARCH
+  static async searchPublicProducts(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.search) queryParams.append('search', params.search);
+    if (params.itemType) queryParams.append('itemType', params.itemType);
+    if (params.categoryId) queryParams.append('categoryId', params.categoryId);
+    if (params.industryId) queryParams.append('industryId', params.industryId);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/public/products/search${queryString ? '?' + queryString : ''}`;
+    return this.apiCall(endpoint);
+  }
+
+  static async getPublicProductDetails(productId) {
+    return this.apiCall(`/public/products/${productId}`);
+  }
+
   // SUPER ADMIN INDUSTRY MANAGEMENT
   static async createIndustry(industryData) {
     return this.apiCall('/super-admin/industries', {

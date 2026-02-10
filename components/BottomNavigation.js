@@ -113,10 +113,10 @@ const BottomNavigation = ({ navigation, activeTab }) => {
       </TouchableOpacity>
       <TouchableOpacity 
         style={styles.navItem}
-        onPress={() => navigation.navigate('ObjectMeasurement')}
+        onPress={() => navigation.navigate('PublicProductSearch')}
       >
-        <Ionicons name="cube-outline" size={24} color={activeTab === 'ObjectMeasurement' ? '#7C3AED' : '#9CA3AF'} />
-        <Text style={[styles.navText, activeTab === 'ObjectMeasurement' && styles.activeNavText]}>Object</Text>
+        <Ionicons name="storefront" size={24} color={activeTab === 'Products' ? '#7C3AED' : '#9CA3AF'} />
+        <Text style={[styles.navText, activeTab === 'Products' && styles.activeNavText]}>Products</Text>
       </TouchableOpacity>
       <TouchableOpacity 
         style={styles.navItem}

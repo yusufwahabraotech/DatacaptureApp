@@ -195,6 +195,17 @@ const UserDashboardScreen = ({ navigation }) => {
             
             <TouchableOpacity 
               style={styles.actionCard}
+              onPress={() => navigation.navigate('PublicProductSearch')}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="storefront" size={24} color="#06B6D4" />
+              </View>
+              <Text style={styles.actionTitle}>Browse Products</Text>
+              <Text style={styles.actionSubtitle}>Explore available products & services</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
               onPress={() => navigation.navigate('UserMeasurements')}
             >
               <View style={styles.actionIcon}>

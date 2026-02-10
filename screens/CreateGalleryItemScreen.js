@@ -19,6 +19,7 @@ import ApiService from '../services/api';
 
 const CreateGalleryItemScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
+    name: '',
     description: '',
     itemType: '',
     industryId: '',
@@ -211,7 +212,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
   };
 
   const createGalleryItem = async () => {
-    if (!formData.description.trim() || !formData.itemType || !formData.industryId || !formData.categoryId || !formData.locationIndex) {
+    if (!formData.name.trim() || !formData.description.trim() || !formData.itemType || !formData.industryId || !formData.categoryId || !formData.locationIndex) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -221,6 +222,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
     try {
       // Create gallery item with new structure
       const result = await ApiService.createGalleryItem({
+        name: formData.name,
         description: formData.description,
         itemType: formData.itemType,
         industryId: formData.industryId,
@@ -262,7 +264,9 @@ const CreateGalleryItemScreen = ({ navigation }) => {
       }
 
       Alert.alert('Success', 'Gallery item created successfully', [
-        { text: 'OK', onPress: () => navigation.goBack() }
+        { text: 'OK', onPress: () => {
+          navigation.navigate('GalleryManagement', { refresh: true });
+        }}
       ]);
 
     } catch (error) {
@@ -465,6 +469,14 @@ const CreateGalleryItemScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Basic Information</Text>
           
+          <Text style={styles.inputLabel}>Name *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter product/service name"
+            value={formData.name}
+            onChangeText={(text) => setFormData({...formData, name: text})}
+          />
+
           <Text style={styles.inputLabel}>Description *</Text>
           <TextInput
             style={styles.input}
