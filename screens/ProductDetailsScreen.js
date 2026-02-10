@@ -25,11 +25,18 @@ const ProductDetailsScreen = ({ navigation, route }) => {
     try {
       const response = await ApiService.getPublicProductDetails(productId);
       if (response.success) {
+        console.log('🚨 PRODUCT DETAILS API RESPONSE 🚨');
+        console.log('Full response:', JSON.stringify(response, null, 2));
+        
         const productData = {
           ...response.data.product,
           serviceProvider: response.data.serviceProvider,
           serviceLocations: response.data.serviceLocations
         };
+        console.log('🚨 PROCESSED PRODUCT DATA 🚨');
+        console.log('Product data:', JSON.stringify(productData, null, 2));
+        console.log('Image URL:', productData.imageUrl);
+        
         setProduct(productData);
       }
     } catch (error) {
@@ -87,8 +94,12 @@ const ProductDetailsScreen = ({ navigation, route }) => {
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.imageSection}>
-          {product.imageUrl ? (
-            <Image source={{ uri: product.imageUrl }} style={styles.productImage} />
+          {(product.imageUrl || product.images?.main || product.image) ? (
+            <Image 
+              source={{ uri: product.imageUrl || product.images?.main || product.image }} 
+              style={styles.productImage} 
+              onError={(error) => console.log('Image load error:', error.nativeEvent.error)}
+            />
           ) : (
             <View style={styles.placeholderImage}>
               <Ionicons name="cube" size={80} color="#7B2CBF" />
@@ -114,7 +125,7 @@ const ProductDetailsScreen = ({ navigation, route }) => {
             )}
           </View>
 
-          <Text style={styles.productTitle}>{product.title}</Text>
+          <Text style={styles.productTitle}>{product.name || product.title}</Text>
           <Text style={styles.businessName}>{product.location?.brandName}</Text>
 
           <View style={styles.pricingSection}>

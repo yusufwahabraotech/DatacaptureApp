@@ -2236,11 +2236,45 @@ class ApiService {
     return this.apiCall(`/admin/gallery/${itemId}`);
   }
 
-  static async createGalleryItem(itemData) {
-    return this.apiCall('/admin/gallery', {
-      method: 'POST',
-      body: JSON.stringify(itemData),
+  static async createGalleryItem(itemData, imageFile = null) {
+    const formData = new FormData();
+    
+    // Add all form fields
+    Object.keys(itemData).forEach(key => {
+      if (itemData[key] !== null && itemData[key] !== undefined) {
+        formData.append(key, itemData[key]);
+      }
     });
+    
+    // Add image file if provided
+    if (imageFile) {
+      formData.append('image', {
+        uri: imageFile.uri,
+        type: 'image/jpeg',
+        name: 'image.jpg',
+      });
+    }
+
+    const token = await this.getToken();
+    const response = await fetch(`${BASE_URL}/admin/gallery`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // No Content-Type header - browser sets it automatically for FormData
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      return {
+        success: false,
+        message: error.message || `HTTP ${response.status}: ${response.statusText}`,
+        data: error
+      };
+    }
+
+    return await response.json();
   }
 
   static async updateGalleryItem(itemId, itemData) {

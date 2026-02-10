@@ -84,9 +84,6 @@ const PublicProductSearchScreen = ({ navigation }) => {
           </View>
         )}
         <View style={styles.badgeOverlay}>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{item.categoryName}</Text>
-          </View>
           {item.location?.verified && (
             <View style={styles.verifiedBadge}>
               <Ionicons name="checkmark" size={12} color="#fff" />
@@ -104,6 +101,7 @@ const PublicProductSearchScreen = ({ navigation }) => {
       <View style={styles.productInfo}>
         <Text style={styles.productTitle} numberOfLines={2}>{item.name || item.title}</Text>
         <Text style={styles.provider}>{item.businessName}</Text>
+        <Text style={styles.category}>{item.categoryName}</Text>
         
         <View style={styles.pricingSection}>
           {item.discount > 0 && (
@@ -325,7 +323,7 @@ const styles = StyleSheet.create({
     left: 12,
     right: 12,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'flex-start',
   },
   productInfo: {
@@ -337,6 +335,9 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   verifiedBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#4CAF50',
@@ -402,6 +403,11 @@ const styles = StyleSheet.create({
   provider: {
     fontSize: 14,
     color: '#7B2CBF',
+    marginBottom: 4,
+  },
+  category: {
+    fontSize: 12,
+    color: '#666',
     marginBottom: 12,
   },
   viewButton: {

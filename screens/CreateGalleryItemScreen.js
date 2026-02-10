@@ -220,7 +220,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
     setLoading(true);
 
     try {
-      // Create gallery item with new structure
+      // Create gallery item with image
       const result = await ApiService.createGalleryItem({
         name: formData.name,
         description: formData.description,
@@ -240,27 +240,11 @@ const CreateGalleryItemScreen = ({ navigation }) => {
         visibilityToPublic: formData.visibilityToPublic,
         notes: formData.notes,
         locationIndex: parseInt(formData.locationIndex),
-      });
+      }, selectedImages[0]); // Pass first image
 
       if (!result.success) {
         Alert.alert('Error', result.message || 'Failed to create gallery item');
         return;
-      }
-
-      const itemId = result.data.galleryItem._id;
-
-      // Upload images if selected
-      if (selectedImages.length > 0) {
-        for (const image of selectedImages) {
-          await ApiService.uploadGalleryImage(itemId, image);
-        }
-      }
-
-      // Upload videos if selected
-      if (selectedVideos.length > 0) {
-        for (const video of selectedVideos) {
-          await ApiService.uploadGalleryVideo(itemId, video);
-        }
       }
 
       Alert.alert('Success', 'Gallery item created successfully', [
