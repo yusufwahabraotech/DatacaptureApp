@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import SearchableDropdown from '../components/SearchableDropdown';
 
 const CreateLocationScreen = ({ navigation, route }) => {
   const { location } = route.params || {};
@@ -152,6 +153,20 @@ const CreateLocationScreen = ({ navigation, route }) => {
       (field === 'state' && !formData.country) ||
       (field === 'lga' && !formData.state) ||
       (field === 'city' && !formData.lga);
+
+    // Use SearchableDropdown for countries
+    if (field === 'country') {
+      return (
+        <SearchableDropdown
+          placeholder={placeholder}
+          value={formData[field]}
+          options={data.map(item => ({ label: item.name || item, value: item.name || item }))}
+          onSelect={(value) => handleDropdownSelect(field, value)}
+          disabled={isDisabled}
+          searchPlaceholder="Search countries..."
+        />
+      );
+    }
 
     return (
       <TouchableOpacity

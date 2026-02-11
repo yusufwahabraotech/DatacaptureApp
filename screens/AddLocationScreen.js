@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import SearchableDropdown from '../components/SearchableDropdown';
 
 const CustomDropdown = ({ placeholder, value, options, onSelect, disabled }) => {
   const [showOptions, setShowOptions] = useState(false);
@@ -359,11 +360,12 @@ const AddLocationScreen = ({ navigation, route }) => {
           <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
             <Text style={styles.stepTitle}>Location Details</Text>
             
-            <CustomDropdown
+            <SearchableDropdown
               placeholder="Select Country *"
               value={locationData.country}
               options={countries.map(c => ({ label: c, value: c }))}
               onSelect={onCountryChange}
+              searchPlaceholder="Search countries..."
             />
             
             <CustomDropdown

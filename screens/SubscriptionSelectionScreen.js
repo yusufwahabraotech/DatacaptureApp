@@ -139,6 +139,7 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
 
     // If verified badge is selected, navigate to combined payment
     if (includeVerifiedBadge) {
+      setShowPaymentModal(false);
       navigation.navigate('CombinedPayment', {
         selectedPackage,
         selectedDuration

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
 import ApiService from '../services/api';
+import SearchableDropdown from '../components/SearchableDropdown';
 
 const CustomDropdown = ({ placeholder, value, options, onSelect, disabled }) => {
   const [showOptions, setShowOptions] = useState(false);
@@ -68,7 +69,7 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState({});
   const [lgas, setLgas] = useState({});
-  const [cityRegions, setCityRegions] = useState([]);
+  const [locationPricing, setLocationPricing] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPaymentWebView, setShowPaymentWebView] = useState(false);
@@ -79,7 +80,6 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
   useEffect(() => {
     fetchUserProfile();
     loadCountries();
-    loadCityRegions();
     loadExistingLocations();
   }, []);
 
@@ -94,24 +94,38 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
     }
   };
 
-  const loadCityRegions = async () => {
+  const fetchLocationPricing = async (location, index) => {
+    if (!location.country) return;
+    
     try {
-      const response = await ApiService.getAllLocations();
+      const response = await ApiService.getLocationPricing(
+        location.country,
+        location.state,
+        location.lga,
+        location.city,
+        location.cityRegion
+      );
+      
       if (response.success) {
-        const regions = [];
-        response.data.locations.forEach(location => {
-          location.cityRegions.forEach(region => {
-            regions.push({
-              cityRegion: region.name,
-              state: location.state,
-              fee: region.fee
-            });
-          });
-        });
-        setCityRegions(regions);
+        setLocationPricing(prev => ({
+          ...prev,
+          [index]: {
+            fee: response.data.fee,
+            source: response.data.source
+          }
+        }));
+      } else {
+        setLocationPricing(prev => ({
+          ...prev,
+          [index]: { fee: 0, source: 'No pricing available' }
+        }));
       }
     } catch (error) {
-      console.log('Error loading city regions:', error);
+      console.log('Error fetching location pricing:', error);
+      setLocationPricing(prev => ({
+        ...prev,
+        [index]: { fee: 0, source: 'Error loading pricing' }
+      }));
     }
   };
 
@@ -227,18 +241,19 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
     const updatedLocations = [...locations];
     updatedLocations[index][field] = value;
     setLocations(updatedLocations);
+    
+    // Fetch pricing when location details change
+    if (['country', 'state', 'lga', 'city', 'cityRegion'].includes(field)) {
+      fetchLocationPricing(updatedLocations[index], index);
+    }
   };
 
   const removeLocation = (index) => {
     setLocations(locations.filter((_, i) => i !== index));
   };
 
-  const calculateLocationFee = (location) => {
-    const cityRegion = cityRegions.find(cr => 
-      cr.cityRegion === location.cityRegion && 
-      cr.state === location.state
-    );
-    return cityRegion ? cityRegion.fee : 0;
+  const calculateLocationFee = (location, index) => {
+    return locationPricing[index]?.fee || 0;
   };
 
   const isLocationComplete = (location) => {
@@ -487,11 +502,12 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
                 onChangeText={(value) => updateLocation(index, 'brandName', value)}
               />
 
-              <CustomDropdown
+              <SearchableDropdown
                 placeholder="Select Country *"
                 value={location.country}
                 options={countries.map(c => ({ label: c.name, value: c.name }))}
                 onSelect={(value) => onCountryChange(index, value)}
+                searchPlaceholder="Search countries..."
               />
 
               <CustomDropdown
@@ -540,7 +556,10 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
 
               <View style={styles.feeDisplay}>
                 <Text style={styles.feeLabel}>Location Fee:</Text>
-                <Text style={styles.feeAmount}>{formatPrice(calculateLocationFee(location))}</Text>
+                <Text style={styles.feeAmount}>{formatPrice(calculateLocationFee(location, index))}</Text>
+                {locationPricing[index]?.source && (
+                  <Text style={styles.feeSource}>({locationPricing[index].source})</Text>
+                )}
               </View>
 
               {isLocationComplete(location) && (

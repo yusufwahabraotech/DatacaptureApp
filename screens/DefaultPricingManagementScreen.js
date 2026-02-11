@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import SearchableDropdown from '../components/SearchableDropdown';
 
 const CustomDropdown = ({ placeholder, value, options, onSelect, disabled }) => {
   const [showOptions, setShowOptions] = useState(false);
@@ -317,11 +318,12 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
               >
                 <Text style={styles.modalTitle}>Create Default Pricing</Text>
                 
-                <CustomDropdown
+                <SearchableDropdown
                   placeholder="Select Country *"
                   value={formData.country}
                   options={[...countries.map(c => ({ label: c.name, value: c.name })), { label: 'Others', value: 'Others' }]}
                   onSelect={onCountryChange}
+                  searchPlaceholder="Search countries..."
                 />
                 
                 {showCustomCountry && (
