@@ -134,6 +134,18 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
     setShowPaymentModal(true);
   };
 
+  const handleProceedToWizard = () => {
+    if (!selectedPackage) return;
+    
+    setShowPaymentModal(false);
+    navigation.navigate('SubscriptionWizardStep2', {
+      selectedPackage,
+      selectedDuration,
+      promoCode,
+      includeVerifiedBadge,
+    });
+  };
+
   const handlePayment = async () => {
     if (!selectedPackage || !userProfile) return;
 
@@ -393,8 +405,8 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
                   </Text>
                 </View>
 
-                <TouchableOpacity style={styles.payButton} onPress={handlePayment}>
-                  <Text style={styles.payButtonText}>Proceed to Payment</Text>
+                <TouchableOpacity style={styles.payButton} onPress={handleProceedToWizard}>
+                  <Text style={styles.payButtonText}>Proceed to Wizard</Text>
                 </TouchableOpacity>
               </ScrollView>
             )}

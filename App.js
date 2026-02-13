@@ -88,6 +88,10 @@ import PickupCenterManagementScreen from './screens/PickupCenterManagementScreen
 import PlatformCommissionManagementScreen from './screens/PlatformCommissionManagementScreen';
 import PublicProductSearchScreen from './screens/PublicProductSearchScreen';
 import ProductDetailsScreen from './screens/ProductDetailsScreen';
+import SubscriptionWizardStep2Screen from './screens/SubscriptionWizardStep2Screen';
+import SubscriptionWizardStep3Screen from './screens/SubscriptionWizardStep3Screen';
+import SubscriptionWizardStep4Screen from './screens/SubscriptionWizardStep4Screen';
+import SubscriptionWizardStep5Screen from './screens/SubscriptionWizardStep5Screen';
 
 const Stack = createStackNavigator();
 
@@ -192,6 +196,12 @@ export default function App() {
         {/* Public Product Screens */}
         <Stack.Screen name="PublicProductSearch" component={PublicProductSearchScreen} />
         <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
+        
+        {/* Subscription Wizard Screens */}
+        <Stack.Screen name="SubscriptionWizardStep2" component={SubscriptionWizardStep2Screen} />
+        <Stack.Screen name="SubscriptionWizardStep3" component={SubscriptionWizardStep3Screen} />
+        <Stack.Screen name="SubscriptionWizardStep4" component={SubscriptionWizardStep4Screen} />
+        <Stack.Screen name="SubscriptionWizardStep5" component={SubscriptionWizardStep5Screen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>
