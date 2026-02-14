@@ -63,6 +63,10 @@ const ResetPasswordScreen = ({ navigation, route }) => {
       }, 100);
     }
     
+    // Always start with 60-second resend countdown to prevent immediate resend
+    setResendCountdown(60);
+    setTimeout(() => startResendCountdown(60), 100);
+    
     setIsInitialized(true);
 
     return () => {
