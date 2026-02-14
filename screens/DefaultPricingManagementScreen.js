@@ -70,6 +70,7 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
   const [lgas, setLgas] = useState([]);
   const [showCustomCountry, setShowCustomCountry] = useState(false);
   const [showCustomState, setShowCustomState] = useState(false);
+  const [showCustomLGA, setShowCustomLGA] = useState(false);
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [formData, setFormData] = useState({
     country: '',
@@ -161,6 +162,16 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
       if (state && formData.country) {
         loadLGAs(formData.country, state);
       }
+    }
+  };
+
+  const onLGAChange = (lga) => {
+    if (lga === 'Others') {
+      setShowCustomLGA(true);
+      setFormData({...formData, lga: '', city: ''});
+    } else {
+      setShowCustomLGA(false);
+      setFormData({...formData, lga, city: ''});
     }
   };
 
@@ -320,7 +331,7 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
                 <Text style={styles.modalTitle}>Create Default Pricing</Text>
                 
                 <TouchableOpacity
-                  style={styles.dropdownButton}
+                  style={[styles.dropdownButton, styles.dropdownContainer]}
                   onPress={() => setShowCountryDropdown(true)}
                 >
                   <Text style={[styles.dropdownText, !formData.country && styles.placeholderText]}>
@@ -359,10 +370,20 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
                 <CustomDropdown
                   placeholder="Select LGA (Optional)"
                   value={formData.lga}
-                  options={lgas.map(lga => ({ label: lga, value: lga }))}
-                  onSelect={(lga) => setFormData({...formData, lga})}
+                  options={[...lgas.map(lga => ({ label: lga, value: lga })), { label: 'Others', value: 'Others' }]}
+                  onSelect={onLGAChange}
                   disabled={lgas.length === 0}
                 />
+                
+                {showCustomLGA && (
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter Custom LGA"
+                    placeholderTextColor="#6B7280"
+                    value={formData.lga}
+                    onChangeText={(lga) => setFormData({...formData, lga})}
+                  />
+                )}
                 
                 <TextInput
                   style={styles.input}
@@ -405,25 +426,27 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
                     <Text style={styles.createButtonText}>Create</Text>
                   </TouchableOpacity>
                 </View>
+
+                {/* Country Dropdown Modal */}
+                {showCountryDropdown && (
+                  <SearchableDropdown
+                    visible={showCountryDropdown}
+                    onClose={() => setShowCountryDropdown(false)}
+                    data={[...countries.map(c => ({ label: c.name, value: c.name })), { label: 'Others', value: 'Others' }]}
+                    onSelect={(item) => {
+                      onCountryChange(item.value || item.label);
+                      setShowCountryDropdown(false);
+                    }}
+                    title="Select Country"
+                    searchPlaceholder="Search countries..."
+                    showOthersOption={false}
+                  />
+                )}
               </ScrollView>
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-
-      {/* Country Dropdown Modal */}
-      <SearchableDropdown
-        visible={showCountryDropdown}
-        onClose={() => setShowCountryDropdown(false)}
-        data={[...countries.map(c => ({ label: c.name, value: c.name })), { label: 'Others', value: 'Others' }]}
-        onSelect={(item) => {
-          onCountryChange(item.value || item.label);
-          setShowCountryDropdown(false);
-        }}
-        title="Select Country"
-        searchPlaceholder="Search countries..."
-        showOthersOption={false}
-      />
     </View>
   );
 };
