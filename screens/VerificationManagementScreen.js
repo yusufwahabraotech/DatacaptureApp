@@ -212,7 +212,7 @@ const VerificationManagementScreen = ({ navigation }) => {
                     Location: {verification.location.city}, {verification.location.state}
                   </Text>
                   <Text style={styles.submissionDate}>
-                    Fee: ₦{verification.location.cityRegionFee?.toLocaleString() || '0'}
+                    Fee: ₦{verification.location.fee?.toLocaleString() || verification.location.cityRegionFee?.toLocaleString() || '0'}
                   </Text>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: getStatusColor(activeFilter) }]}>

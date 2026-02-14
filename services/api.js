@@ -259,6 +259,18 @@ class ApiService {
     return this.apiCall(`/locations/city-regions?country=${encodeURIComponent(country)}&state=${encodeURIComponent(state)}&lga=${encodeURIComponent(lga)}&city=${encodeURIComponent(city)}`);
   }
 
+  // Get location pricing with fallback to defaults
+  static async getPaymentLocationPricing(country, state, lga, city, cityRegion) {
+    const params = new URLSearchParams({
+      country,
+      state,
+      lga,
+      city,
+      cityRegion
+    });
+    return this.apiCall(`/payment/location/pricing?${params}`);
+  }
+
   // PROMO CODE VALIDATION
   static async validatePromoCode(packageId, promoCode) {
     return this.apiCall('/user-subscriptions/validate-promo', {

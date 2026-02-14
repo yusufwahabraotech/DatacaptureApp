@@ -14,9 +14,10 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
 
   const [promoValidation, setPromoValidation] = useState({ isValid: false, discount: 0, message: '' });
   const [validatingPromo, setValidatingPromo] = useState(false);
+  const [locationVerificationPrice, setLocationVerificationPrice] = useState(0);
+  const [loadingPrice, setLoadingPrice] = useState(true);
 
   const packagePrice = 3000;
-  const locationVerificationPrice = 2000;
   
   // Calculate package price with promo discount
   const getPackagePrice = (applyPromoDiscount = true) => {
@@ -33,11 +34,43 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
   const totalAmount = getPackagePrice(true) + locationVerificationPrice;
 
   useEffect(() => {
+    // Fetch location pricing
+    fetchLocationPricing();
+    
     // Validate promo code if provided
     if (promoCode && selectedPackage) {
       validatePromoCode(promoCode, selectedPackage._id);
     }
   }, []);
+
+  const fetchLocationPricing = async () => {
+    if (!locationData.country || !locationData.state || !locationData.city || !locationData.cityRegion) {
+      setLocationVerificationPrice(0);
+      setLoadingPrice(false);
+      return;
+    }
+
+    try {
+      const response = await ApiService.getPaymentLocationPricing(
+        locationData.country,
+        locationData.state,
+        locationData.lga,
+        locationData.city,
+        locationData.cityRegion
+      );
+      
+      if (response.success) {
+        setLocationVerificationPrice(response.data.fee);
+      } else {
+        setLocationVerificationPrice(0);
+      }
+    } catch (error) {
+      console.log('Error fetching location pricing:', error);
+      setLocationVerificationPrice(0);
+    } finally {
+      setLoadingPrice(false);
+    }
+  };
 
   const validatePromoCode = async (code, packageId) => {
     if (!code.trim()) {

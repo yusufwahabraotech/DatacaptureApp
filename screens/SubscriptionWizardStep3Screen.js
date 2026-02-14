@@ -229,18 +229,18 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
   const fetchPricing = async (country, state, lga, city, cityRegion) => {
     setLoadingPricing(true);
     try {
-      // Get pricing from the selected city region
-      const selectedRegion = cityRegions.find(region => region.name === cityRegion);
-      if (selectedRegion) {
+      // Use the payment pricing endpoint that includes fallback to defaults
+      const response = await ApiService.getPaymentLocationPricing(country, state, lga, city, cityRegion);
+      if (response.success) {
         setPricing({
-          fee: selectedRegion.fee,
-          source: `City Region: ${cityRegion}`
+          fee: response.data.fee,
+          source: response.data.source
         });
       } else {
         setPricing(null);
       }
     } catch (error) {
-      console.log('Error setting pricing:', error);
+      console.log('Error fetching pricing:', error);
       setPricing(null);
     } finally {
       setLoadingPricing(false);

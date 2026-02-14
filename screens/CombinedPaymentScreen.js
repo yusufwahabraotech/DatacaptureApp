@@ -100,7 +100,7 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
     if (!location.country) return;
     
     try {
-      const response = await ApiService.getLocationPricing(
+      const response = await ApiService.getPaymentLocationPricing(
         location.country,
         location.state,
         location.lga,
@@ -135,14 +135,37 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
     try {
       const response = await ApiService.getOrganizationProfile();
       if (response.success && response.data.profile && response.data.profile.locations) {
-        // Filter unpaid locations
+        // Filter unpaid locations and fetch their pricing
         const unpaidLocations = response.data.profile.locations
-          .filter(location => !location.isPaidFor)
-          .map(location => ({
-            ...location,
-            fee: 0 // Will be calculated from pricing
-          }));
-        setSavedLocations(unpaidLocations);
+          .filter(location => !location.isPaidFor);
+        
+        // Fetch pricing for each location
+        const locationsWithPricing = await Promise.all(
+          unpaidLocations.map(async (location) => {
+            try {
+              const pricingResponse = await ApiService.getPaymentLocationPricing(
+                location.country,
+                location.state,
+                location.lga,
+                location.city,
+                location.cityRegion
+              );
+              
+              return {
+                ...location,
+                fee: pricingResponse.success ? pricingResponse.data.fee : 0
+              };
+            } catch (error) {
+              console.log('Error fetching pricing for location:', error);
+              return {
+                ...location,
+                fee: 0
+              };
+            }
+          })
+        );
+        
+        setSavedLocations(locationsWithPricing);
       }
     } catch (error) {
       console.log('Error loading existing locations:', error);
@@ -290,30 +313,27 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
       const response = await ApiService.addOrganizationLocation(payload);
       
       if (response.success) {
-        // Now get the actual pricing from the verified badge pricing endpoint
-        const pricingResponse = await ApiService.getVerifiedBadgePricing();
+        // Get the actual pricing from the payment location pricing endpoint
+        const pricingResponse = await ApiService.getPaymentLocationPricing(
+          location.country,
+          location.state,
+          location.lga,
+          location.city,
+          location.cityRegion
+        );
         
-        if (pricingResponse.success && pricingResponse.data.locationFees) {
-          // Find the fee for this location from the pricing response
-          const locationFee = pricingResponse.data.locationFees.find(loc => 
-            loc.location.includes(location.brandName) && loc.location.includes(location.cityRegion)
-          );
-          
-          const fee = locationFee ? locationFee.fee : 0;
-          
-          const locationWithFee = {
-            ...location,
-            fee: fee
-          };
+        const fee = pricingResponse.success ? pricingResponse.data.fee : 0;
+        
+        const locationWithFee = {
+          ...location,
+          fee: fee
+        };
 
-          setSavedLocations([...savedLocations, locationWithFee]);
-          Alert.alert('Success', 'Location added successfully!');
-          
-          // Remove from editing locations
-          removeLocation(index);
-        } else {
-          Alert.alert('Error', 'Failed to get pricing information');
-        }
+        setSavedLocations([...savedLocations, locationWithFee]);
+        Alert.alert('Success', 'Location added successfully!');
+        
+        // Remove from editing locations
+        removeLocation(index);
       } else {
         Alert.alert('Error', response.message || 'Failed to add location');
       }
