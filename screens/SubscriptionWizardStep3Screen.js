@@ -7,14 +7,35 @@ import {
   ScrollView,
   TextInput,
   Alert,
-  Modal,
-  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Country, State, City } from 'country-state-city';
+import SearchableDropdown from '../components/SearchableDropdown';
+import ApiService from '../services/api';
 
 const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
   const { selectedPackage, selectedDuration, promoCode, includeVerifiedBadge, profileData } = route.params;
+  
+  const [promoValidation, setPromoValidation] = useState({ isValid: false, discount: 0, message: '' });
+  const [validatingPromo, setValidatingPromo] = useState(false);
+  
+  // Calculate package price based on selected duration and promo code
+  const getPackagePrice = (applyPromoDiscount = true) => {
+    if (!selectedPackage?.services) return 0;
+    
+    // Calculate base price for the selected duration
+    let basePrice = selectedPackage.services
+      .filter(service => service.duration === selectedDuration)
+      .reduce((total, service) => total + service.price, 0);
+    
+    // Apply promo discount if valid and requested
+    if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {
+      const discountAmount = (basePrice * promoValidation.discount) / 100;
+      return basePrice - discountAmount;
+    }
+    
+    return basePrice;
+  };
   const [locationType, setLocationType] = useState('headquarters');
   const [brandName, setBrandName] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('');
@@ -22,6 +43,11 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
   const [selectedLGA, setSelectedLGA] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedCityRegion, setSelectedCityRegion] = useState('');
+  const [customCountry, setCustomCountry] = useState('');
+  const [customState, setCustomState] = useState('');
+  const [customLGA, setCustomLGA] = useState('');
+  const [customCity, setCustomCity] = useState('');
+  const [customCityRegion, setCustomCityRegion] = useState('');
   const [houseNumber, setHouseNumber] = useState('');
   const [street, setStreet] = useState('');
   const [landmark, setLandmark] = useState('');
@@ -30,11 +56,17 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
 
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
+  const [lgas, setLgas] = useState([]);
   const [cities, setCities] = useState([]);
+  const [cityRegions, setCityRegions] = useState([]);
   const [showLocationTypeModal, setShowLocationTypeModal] = useState(false);
   const [showCountryModal, setShowCountryModal] = useState(false);
   const [showStateModal, setShowStateModal] = useState(false);
+  const [showLGAModal, setShowLGAModal] = useState(false);
   const [showCityModal, setShowCityModal] = useState(false);
+  const [showCityRegionModal, setShowCityRegionModal] = useState(false);
+  const [pricing, setPricing] = useState(null);
+  const [loadingPricing, setLoadingPricing] = useState(false);
 
   const locationTypes = [
     { label: 'Headquarters', value: 'headquarters' },
@@ -45,6 +77,11 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
   useEffect(() => {
     const allCountries = Country.getAllCountries();
     setCountries(allCountries);
+    
+    // Validate promo code if provided
+    if (promoCode && selectedPackage) {
+      validatePromoCode(promoCode, selectedPackage._id);
+    }
   }, []);
 
   useEffect(() => {
@@ -52,18 +89,163 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
       const countryStates = State.getStatesOfCountry(selectedCountry);
       setStates(countryStates);
       setSelectedState('');
-      setCities([]);
+      setSelectedLGA('');
       setSelectedCity('');
+      setSelectedCityRegion('');
+      setLgas([]);
+      setCities([]);
+      setCityRegions([]);
     }
   }, [selectedCountry]);
 
   useEffect(() => {
-    if (selectedState) {
-      const stateCities = City.getCitiesOfState(selectedCountry, selectedState);
-      setCities(stateCities);
+    if (selectedState || customState) {
+      const countryName = customCountry || countries.find(c => c.isoCode === selectedCountry)?.name;
+      const stateName = customState || states.find(s => s.isoCode === selectedState)?.name;
+      
+      if (countryName && stateName) {
+        // Get LGAs from country-state-city library
+        const countryObj = countries.find(c => c.name === countryName);
+        const stateObj = states.find(s => s.name === stateName);
+        if (countryObj && stateObj) {
+          const stateCities = City.getCitiesOfState(countryObj.isoCode, stateObj.isoCode);
+          // Use cities as LGAs since country-state-city doesn't have LGA level
+          setLgas(stateCities.map(city => ({ name: city.name, id: city.name })));
+        }
+        
+        // Fetch cities from backend
+        fetchCities(countryName, stateName, '');
+      }
+      
+      setSelectedLGA('');
       setSelectedCity('');
+      setSelectedCityRegion('');
+      setCityRegions([]);
+      setPricing(null);
     }
-  }, [selectedState, selectedCountry]);
+  }, [selectedState, customState, selectedCountry, customCountry]);
+
+  useEffect(() => {
+    if ((selectedCity || customCity) && (selectedLGA || customLGA)) {
+      const countryName = customCountry || countries.find(c => c.isoCode === selectedCountry)?.name;
+      const stateName = customState || states.find(s => s.isoCode === selectedState)?.name;
+      const lgaName = customLGA || selectedLGA;
+      const cityName = customCity || selectedCity;
+      
+      if (countryName && stateName && lgaName && cityName) {
+        // Fetch city regions with pricing from backend
+        fetchCityRegions(countryName, stateName, lgaName, cityName);
+      }
+      
+      setSelectedCityRegion('');
+      setPricing(null);
+    }
+  }, [selectedCity, customCity, selectedLGA, customLGA]);
+
+  useEffect(() => {
+    if (selectedCityRegion || customCityRegion) {
+      const countryName = customCountry || countries.find(c => c.isoCode === selectedCountry)?.name;
+      const stateName = customState || states.find(s => s.isoCode === selectedState)?.name;
+      const lgaName = customLGA || selectedLGA;
+      const cityName = customCity || selectedCity;
+      const cityRegionName = customCityRegion || selectedCityRegion;
+      
+      if (countryName && stateName && lgaName && cityName && cityRegionName) {
+        fetchPricing(countryName, stateName, lgaName, cityName, cityRegionName);
+      }
+    }
+  }, [selectedCityRegion, customCityRegion]);
+
+  const validatePromoCode = async (code, packageId) => {
+    if (!code.trim()) {
+      setPromoValidation({ isValid: false, discount: 0, message: '' });
+      return;
+    }
+
+    setValidatingPromo(true);
+    try {
+      const response = await ApiService.validatePromoCode(packageId, code.trim());
+      if (response.success) {
+        setPromoValidation({
+          isValid: true,
+          discount: response.data.discountPercentage,
+          message: `${response.data.discountPercentage}% discount applied!`
+        });
+      } else {
+        setPromoValidation({
+          isValid: false,
+          discount: 0,
+          message: response.message || 'Invalid promo code'
+        });
+      }
+    } catch (error) {
+      setPromoValidation({
+        isValid: false,
+        discount: 0,
+        message: 'Error validating promo code'
+      });
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
+
+  const fetchCities = async (country, state, lga) => {
+    try {
+      const response = await ApiService.getCities(country, state, lga);
+      if (response.success) {
+        setCities(response.data.cities || []);
+      } else {
+        // Fallback to country-state-city library
+        const countryObj = countries.find(c => c.name === country);
+        const stateObj = states.find(s => s.name === state);
+        if (countryObj && stateObj) {
+          const stateCities = City.getCitiesOfState(countryObj.isoCode, stateObj.isoCode);
+          setCities(stateCities.map(city => ({ name: city.name, id: city.name })));
+        }
+      }
+    } catch (error) {
+      console.log('Error fetching cities:', error);
+      // Fallback to country-state-city library
+      const countryObj = countries.find(c => c.name === country);
+      const stateObj = states.find(s => s.name === state);
+      if (countryObj && stateObj) {
+        const stateCities = City.getCitiesOfState(countryObj.isoCode, stateObj.isoCode);
+        setCities(stateCities.map(city => ({ name: city.name, id: city.name })));
+      }
+    }
+  };
+
+  const fetchCityRegions = async (country, state, lga, city) => {
+    try {
+      const response = await ApiService.getCityRegions(country, state, lga, city);
+      if (response.success) {
+        setCityRegions(response.data.cityRegions || []);
+      }
+    } catch (error) {
+      console.log('Error fetching city regions:', error);
+    }
+  };
+
+  const fetchPricing = async (country, state, lga, city, cityRegion) => {
+    setLoadingPricing(true);
+    try {
+      // Get pricing from the selected city region
+      const selectedRegion = cityRegions.find(region => region.name === cityRegion);
+      if (selectedRegion) {
+        setPricing({
+          fee: selectedRegion.fee,
+          source: `City Region: ${cityRegion}`
+        });
+      } else {
+        setPricing(null);
+      }
+    } catch (error) {
+      console.log('Error setting pricing:', error);
+      setPricing(null);
+    } finally {
+      setLoadingPricing(false);
+    }
+  };
 
   const renderDropdown = (value, placeholder, onPress, disabled = false) => (
     <TouchableOpacity 
@@ -77,38 +259,19 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
     </TouchableOpacity>
   );
 
-  const renderModal = (visible, setVisible, data, onSelect, title) => (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title}</Text>
-            <TouchableOpacity onPress={() => setVisible(false)}>
-              <Ionicons name="close" size={24} color="#1F2937" />
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={data}
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.modalItem}
-                onPress={() => {
-                  onSelect(item);
-                  setVisible(false);
-                }}
-              >
-                <Text style={styles.modalItemText}>{item.label || item.name}</Text>
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      </View>
-    </Modal>
-  );
+  const getDisplayValue = (value, customValue, data, key = 'name') => {
+    if (customValue) return customValue;
+    if (!value) return '';
+    const item = data.find(d => d.isoCode === value || d.id === value || d[key] === value);
+    return item ? (item.label || item[key]) : value;
+  };
 
   const handleNext = () => {
-    if (!selectedCountry || !selectedState || !selectedCity) {
+    const finalCountry = customCountry || getDisplayValue(selectedCountry, '', countries, 'name');
+    const finalState = customState || getDisplayValue(selectedState, '', states, 'name');
+    const finalCity = customCity || getDisplayValue(selectedCity, '', cities, 'name');
+    
+    if (!finalCountry || !finalState || !finalCity) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -116,11 +279,11 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
     const locationData = {
       locationType,
       brandName,
-      country: selectedCountry,
-      state: selectedState,
-      lga: selectedLGA,
-      city: selectedCity,
-      cityRegion: selectedCityRegion,
+      country: finalCountry,
+      state: finalState,
+      lga: customLGA || getDisplayValue(selectedLGA, '', lgas, 'name'),
+      city: finalCity,
+      cityRegion: customCityRegion || getDisplayValue(selectedCityRegion, '', cityRegions, 'name'),
       houseNumber,
       street,
       landmark,
@@ -203,10 +366,36 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
 
         <View style={styles.packageInfoBox}>
           <Text style={styles.packageInfoTitle}>Selected Package</Text>
-          <Text style={styles.packageName}>{selectedPackage.title} - monthly</Text>
+          <Text style={styles.packageName}>{selectedPackage.title} - {selectedDuration}</Text>
           <Text style={styles.packageDescription}>This package will be included in your payment</Text>
+          
+          {promoCode && (
+            <View style={styles.promoSection}>
+              <Text style={styles.promoLabel}>Promo Code: {promoCode}</Text>
+              {validatingPromo && (
+                <Text style={styles.promoValidating}>Validating...</Text>
+              )}
+              {!validatingPromo && promoValidation.message && (
+                <Text style={[
+                  styles.promoMessage,
+                  promoValidation.isValid ? styles.promoValid : styles.promoInvalid
+                ]}>
+                  {promoValidation.message}
+                </Text>
+              )}
+            </View>
+          )}
+          
           <View style={styles.packagePriceContainer}>
-            <Text style={styles.packagePrice}>{formatPrice(3000)}</Text>
+            {promoValidation.isValid && promoValidation.discount > 0 ? (
+              <View style={styles.discountPricing}>
+                <Text style={styles.originalPrice}>{formatPrice(getPackagePrice(false))}</Text>
+                <Text style={styles.discountLabel}>-{promoValidation.discount}%</Text>
+                <Text style={styles.packagePrice}>{formatPrice(getPackagePrice(true))}</Text>
+              </View>
+            ) : (
+              <Text style={styles.packagePrice}>{formatPrice(getPackagePrice(false))}</Text>
+            )}
             <Text style={styles.packagePriceLabel}>Package amount</Text>
           </View>
         </View>
@@ -237,7 +426,7 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Country* (required):</Text>
             {renderDropdown(
-              countries.find(c => c.isoCode === selectedCountry)?.name,
+              getDisplayValue(selectedCountry, customCountry, countries, 'name'),
               'Select a country...',
               () => setShowCountryModal(true)
             )}
@@ -246,46 +435,65 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>State/Province* (required):</Text>
             {renderDropdown(
-              states.find(s => s.isoCode === selectedState)?.name,
-              selectedCountry ? 'Select a state...' : 'Please select a country first',
+              getDisplayValue(selectedState, customState, states, 'name'),
+              selectedCountry || customCountry ? 'Select a state...' : 'Please select a country first',
               () => setShowStateModal(true),
-              !selectedCountry
+              !selectedCountry && !customCountry
             )}
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>LGA (Local Government Area) - Optional:</Text>
-            <TextInput
-              style={[styles.textInput, !selectedState && styles.disabledInput]}
-              value={selectedLGA}
-              onChangeText={setSelectedLGA}
-              placeholder={selectedState ? "Enter LGA" : "Please select a state first"}
-              placeholderTextColor="#9CA3AF"
-              editable={!!selectedState}
-            />
+            {renderDropdown(
+              getDisplayValue(selectedLGA, customLGA, lgas, 'name'),
+              (selectedState || customState) ? 'Select LGA...' : 'Please select a state first',
+              () => setShowLGAModal(true),
+              !selectedState && !customState
+            )}
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>City* (required):</Text>
             {renderDropdown(
-              cities.find(c => c.name === selectedCity)?.name,
-              selectedState ? 'Select a city...' : 'Please select a state first',
+              getDisplayValue(selectedCity, customCity, cities, 'name'),
+              (selectedState || customState) ? 'Select a city...' : 'Please select a state first',
               () => setShowCityModal(true),
-              !selectedState
+              !selectedState && !customState
             )}
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>City Region with Fee - Optional:</Text>
-            <TextInput
-              style={[styles.textInput, !selectedCity && styles.disabledInput]}
-              value={selectedCityRegion}
-              onChangeText={setSelectedCityRegion}
-              placeholder={selectedCity ? "Enter city region" : "Please select a city first"}
-              placeholderTextColor="#9CA3AF"
-              editable={!!selectedCity}
-            />
+            {renderDropdown(
+              getDisplayValue(selectedCityRegion, customCityRegion, cityRegions, 'name'),
+              (selectedCity || customCity) ? 'Select city region...' : 'Please select a city first',
+              () => setShowCityRegionModal(true),
+              !selectedCity && !customCity
+            )}
           </View>
+
+          {(selectedCityRegion || customCityRegion) && (
+            <View style={styles.pricingCard}>
+              <Text style={styles.pricingTitle}>Location Pricing</Text>
+              {loadingPricing ? (
+                <View style={styles.pricingLoading}>
+                  <Text>Loading pricing...</Text>
+                </View>
+              ) : pricing ? (
+                <View style={styles.pricingContent}>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>Fee:</Text>
+                    <Text style={styles.priceAmount}>₦{pricing.fee?.toLocaleString() || '0'}</Text>
+                  </View>
+                  <Text style={styles.priceSource}>{pricing.source || 'City Region Fee'}</Text>
+                </View>
+              ) : (
+                <View style={styles.pricingContent}>
+                  <Text style={styles.priceError}>Pricing will be determined when location is added</Text>
+                </View>
+              )}
+            </View>
+          )}
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>House Number:</Text>
@@ -345,44 +553,115 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
       </ScrollView>
 
       {/* Modals */}
-      {renderModal(
-        showLocationTypeModal,
-        setShowLocationTypeModal,
-        locationTypes,
-        (item) => setLocationType(item.value),
-        'Select Location Type'
-      )}
+      <SearchableDropdown
+        visible={showLocationTypeModal}
+        onClose={() => setShowLocationTypeModal(false)}
+        data={locationTypes}
+        onSelect={(item) => setLocationType(item.value)}
+        title="Select Location Type"
+        searchPlaceholder="Search location types..."
+      />
       
-      {renderModal(
-        showCountryModal,
-        setShowCountryModal,
-        countries.map(c => ({ ...c, label: c.name })),
-        (item) => {
+      <SearchableDropdown
+        visible={showCountryModal}
+        onClose={() => setShowCountryModal(false)}
+        data={countries.map(c => ({ ...c, label: c.name }))}
+        onSelect={(item) => {
           setSelectedCountry(item.isoCode);
+          setCustomCountry('');
           setSelectedState('');
           setSelectedCity('');
-        },
-        'Select Country'
-      )}
-      
-      {renderModal(
-        showStateModal,
-        setShowStateModal,
-        states.map(s => ({ ...s, label: s.name })),
-        (item) => {
-          setSelectedState(item.isoCode);
+          setSelectedLGA('');
+          setSelectedCityRegion('');
+        }}
+        title="Select Country"
+        searchPlaceholder="Search countries..."
+        showOthersOption={true}
+        onOthersSelect={(customValue) => {
+          setCustomCountry(customValue);
+          setSelectedCountry('');
+          setSelectedState('');
           setSelectedCity('');
-        },
-        'Select State'
-      )}
+          setSelectedLGA('');
+          setSelectedCityRegion('');
+        }}
+      />
       
-      {renderModal(
-        showCityModal,
-        setShowCityModal,
-        cities.map(c => ({ ...c, label: c.name })),
-        (item) => setSelectedCity(item.name),
-        'Select City'
-      )}
+      <SearchableDropdown
+        visible={showStateModal}
+        onClose={() => setShowStateModal(false)}
+        data={states.map(s => ({ ...s, label: s.name }))}
+        onSelect={(item) => {
+          setSelectedState(item.isoCode);
+          setCustomState('');
+          setSelectedCity('');
+          setSelectedLGA('');
+          setSelectedCityRegion('');
+        }}
+        title="Select State"
+        searchPlaceholder="Search states..."
+        showOthersOption={true}
+        onOthersSelect={(customValue) => {
+          setCustomState(customValue);
+          setSelectedState('');
+          setSelectedCity('');
+          setSelectedLGA('');
+          setSelectedCityRegion('');
+        }}
+      />
+      
+      <SearchableDropdown
+        visible={showLGAModal}
+        onClose={() => setShowLGAModal(false)}
+        data={lgas.map(l => ({ ...l, label: l.name }))}
+        onSelect={(item) => {
+          setSelectedLGA(item.id || item.name);
+          setCustomLGA('');
+        }}
+        title="Select LGA"
+        searchPlaceholder="Search LGAs..."
+        showOthersOption={true}
+        onOthersSelect={(customValue) => {
+          setCustomLGA(customValue);
+          setSelectedLGA('');
+        }}
+      />
+      
+      <SearchableDropdown
+        visible={showCityModal}
+        onClose={() => setShowCityModal(false)}
+        data={cities.map(c => ({ ...c, label: c.name }))}
+        onSelect={(item) => {
+          setSelectedCity(item.id || item.name);
+          setCustomCity('');
+          setSelectedCityRegion('');
+        }}
+        title="Select City"
+        searchPlaceholder="Search cities..."
+        showOthersOption={true}
+        onOthersSelect={(customValue) => {
+          setCustomCity(customValue);
+          setSelectedCity('');
+          setSelectedCityRegion('');
+        }}
+      />
+      
+      <SearchableDropdown
+        visible={showCityRegionModal}
+        onClose={() => setShowCityRegionModal(false)}
+        data={cityRegions.map(cr => ({ ...cr, label: cr.name }))}
+        onSelect={(item) => {
+          setSelectedCityRegion(item.id || item.name);
+          setCustomCityRegion('');
+        }}
+        title="Select City Region"
+        searchPlaceholder="Search city regions..."
+        showOthersOption={true}
+        onOthersSelect={(customValue) => {
+          setCustomCityRegion(customValue);
+          setSelectedCityRegion('');
+        }}
+      />
 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
@@ -512,6 +791,19 @@ const styles = StyleSheet.create({
   packagePriceContainer: {
     alignItems: 'flex-end',
   },
+  discountPricing: {
+    alignItems: 'flex-end',
+  },
+  originalPrice: {
+    fontSize: 14,
+    color: '#6B7280',
+    textDecorationLine: 'line-through',
+  },
+  discountLabel: {
+    fontSize: 12,
+    color: '#10B981',
+    fontWeight: '600',
+  },
   packagePrice: {
     fontSize: 20,
     fontWeight: '700',
@@ -520,6 +812,29 @@ const styles = StyleSheet.create({
   packagePriceLabel: {
     fontSize: 12,
     color: '#7C3AED',
+  },
+  promoSection: {
+    marginVertical: 8,
+  },
+  promoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  promoValidating: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  promoMessage: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  promoValid: {
+    color: '#10B981',
+  },
+  promoInvalid: {
+    color: '#EF4444',
   },
   formSection: {
     backgroundColor: '#FFFFFF',
@@ -628,6 +943,52 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginRight: 8,
+  },
+  pricingCard: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#0EA5E9',
+  },
+  pricingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginBottom: 12,
+  },
+  pricingLoading: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  pricingContent: {
+    alignItems: 'center',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  priceLabel: {
+    fontSize: 16,
+    color: '#64748B',
+    marginRight: 8,
+  },
+  priceAmount: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#0EA5E9',
+  },
+  priceSource: {
+    fontSize: 12,
+    color: '#64748B',
+    fontStyle: 'italic',
+  },
+  priceError: {
+    fontSize: 14,
+    color: '#64748B',
+    textAlign: 'center',
   },
 });
 

@@ -28,6 +28,8 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
   const [paymentUrl, setPaymentUrl] = useState('');
   const [transactionRef, setTransactionRef] = useState('');
   const [promoCode, setPromoCode] = useState('');
+  const [promoValidation, setPromoValidation] = useState({ isValid: false, discount: 0, message: '' });
+  const [validatingPromo, setValidatingPromo] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [includeVerifiedBadge, setIncludeVerifiedBadge] = useState(false);
 
@@ -98,14 +100,19 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
     }
   };
 
-  const calculatePrice = (pkg, duration) => {
+  const calculatePrice = (pkg, duration, applyPromoDiscount = false) => {
     // Use the pricing data from the backend API
     const pricing = packagePricing[pkg._id];
     if (pricing && pricing[duration]) {
-      return pricing[duration].finalPrice;
+      const basePrice = pricing[duration].finalPrice;
+      if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {
+        const discountAmount = (basePrice * promoValidation.discount) / 100;
+        return basePrice - discountAmount;
+      }
+      return basePrice;
     }
     
-    // Calculate based on services filtered by duration
+    // Calculate base price from services filtered by duration
     let total = 0;
     pkg.services?.forEach(service => {
       if (service.duration === duration) {
@@ -113,25 +120,69 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
       }
     });
     
-    // Apply package discount
-    const discountAmount = (total * (pkg.discountPercentage || 0)) / 100;
-    const finalPrice = total - discountAmount;
+    // Apply promo discount if valid
+    if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {
+      const discountAmount = (total * promoValidation.discount) / 100;
+      total = total - discountAmount;
+    }
     
-    console.log(`Price calculation for ${duration}:`, {
-      servicesForDuration: pkg.services?.filter(s => s.duration === duration),
-      total,
-      discountPercentage: pkg.discountPercentage,
-      discountAmount,
-      finalPrice
-    });
-    
-    return finalPrice;
+    return total;
+  };
+
+  const validatePromoCode = async (code, packageId) => {
+    if (!code.trim()) {
+      setPromoValidation({ isValid: false, discount: 0, message: '' });
+      return;
+    }
+
+    setValidatingPromo(true);
+    try {
+      const response = await ApiService.validatePromoCode(packageId, code.trim());
+      if (response.success) {
+        setPromoValidation({
+          isValid: true,
+          discount: response.data.discountPercentage,
+          message: `${response.data.discountPercentage}% discount applied!`
+        });
+      } else {
+        setPromoValidation({
+          isValid: false,
+          discount: 0,
+          message: response.message || 'Invalid promo code'
+        });
+      }
+    } catch (error) {
+      setPromoValidation({
+        isValid: false,
+        discount: 0,
+        message: 'Error validating promo code'
+      });
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
+
+  const handlePromoCodeChange = (code) => {
+    setPromoCode(code);
+    if (selectedPackage) {
+      // Debounce validation
+      const timeoutId = setTimeout(() => {
+        validatePromoCode(code, selectedPackage._id);
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
   };
 
   const handleSelectPackage = (pkg) => {
     setSelectedPackage(pkg);
     setIncludeVerifiedBadge(false); // Reset verified badge option
+    setPromoValidation({ isValid: false, discount: 0, message: '' }); // Reset promo validation
     setShowPaymentModal(true);
+    
+    // Validate existing promo code for new package
+    if (promoCode.trim()) {
+      validatePromoCode(promoCode, pkg._id);
+    }
   };
 
   const handleProceedToWizard = () => {
@@ -141,7 +192,7 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
     navigation.navigate('SubscriptionWizardStep2', {
       selectedPackage,
       selectedDuration,
-      promoCode,
+      promoCode: promoValidation.isValid ? promoCode : '',
       includeVerifiedBadge,
     });
   };
@@ -174,7 +225,7 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
         email: userProfile.email,
         name: userProfile.fullName || userProfile.firstName + ' ' + userProfile.lastName,
         phone: userProfile.phone || userProfile.phoneNumber,
-        promoCode: promoCode || undefined,
+        promoCode: promoValidation.isValid ? promoCode : undefined,
       };
 
       console.log('Final payment data:', JSON.stringify(paymentData, null, 2));
@@ -358,13 +409,43 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
 
                 <View style={styles.promoSection}>
                   <Text style={styles.sectionTitle}>Promo Code (Optional):</Text>
-                  <TextInput
-                    style={styles.promoInput}
-                    value={promoCode}
-                    onChangeText={setPromoCode}
-                    placeholder="Enter promo code"
-                    placeholderTextColor="#9CA3AF"
-                  />
+                  <View style={styles.promoInputContainer}>
+                    <TextInput
+                      style={[
+                        styles.promoInput,
+                        promoValidation.isValid && styles.promoInputValid,
+                        promoValidation.message && !promoValidation.isValid && styles.promoInputInvalid
+                      ]}
+                      value={promoCode}
+                      onChangeText={handlePromoCodeChange}
+                      placeholder="Enter promo code"
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="characters"
+                    />
+                    {validatingPromo && (
+                      <View style={styles.promoValidatingIcon}>
+                        <ActivityIndicator size="small" color="#7C3AED" />
+                      </View>
+                    )}
+                    {!validatingPromo && promoValidation.isValid && (
+                      <View style={styles.promoValidIcon}>
+                        <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                      </View>
+                    )}
+                    {!validatingPromo && promoValidation.message && !promoValidation.isValid && (
+                      <View style={styles.promoInvalidIcon}>
+                        <Ionicons name="close-circle" size={20} color="#EF4444" />
+                      </View>
+                    )}
+                  </View>
+                  {promoValidation.message && (
+                    <Text style={[
+                      styles.promoMessage,
+                      promoValidation.isValid ? styles.promoMessageValid : styles.promoMessageInvalid
+                    ]}>
+                      {promoValidation.message}
+                    </Text>
+                  )}
                 </View>
 
                 <View style={styles.verifiedBadgeSection}>
@@ -399,10 +480,27 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
                 </View>
 
                 <View style={styles.totalSection}>
-                  <Text style={styles.totalLabel}>Total Amount:</Text>
-                  <Text style={styles.totalAmount}>
-                    {formatPrice(calculatePrice(selectedPackage, selectedDuration))}
-                  </Text>
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Subtotal:</Text>
+                    <Text style={styles.subtotalAmount}>
+                      {formatPrice(calculatePrice(selectedPackage, selectedDuration, false))}
+                    </Text>
+                  </View>
+                  {promoValidation.isValid && promoValidation.discount > 0 && (
+                    <View style={styles.totalRow}>
+                      <Text style={styles.discountLabel}>Discount ({promoValidation.discount}%):</Text>
+                      <Text style={styles.discountAmount}>
+                        -{formatPrice(calculatePrice(selectedPackage, selectedDuration, false) - calculatePrice(selectedPackage, selectedDuration, true))}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.divider} />
+                  <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Total Amount:</Text>
+                    <Text style={styles.totalAmount}>
+                      {formatPrice(calculatePrice(selectedPackage, selectedDuration, true))}
+                    </Text>
+                  </View>
                 </View>
 
                 <TouchableOpacity style={styles.payButton} onPress={handleProceedToWizard}>
@@ -691,13 +789,50 @@ const styles = StyleSheet.create({
   promoSection: {
     marginBottom: 20,
   },
+  promoInputContainer: {
+    position: 'relative',
+  },
   promoInput: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    paddingRight: 50,
     fontSize: 16,
+  },
+  promoInputValid: {
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+  promoInputInvalid: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
+  promoValidatingIcon: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+  },
+  promoValidIcon: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+  },
+  promoInvalidIcon: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+  },
+  promoMessage: {
+    fontSize: 14,
+    marginTop: 8,
+  },
+  promoMessageValid: {
+    color: '#10B981',
+  },
+  promoMessageInvalid: {
+    color: '#EF4444',
   },
   verifiedBadgeSection: {
     marginBottom: 20,
@@ -747,18 +882,41 @@ const styles = StyleSheet.create({
     borderColor: '#7C3AED',
   },
   totalSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     backgroundColor: '#F9FAFB',
     padding: 16,
     borderRadius: 8,
     marginBottom: 20,
   },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   totalLabel: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
+  },
+  subtotalAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  discountLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  discountAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 8,
   },
   totalAmount: {
     fontSize: 20,

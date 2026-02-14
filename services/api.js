@@ -250,6 +250,23 @@ class ApiService {
     return this.apiCall(`/user/users/${userId}`);
   }
 
+  // LOCATION DATA
+  static async getCities(country, state, lga) {
+    return this.apiCall(`/locations/cities?country=${encodeURIComponent(country)}&state=${encodeURIComponent(state)}&lga=${encodeURIComponent(lga)}`);
+  }
+
+  static async getCityRegions(country, state, lga, city) {
+    return this.apiCall(`/locations/city-regions?country=${encodeURIComponent(country)}&state=${encodeURIComponent(state)}&lga=${encodeURIComponent(lga)}&city=${encodeURIComponent(city)}`);
+  }
+
+  // PROMO CODE VALIDATION
+  static async validatePromoCode(packageId, promoCode) {
+    return this.apiCall('/user-subscriptions/validate-promo', {
+      method: 'POST',
+      body: JSON.stringify({ packageId, promoCode }),
+    });
+  }
+
   static async createOrgUser(userData) {
     const profileResponse = await this.getUserProfile();
     if (profileResponse.success) {
@@ -1957,6 +1974,58 @@ class ApiService {
     const response = await this.apiCall('/admin/organization-profile');
     console.log('Organization profile response:', JSON.stringify(response, null, 2));
     return response;
+  }
+
+  static async addLocation(locationData) {
+    console.log('🚨 ADD ORGANIZATION LOCATION DEBUG 🚨');
+    console.log('Location data being sent:', JSON.stringify(locationData, null, 2));
+    const response = await this.apiCall('/admin/organization-profile/locations', {
+      method: 'POST',
+      body: JSON.stringify(locationData),
+    });
+    console.log('Add location response:', JSON.stringify(response, null, 2));
+    return response;
+  }
+
+  // PAYMENT - VERIFIED BADGE
+  static async checkPaymentRequired() {
+    return this.apiCall('/payment/verified-badge/check-payment-required');
+  }
+
+  static async getVerifiedBadgePricing() {
+    return this.apiCall('/payment/verified-badge/pricing');
+  }
+
+  static async initializeVerifiedBadgePayment(paymentData) {
+    return this.apiCall('/payment/verified-badge/initialize', {
+      method: 'POST',
+      body: JSON.stringify(paymentData),
+    });
+  }
+
+  static async verifyVerifiedBadgePayment(transactionId) {
+    return this.apiCall('/payment/verified-badge/verify', {
+      method: 'POST',
+      body: JSON.stringify({ transactionId }),
+    });
+  }
+
+  // SUPER ADMIN - LOCATION VERIFICATIONS
+  static async getPendingLocationVerifications() {
+    return this.apiCall('/super-admin/location-verifications/pending');
+  }
+
+  static async approveLocationVerification(profileId, locationIndex) {
+    return this.apiCall(`/super-admin/location-verifications/${profileId}/${locationIndex}/approve`, {
+      method: 'PUT',
+    });
+  }
+
+  static async rejectLocationVerification(profileId, locationIndex, reason) {
+    return this.apiCall(`/super-admin/location-verifications/${profileId}/${locationIndex}/reject`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason }),
+    });
   }
 
   static async updateOrganizationProfileSettings(organizationId, profileData) {

@@ -87,6 +87,8 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
         includeVerifiedBadge,
       };
 
+      console.log('Final payment data:', JSON.stringify(paymentData, null, 2));
+
       const response = await ApiService.initializePayment(paymentData);
       
       if (response.success) {
