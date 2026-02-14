@@ -24,7 +24,7 @@ const SearchableDropdown = ({
   const [showOthersInput, setShowOthersInput] = useState(false);
   const [othersText, setOthersText] = useState('');
 
-  const filteredData = data.filter(item => 
+  const filteredData = (data || []).filter(item => 
     (item.label || item.name || '').toLowerCase().includes(searchText.toLowerCase())
   );
 

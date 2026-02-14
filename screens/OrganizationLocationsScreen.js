@@ -219,7 +219,7 @@ const OrganizationLocationsScreen = ({ navigation }) => {
                 
                 <View style={styles.feeBreakdown}>
                   <Text style={styles.breakdownTitle}>Fee Breakdown:</Text>
-                  {profile.locations.filter(location => !location.isPaidFor).map((location, index) => (
+                  {(profile?.locations || []).filter(location => !location.isPaidFor).map((location, index) => (
                     <View key={index} style={styles.breakdownItem}>
                       <Text style={styles.breakdownLocation}>{location.brandName} - {location.cityRegion}</Text>
                       <Text style={styles.breakdownAmount}>₦{location.cityRegionFee?.toLocaleString() || '0'}</Text>
@@ -228,7 +228,7 @@ const OrganizationLocationsScreen = ({ navigation }) => {
                   <View style={styles.totalRow}>
                     <Text style={styles.totalLabel}>Total Amount:</Text>
                     <Text style={styles.totalAmount}>
-                      ₦{profile.locations.filter(location => !location.isPaidFor).reduce((sum, loc) => sum + (loc.cityRegionFee || 0), 0).toLocaleString()}
+                      ₦{(profile?.locations || []).filter(location => !location.isPaidFor).reduce((sum, loc) => sum + (loc.cityRegionFee || 0), 0).toLocaleString()}
                     </Text>
                   </View>
                 </View>

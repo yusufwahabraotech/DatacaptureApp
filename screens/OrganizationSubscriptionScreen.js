@@ -147,7 +147,12 @@ const OrganizationSubscriptionScreen = ({ navigation }) => {
             </View>
             
             <Text style={styles.packageName}>{currentSubscription.packageName}</Text>
-            <Text style={styles.packageServices}>{currentSubscription.services}</Text>
+            <Text style={styles.packageServices}>
+              {Array.isArray(currentSubscription.services)
+                ? currentSubscription.services.map(service => service.serviceName || service).join(', ')
+                : currentSubscription.services
+              }
+            </Text>
             
             <View style={styles.subscriptionDetails}>
               <View style={styles.detailItem}>
@@ -196,7 +201,12 @@ const OrganizationSubscriptionScreen = ({ navigation }) => {
               </View>
               
               <Text style={styles.packageDescription}>{pkg.description}</Text>
-              <Text style={styles.packageServicesText}>{pkg.services}</Text>
+              <Text style={styles.packageServicesText}>
+                {Array.isArray(pkg.services) 
+                  ? pkg.services.map(service => service.serviceName || service).join(', ')
+                  : pkg.services
+                }
+              </Text>
               
               <View style={styles.pricingOptions}>
                 <TouchableOpacity 

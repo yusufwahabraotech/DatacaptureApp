@@ -7,58 +7,12 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
-  FlatList,
-  Modal,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
 import SearchableDropdown from '../components/SearchableDropdown';
-
-const CustomDropdown = ({ placeholder, value, options, onSelect, disabled }) => {
-  const [showOptions, setShowOptions] = useState(false);
-  
-  return (
-    <View style={styles.dropdownContainer}>
-      <TouchableOpacity 
-        style={[styles.dropdownButton, disabled && styles.dropdownDisabled]}
-        onPress={() => !disabled && setShowOptions(true)}
-        disabled={disabled}
-      >
-        <Text style={[styles.dropdownText, !value && styles.placeholderText]}>
-          {value || placeholder}
-        </Text>
-        <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
-      </TouchableOpacity>
-      
-      <Modal visible={showOptions} transparent animationType="fade">
-        <TouchableOpacity 
-          style={styles.dropdownOverlay} 
-          onPress={() => setShowOptions(false)}
-        >
-          <View style={styles.dropdownModal}>
-            <FlatList
-              data={options}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.dropdownOption}
-                  onPress={() => {
-                    onSelect(item.value || item);
-                    setShowOptions(false);
-                  }}
-                >
-                  <Text style={styles.dropdownOptionText}>{item.label || item}</Text>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </View>
-  );
-};
 
 const AddLocationScreen = ({ navigation, route }) => {
   const { editingLocation, locationIndex } = route.params || {};
@@ -83,8 +37,12 @@ const AddLocationScreen = ({ navigation, route }) => {
   const [lgas, setLgas] = useState([]);
   const [cities, setCities] = useState([]);
   const [cityRegionOptions, setCityRegionOptions] = useState([]);
-  const [showCustomCity, setShowCustomCity] = useState(false);
-  const [showCustomCityRegion, setShowCustomCityRegion] = useState(false);
+  const [showLocationTypeModal, setShowLocationTypeModal] = useState(false);
+  const [showCountryModal, setShowCountryModal] = useState(false);
+  const [showStateModal, setShowStateModal] = useState(false);
+  const [showLGAModal, setShowLGAModal] = useState(false);
+  const [showCityModal, setShowCityModal] = useState(false);
+  const [showCityRegionModal, setShowCityRegionModal] = useState(false);
 
   useEffect(() => {
     loadCountries();
@@ -195,7 +153,6 @@ const AddLocationScreen = ({ navigation, route }) => {
     setLgas([]);
     setCities([]);
     setCityRegionOptions([]);
-    setShowCustomCityRegion(false);
     if (country) {
       loadStates(country);
     }
@@ -206,7 +163,6 @@ const AddLocationScreen = ({ navigation, route }) => {
     setLgas([]);
     setCities([]);
     setCityRegionOptions([]);
-    setShowCustomCityRegion(false);
     if (state && locationData.country) {
       loadLGAs(locationData.country, state);
     }
@@ -214,8 +170,6 @@ const AddLocationScreen = ({ navigation, route }) => {
 
   const onLGAChange = (lga) => {
     setLocationData({...locationData, lga, city: '', cityRegion: ''});
-    setShowCustomCity(false);
-    setShowCustomCityRegion(false);
     if (lga && locationData.country && locationData.state) {
       loadCities(locationData.country, locationData.state, lga);
     }
@@ -223,28 +177,32 @@ const AddLocationScreen = ({ navigation, route }) => {
   };
 
   const onCityChange = (city) => {
-    if (city === 'Others') {
-      setShowCustomCity(true);
-      setLocationData({...locationData, city: '', cityRegion: ''});
-    } else {
-      setShowCustomCity(false);
-      setLocationData({...locationData, city, cityRegion: ''});
-      setShowCustomCityRegion(false);
-      if (city && locationData.country && locationData.state && locationData.lga) {
-        loadCityRegions(locationData.country, locationData.state, locationData.lga, city);
-      }
+    setLocationData({...locationData, city, cityRegion: ''});
+    if (city && locationData.country && locationData.state && locationData.lga) {
+      loadCityRegions(locationData.country, locationData.state, locationData.lga, city);
     }
   };
 
   const onCityRegionChange = (cityRegion) => {
-    if (cityRegion === 'Others') {
-      setShowCustomCityRegion(true);
-      setLocationData({...locationData, cityRegion: ''});
-    } else {
-      setShowCustomCityRegion(false);
-      setLocationData({...locationData, cityRegion});
-    }
+    setLocationData({...locationData, cityRegion});
   };
+
+  const renderDropdown = (value, placeholder, onPress, disabled = false) => (
+    <TouchableOpacity 
+      style={[styles.dropdown, disabled && styles.disabledDropdown]} 
+      onPress={disabled ? null : onPress}
+    >
+      <Text style={[styles.dropdownText, !value && styles.placeholderText]}>
+        {value || placeholder}
+      </Text>
+      <Ionicons name="chevron-down" size={20} color={disabled ? "#9CA3AF" : "#6B7280"} />
+    </TouchableOpacity>
+  );
+
+  const locationTypes = [
+    { label: 'Headquarters', value: 'headquarters' },
+    { label: 'Branch', value: 'branch' },
+  ];
 
   const nextStep = () => {
     if (currentStep < 3) {
@@ -317,41 +275,49 @@ const AddLocationScreen = ({ navigation, route }) => {
           <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
             <Text style={styles.stepTitle}>Basic Information</Text>
             
-            <CustomDropdown
-              placeholder="Location Type *"
-              value={locationData.locationType}
-              options={[
-                { label: 'Headquarters', value: 'headquarters' },
-                { label: 'Branch', value: 'branch' }
-              ]}
-              onSelect={(type) => setLocationData({...locationData, locationType: type})}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Location Type:</Text>
+              {renderDropdown(
+                locationTypes.find(t => t.value === locationData.locationType)?.label,
+                'Select location type',
+                () => setShowLocationTypeModal(true)
+              )}
+            </View>
             
-            <TextInput
-              style={styles.input}
-              placeholder="Brand Name *"
-              placeholderTextColor="#9CA3AF"
-              value={locationData.brandName}
-              onChangeText={(text) => setLocationData({...locationData, brandName: text})}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Brand Name:</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Brand Name *"
+                placeholderTextColor="#9CA3AF"
+                value={locationData.brandName}
+                onChangeText={(text) => setLocationData({...locationData, brandName: text})}
+              />
+            </View>
             
-            <TextInput
-              style={styles.input}
-              placeholder="Location Name *"
-              placeholderTextColor="#9CA3AF"
-              value={locationData.name}
-              onChangeText={(text) => setLocationData({...locationData, name: text})}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Location Name:</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Location Name *"
+                placeholderTextColor="#9CA3AF"
+                value={locationData.name}
+                onChangeText={(text) => setLocationData({...locationData, name: text})}
+              />
+            </View>
             
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Description (optional)"
-              placeholderTextColor="#9CA3AF"
-              value={locationData.description}
-              onChangeText={(text) => setLocationData({...locationData, description: text})}
-              multiline
-              numberOfLines={3}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Description (optional):</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Description (optional)"
+                placeholderTextColor="#9CA3AF"
+                value={locationData.description}
+                onChangeText={(text) => setLocationData({...locationData, description: text})}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
           </ScrollView>
         );
       
@@ -360,46 +326,44 @@ const AddLocationScreen = ({ navigation, route }) => {
           <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
             <Text style={styles.stepTitle}>Location Details</Text>
             
-            <SearchableDropdown
-              placeholder="Select Country *"
-              value={locationData.country}
-              options={countries.map(c => ({ label: c, value: c }))}
-              onSelect={onCountryChange}
-              searchPlaceholder="Search countries..."
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Country* (required):</Text>
+              {renderDropdown(
+                locationData.country,
+                'Select a country...',
+                () => setShowCountryModal(true)
+              )}
+            </View>
             
-            <CustomDropdown
-              placeholder="Select State *"
-              value={locationData.state}
-              options={states.map(s => ({ label: s, value: s }))}
-              onSelect={onStateChange}
-              disabled={states.length === 0}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>State/Province* (required):</Text>
+              {renderDropdown(
+                locationData.state,
+                locationData.country ? 'Select a state...' : 'Please select a country first',
+                () => setShowStateModal(true),
+                !locationData.country
+              )}
+            </View>
             
-            <CustomDropdown
-              placeholder="Select LGA *"
-              value={locationData.lga}
-              options={lgas.map(lga => ({ label: lga, value: lga }))}
-              onSelect={onLGAChange}
-              disabled={lgas.length === 0}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>LGA (Local Government Area) - Optional:</Text>
+              {renderDropdown(
+                locationData.lga,
+                locationData.state ? 'Select LGA...' : 'Please select a state first',
+                () => setShowLGAModal(true),
+                !locationData.state
+              )}
+            </View>
             
-            <CustomDropdown
-              placeholder="Select City *"
-              value={locationData.city}
-              options={cities.map(city => ({ label: city, value: city }))}
-              onSelect={onCityChange}
-            />
-            
-            {showCustomCity && (
-              <TextInput
-                style={styles.input}
-                placeholder="Enter Custom City *"
-                placeholderTextColor="#9CA3AF"
-                value={locationData.city}
-                onChangeText={(text) => setLocationData({...locationData, city: text})}
-              />
-            )}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>City* (required):</Text>
+              {renderDropdown(
+                locationData.city,
+                locationData.state ? 'Select a city...' : 'Please select a state first',
+                () => setShowCityModal(true),
+                !locationData.state
+              )}
+            </View>
           </ScrollView>
         );
       
@@ -408,56 +372,61 @@ const AddLocationScreen = ({ navigation, route }) => {
           <ScrollView style={styles.stepContent} showsVerticalScrollIndicator={false}>
             <Text style={styles.stepTitle}>Address Details</Text>
             
-            <CustomDropdown
-              placeholder="Select City Region *"
-              value={locationData.cityRegion}
-              options={cityRegionOptions}
-              onSelect={onCityRegionChange}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>City Region with Fee - Optional:</Text>
+              {renderDropdown(
+                locationData.cityRegion,
+                locationData.city ? 'Select city region...' : 'Please select a city first',
+                () => setShowCityRegionModal(true),
+                !locationData.city
+              )}
+            </View>
             
-            {showCustomCityRegion && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>House Number:</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter Custom City Region *"
+                placeholder="House Number *"
                 placeholderTextColor="#9CA3AF"
-                value={locationData.cityRegion}
-                onChangeText={(text) => setLocationData({...locationData, cityRegion: text})}
+                value={locationData.houseNumber}
+                onChangeText={(text) => setLocationData({...locationData, houseNumber: text})}
               />
-            )}
+            </View>
             
-            <TextInput
-              style={styles.input}
-              placeholder="House Number *"
-              placeholderTextColor="#9CA3AF"
-              value={locationData.houseNumber}
-              onChangeText={(text) => setLocationData({...locationData, houseNumber: text})}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Street:</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Street *"
+                placeholderTextColor="#9CA3AF"
+                value={locationData.street}
+                onChangeText={(text) => setLocationData({...locationData, street: text})}
+              />
+            </View>
             
-            <TextInput
-              style={styles.input}
-              placeholder="Street *"
-              placeholderTextColor="#9CA3AF"
-              value={locationData.street}
-              onChangeText={(text) => setLocationData({...locationData, street: text})}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Landmark (optional):</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Landmark (optional)"
+                placeholderTextColor="#9CA3AF"
+                value={locationData.landmark}
+                onChangeText={(text) => setLocationData({...locationData, landmark: text})}
+              />
+            </View>
             
-            <TextInput
-              style={styles.input}
-              placeholder="Landmark (optional)"
-              placeholderTextColor="#9CA3AF"
-              value={locationData.landmark}
-              onChangeText={(text) => setLocationData({...locationData, landmark: text})}
-            />
-            
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Full Address (optional)"
-              placeholderTextColor="#9CA3AF"
-              value={locationData.address}
-              onChangeText={(text) => setLocationData({...locationData, address: text})}
-              multiline
-              numberOfLines={3}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Full Address (optional):</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Full Address (optional)"
+                placeholderTextColor="#9CA3AF"
+                value={locationData.address}
+                onChangeText={(text) => setLocationData({...locationData, address: text})}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
           </ScrollView>
         );
       
@@ -552,7 +521,73 @@ const AddLocationScreen = ({ navigation, route }) => {
       </View>
 
       {renderStepContent()}
+      
       {renderStepButtons()}
+      
+      {/* Modals */}
+      <SearchableDropdown
+        visible={showLocationTypeModal}
+        onClose={() => setShowLocationTypeModal(false)}
+        data={locationTypes}
+        onSelect={(item) => setLocationData({...locationData, locationType: item.value})}
+        title="Select Location Type"
+        searchPlaceholder="Search location types..."
+      />
+      
+      <SearchableDropdown
+        visible={showCountryModal}
+        onClose={() => setShowCountryModal(false)}
+        data={countries.map(c => ({ label: c, name: c }))}
+        onSelect={(item) => onCountryChange(item.label || item.name)}
+        title="Select Country"
+        searchPlaceholder="Search countries..."
+        showOthersOption={true}
+        onOthersSelect={(customValue) => onCountryChange(customValue)}
+      />
+      
+      <SearchableDropdown
+        visible={showStateModal}
+        onClose={() => setShowStateModal(false)}
+        data={states.map(s => ({ label: s, name: s }))}
+        onSelect={(item) => onStateChange(item.label || item.name)}
+        title="Select State"
+        searchPlaceholder="Search states..."
+        showOthersOption={true}
+        onOthersSelect={(customValue) => onStateChange(customValue)}
+      />
+      
+      <SearchableDropdown
+        visible={showLGAModal}
+        onClose={() => setShowLGAModal(false)}
+        data={lgas.map(l => ({ label: l, name: l }))}
+        onSelect={(item) => onLGAChange(item.label || item.name)}
+        title="Select LGA"
+        searchPlaceholder="Search LGAs..."
+        showOthersOption={true}
+        onOthersSelect={(customValue) => onLGAChange(customValue)}
+      />
+      
+      <SearchableDropdown
+        visible={showCityModal}
+        onClose={() => setShowCityModal(false)}
+        data={cities.map(c => ({ label: c, name: c }))}
+        onSelect={(item) => onCityChange(item.label || item.name)}
+        title="Select City"
+        searchPlaceholder="Search cities..."
+        showOthersOption={true}
+        onOthersSelect={(customValue) => onCityChange(customValue)}
+      />
+      
+      <SearchableDropdown
+        visible={showCityRegionModal}
+        onClose={() => setShowCityRegionModal(false)}
+        data={cityRegionOptions.map(cr => ({ label: cr.label, name: cr.value }))}
+        onSelect={(item) => onCityRegionChange(item.name)}
+        title="Select City Region"
+        searchPlaceholder="Search city regions..."
+        showOthersOption={true}
+        onOthersSelect={(customValue) => onCityRegionChange(customValue)}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -640,6 +675,29 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     color: '#1F2937',
     backgroundColor: '#FFFFFF',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  dropdown: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  disabledDropdown: {
+    backgroundColor: '#F9FAFB',
   },
   textArea: {
     height: 80,
