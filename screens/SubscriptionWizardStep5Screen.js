@@ -19,10 +19,67 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
   const [showPaymentWebView, setShowPaymentWebView] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState('');
   const [userProfile, setUserProfile] = useState(null);
+  const [promoValidation, setPromoValidation] = useState({ isValid: false, discount: 0, message: '' });
+  const [validatingPromo, setValidatingPromo] = useState(false);
 
   useEffect(() => {
     fetchUserProfile();
+    // Validate promo code if provided
+    if (promoCode && selectedPackage) {
+      validatePromoCode(promoCode, selectedPackage._id);
+    }
   }, []);
+
+  // Calculate package price based on selected duration and services (same as Step 3 & 4)
+  const getPackagePrice = (applyPromoDiscount = true) => {
+    if (!selectedPackage?.services) return 0;
+    
+    // Calculate base price for the selected duration
+    let basePrice = selectedPackage.services
+      .filter(service => service.duration === selectedDuration)
+      .reduce((total, service) => total + service.price, 0);
+    
+    // Apply promo discount if valid and requested
+    if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {
+      const discountAmount = (basePrice * promoValidation.discount) / 100;
+      return basePrice - discountAmount;
+    }
+    
+    return basePrice;
+  };
+
+  const validatePromoCode = async (code, packageId) => {
+    if (!code.trim()) {
+      setPromoValidation({ isValid: false, discount: 0, message: '' });
+      return;
+    }
+
+    setValidatingPromo(true);
+    try {
+      const response = await ApiService.validatePromoCode(packageId, code.trim());
+      if (response.success) {
+        setPromoValidation({
+          isValid: true,
+          discount: response.data.discountPercentage,
+          message: `${response.data.discountPercentage}% discount applied!`
+        });
+      } else {
+        setPromoValidation({
+          isValid: false,
+          discount: 0,
+          message: response.message || 'Invalid promo code'
+        });
+      }
+    } catch (error) {
+      setPromoValidation({
+        isValid: false,
+        discount: 0,
+        message: 'Error validating promo code'
+      });
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -85,8 +142,8 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
         email: userProfile.email,
         name: userProfile.fullName || userProfile.firstName + ' ' + userProfile.lastName,
         phone: userProfile.phone || userProfile.phoneNumber,
-        totalAmount: paymentSummary.totalAmount,
-        promoCode: promoCode || undefined,
+        totalAmount: locationData ? paymentSummary.totalAmount : getPackagePrice(true),
+        promoCode: promoValidation.isValid ? promoCode : undefined,
       };
 
       // Add location verification data if needed
@@ -227,23 +284,52 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Payment Summary</Text>
           
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Package Subscription</Text>
-            <Text style={styles.summaryValue}>{formatPrice(paymentSummary.packagePrice)}</Text>
-          </View>
-          <Text style={styles.summarySubtext}>{selectedPackage.title} - Monthly</Text>
+          {promoCode && (
+            <View style={styles.promoSection}>
+              <Text style={styles.promoLabel}>Promo Code: {promoCode}</Text>
+              {validatingPromo && (
+                <Text style={styles.promoValidating}>Validating...</Text>
+              )}
+              {!validatingPromo && promoValidation.message && (
+                <Text style={[
+                  styles.promoMessage,
+                  promoValidation.isValid ? styles.promoValid : styles.promoInvalid
+                ]}>
+                  {promoValidation.message}
+                </Text>
+              )}
+            </View>
+          )}
           
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Location Verification</Text>
-            <Text style={styles.summaryValue}>{formatPrice(paymentSummary.locationVerificationPrice)}</Text>
+            <Text style={styles.summaryLabel}>Package Subscription</Text>
+            {promoValidation.isValid && promoValidation.discount > 0 ? (
+              <View style={styles.discountPricing}>
+                <Text style={styles.originalPrice}>{formatPrice(getPackagePrice(false))}</Text>
+                <Text style={styles.discountLabel}>-{promoValidation.discount}%</Text>
+                <Text style={styles.summaryValue}>{formatPrice(getPackagePrice(true))}</Text>
+              </View>
+            ) : (
+              <Text style={styles.summaryValue}>{formatPrice(locationData ? paymentSummary.packagePrice : getPackagePrice(false))}</Text>
+            )}
           </View>
-          <Text style={styles.summarySubtext}>1 location(s)</Text>
+          <Text style={styles.summarySubtext}>{selectedPackage.title} - {selectedDuration}</Text>
+          
+          {locationData && (
+            <>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Location Verification</Text>
+                <Text style={styles.summaryValue}>{formatPrice(paymentSummary.locationVerificationPrice)}</Text>
+              </View>
+              <Text style={styles.summarySubtext}>1 location(s)</Text>
+            </>
+          )}
           
           <View style={styles.divider} />
           
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total Amount</Text>
-            <Text style={styles.totalAmount}>{formatPrice(paymentSummary.totalAmount)}</Text>
+            <Text style={styles.totalAmount}>{formatPrice(locationData ? paymentSummary.totalAmount : getPackagePrice(true))}</Text>
           </View>
         </View>
 
@@ -476,6 +562,47 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: '#10B981',
+  },
+  promoSection: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  promoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  promoValidating: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  promoMessage: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  promoValid: {
+    color: '#10B981',
+  },
+  promoInvalid: {
+    color: '#EF4444',
+  },
+  discountPricing: {
+    alignItems: 'flex-end',
+  },
+  originalPrice: {
+    fontSize: 14,
+    color: '#6B7280',
+    textDecorationLine: 'line-through',
+  },
+  discountLabel: {
+    fontSize: 12,
+    color: '#10B981',
+    fontWeight: '600',
   },
   packageDetailsCard: {
     backgroundColor: '#FFFFFF',
