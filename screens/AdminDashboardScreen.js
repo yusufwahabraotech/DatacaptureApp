@@ -172,7 +172,21 @@ const AdminDashboardScreen = ({ navigation }) => {
       title: 'Organization Profile',
       subtitle: 'Manage profile & verification',
       icon: 'business',
-      onPress: () => navigation.navigate('OrganizationProfile')
+      onPress: async () => {
+        try {
+          const response = await ApiService.getOrganizationProfile();
+          if (response.success && response.data?.profile?.locations?.length > 0) {
+            // Has existing locations, go directly to locations screen
+            navigation.navigate('OrganizationLocations');
+          } else {
+            // No locations, go through setup wizard first
+            navigation.navigate('OrganizationProfileSetup');
+          }
+        } catch (error) {
+          // On error, go to setup wizard
+          navigation.navigate('OrganizationProfileSetup');
+        }
+      }
     },
     {
       title: 'Gallery Management',

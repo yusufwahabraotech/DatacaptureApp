@@ -11,8 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
 
-const SubscriptionWizardStep2Screen = ({ navigation, route }) => {
-  const { selectedPackage, selectedDuration, promoCode, includeVerifiedBadge } = route.params;
+const OrganizationProfileSetupScreen = ({ navigation }) => {
   const [businessRegistrationStatus, setBusinessRegistrationStatus] = useState('registered');
   const [publicProfile, setPublicProfile] = useState('yes');
   const [verificationStatus, setVerificationStatus] = useState('verified');
@@ -56,43 +55,9 @@ const SubscriptionWizardStep2Screen = ({ navigation, route }) => {
       const response = await ApiService.updateOrganizationProfileSettings(organizationId, profileData);
       
       if (response.success) {
-        // If public profile is 'no' OR verification status is 'unverified', skip to step 5
-        if (publicProfile === 'no' || verificationStatus === 'unverified') {
-          navigation.navigate('SubscriptionWizardStep5', {
-            selectedPackage,
-            selectedDuration,
-            promoCode,
-            includeVerifiedBadge: false,
-            profileData: {
-              businessRegistrationStatus,
-              publicProfile,
-              verificationStatus,
-            },
-            locationData: null,
-            paymentSummary: {
-              packagePrice: selectedPackage.services
-                ?.filter(service => service.duration === selectedDuration)
-                ?.reduce((total, service) => total + service.price, 0) || 0,
-              locationVerificationPrice: 0,
-              totalAmount: selectedPackage.services
-                ?.filter(service => service.duration === selectedDuration)
-                ?.reduce((total, service) => total + service.price, 0) || 0,
-            },
-          });
-        } else {
-          // Continue to next step for location setup
-          navigation.navigate('SubscriptionWizardStep3', {
-            selectedPackage,
-            selectedDuration,
-            promoCode,
-            includeVerifiedBadge,
-            profileData: {
-              businessRegistrationStatus,
-              publicProfile,
-              verificationStatus,
-            },
-          });
-        }
+        Alert.alert('Success', 'Profile settings saved successfully', [
+          { text: 'OK', onPress: () => navigation.navigate('OrganizationLocations') }
+        ]);
       } else {
         Alert.alert('Error', response.message || 'Failed to update organization profile');
       }
@@ -103,55 +68,6 @@ const SubscriptionWizardStep2Screen = ({ navigation, route }) => {
       setLoading(false);
     }
   };
-
-
-
-  const renderProgressSteps = () => (
-    <View style={styles.progressContainer}>
-      <View style={styles.stepContainer}>
-        <View style={[styles.stepCircle, styles.completedStep]}>
-          <Ionicons name="checkmark" size={16} color="white" />
-        </View>
-        <Text style={[styles.stepText, styles.completedText]}>Packages</Text>
-      </View>
-      
-      <View style={styles.stepLine} />
-      
-      <View style={styles.stepContainer}>
-        <View style={[styles.stepCircle, styles.activeStep]}>
-          <Text style={styles.activeStepText}>2</Text>
-        </View>
-        <Text style={[styles.stepText, styles.activeText]}>Profile</Text>
-      </View>
-      
-      <View style={styles.stepLine} />
-      
-      <View style={styles.stepContainer}>
-        <View style={[styles.stepCircle, styles.upcomingStep]}>
-          <Text style={styles.upcomingStepText}>3</Text>
-        </View>
-        <Text style={[styles.stepText, styles.upcomingText]}>Locations</Text>
-      </View>
-      
-      <View style={styles.stepLine} />
-      
-      <View style={styles.stepContainer}>
-        <View style={[styles.stepCircle, styles.upcomingStep]}>
-          <Text style={styles.upcomingStepText}>4</Text>
-        </View>
-        <Text style={[styles.stepText, styles.upcomingText]}>Location Payment</Text>
-      </View>
-      
-      <View style={styles.stepLine} />
-      
-      <View style={styles.stepContainer}>
-        <View style={[styles.stepCircle, styles.upcomingStep]}>
-          <Text style={styles.upcomingStepText}>5</Text>
-        </View>
-        <Text style={[styles.stepText, styles.upcomingText]}>Package Payment</Text>
-      </View>
-    </View>
-  );
 
   const renderRadioOption = (value, currentValue, onPress, label) => (
     <TouchableOpacity style={styles.radioOption} onPress={() => onPress(value)}>
@@ -170,8 +86,6 @@ const SubscriptionWizardStep2Screen = ({ navigation, route }) => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Organization Profile Setup</Text>
       </View>
-
-      {renderProgressSteps()}
 
       <ScrollView style={styles.content}>
         <Text style={styles.title}>Organization Profile Setup</Text>
@@ -226,9 +140,7 @@ const SubscriptionWizardStep2Screen = ({ navigation, route }) => {
             <ActivityIndicator size="small" color="white" />
           ) : (
             <>
-              <Text style={styles.nextButtonText}>
-                {publicProfile === 'no' ? 'Pay Now' : 'Next'}
-              </Text>
+              <Text style={styles.nextButtonText}>Continue to Locations</Text>
               <Ionicons name="arrow-forward" size={20} color="white" />
             </>
           )}
@@ -257,66 +169,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 15,
     color: '#1F2937',
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  stepContainer: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  stepCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  completedStep: {
-    backgroundColor: '#6B7280',
-  },
-  activeStep: {
-    backgroundColor: '#7C3AED',
-  },
-  upcomingStep: {
-    backgroundColor: '#E5E7EB',
-  },
-  activeStepText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  upcomingStepText: {
-    color: '#6B7280',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  stepText: {
-    fontSize: 10,
-    textAlign: 'center',
-  },
-  completedText: {
-    color: '#6B7280',
-  },
-  activeText: {
-    color: '#7C3AED',
-    fontWeight: '600',
-  },
-  upcomingText: {
-    color: '#6B7280',
-  },
-  stepLine: {
-    height: 2,
-    backgroundColor: '#E5E7EB',
-    flex: 0.5,
-    marginHorizontal: 8,
   },
   content: {
     flex: 1,
@@ -399,4 +251,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SubscriptionWizardStep2Screen;
+export default OrganizationProfileSetupScreen;

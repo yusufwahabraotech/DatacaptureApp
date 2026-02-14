@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-const BASE_URL = 'http://172.20.10.2:3000/api';
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -1977,6 +1977,13 @@ class ApiService {
   static async createOrganizationProfile(profileData) {
     return this.apiCall('/admin/organization-profile', {
       method: 'POST',
+      body: JSON.stringify(profileData),
+    });
+  }
+
+  static async updateOrganizationProfileSettings(profileData) {
+    return this.apiCall('/admin/organization-profile/settings', {
+      method: 'PUT',
       body: JSON.stringify(profileData),
     });
   }

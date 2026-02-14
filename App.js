@@ -72,6 +72,7 @@ import CreateVerificationScreen from './screens/CreateVerificationScreen';
 import VerificationDetailsScreen from './screens/VerificationDetailsScreen';
 import SuperAdminVerificationDetailsScreen from './screens/SuperAdminVerificationDetailsScreen';
 import OrganizationProfileScreen from './screens/OrganizationProfileScreen';
+import OrganizationProfileSetupScreen from './screens/OrganizationProfileSetupScreen';
 import OrganizationLocationsScreen from './screens/OrganizationLocationsScreen';
 import AddLocationScreen from './screens/AddLocationScreen';
 import VerifiedBadgePaymentScreen from './screens/VerifiedBadgePaymentScreen';
@@ -174,6 +175,7 @@ export default function App() {
         
         {/* Organization Profile & Verified Badge Screens */}
         <Stack.Screen name="OrganizationProfile" component={OrganizationProfileScreen} />
+        <Stack.Screen name="OrganizationProfileSetup" component={OrganizationProfileSetupScreen} />
         <Stack.Screen name="OrganizationLocations" component={OrganizationLocationsScreen} />
         <Stack.Screen name="AddLocation" component={AddLocationScreen} />
         <Stack.Screen name="VerifiedBadgePayment" component={VerifiedBadgePaymentScreen} />
