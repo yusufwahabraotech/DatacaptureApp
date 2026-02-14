@@ -56,8 +56,8 @@ const SubscriptionWizardStep2Screen = ({ navigation, route }) => {
       const response = await ApiService.updateOrganizationProfileSettings(organizationId, profileData);
       
       if (response.success) {
-        // If public profile is 'no', skip to step 5
-        if (publicProfile === 'no') {
+        // If public profile is 'no' OR verification status is 'unverified', skip to step 5
+        if (publicProfile === 'no' || verificationStatus === 'unverified') {
           navigation.navigate('SubscriptionWizardStep5', {
             selectedPackage,
             selectedDuration,
