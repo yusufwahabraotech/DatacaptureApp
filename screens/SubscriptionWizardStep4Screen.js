@@ -17,12 +17,16 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
   const [locationVerificationPrice, setLocationVerificationPrice] = useState(0);
   const [loadingPrice, setLoadingPrice] = useState(true);
 
-  const packagePrice = 3000;
-  
-  // Calculate package price with promo discount
+  // Calculate package price based on selected duration and services (same as Step 3)
   const getPackagePrice = (applyPromoDiscount = true) => {
-    let basePrice = packagePrice;
+    if (!selectedPackage?.services) return 0;
     
+    // Calculate base price for the selected duration
+    let basePrice = selectedPackage.services
+      .filter(service => service.duration === selectedDuration)
+      .reduce((total, service) => total + service.price, 0);
+    
+    // Apply promo discount if valid and requested
     if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {
       const discountAmount = (basePrice * promoValidation.discount) / 100;
       return basePrice - discountAmount;
