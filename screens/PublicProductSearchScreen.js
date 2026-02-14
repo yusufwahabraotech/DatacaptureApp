@@ -22,7 +22,6 @@ const PublicProductSearchScreen = ({ navigation }) => {
   const [filters, setFilters] = useState({
     itemType: '',
     categoryId: '',
-    industryId: '',
   });
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);

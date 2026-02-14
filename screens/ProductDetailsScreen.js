@@ -159,11 +159,6 @@ const ProductDetailsScreen = ({ navigation, route }) => {
             </View>
             
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Industry:</Text>
-              <Text style={styles.infoValue}>{product.productInfo?.industry}</Text>
-            </View>
-            
-            <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Category:</Text>
               <Text style={styles.infoValue}>{product.productInfo?.category}</Text>
             </View>

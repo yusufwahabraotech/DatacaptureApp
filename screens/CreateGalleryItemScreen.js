@@ -22,7 +22,6 @@ const CreateGalleryItemScreen = ({ navigation }) => {
     name: '',
     description: '',
     itemType: '',
-    industryId: '',
     categoryId: '',
     sku: '',
     upc: '',
@@ -41,7 +40,6 @@ const CreateGalleryItemScreen = ({ navigation }) => {
   });
 
   const [locations, setLocations] = useState([]);
-  const [industries, setIndustries] = useState([]);
   const [categories, setCategories] = useState([]);
   const [commissionRate, setCommissionRate] = useState(0);
   const [platformCodePreview, setPlatformCodePreview] = useState({
@@ -54,7 +52,6 @@ const CreateGalleryItemScreen = ({ navigation }) => {
   const [mediaUsage, setMediaUsage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
-  const [industryModalVisible, setIndustryModalVisible] = useState(false);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [startTime, setStartTime] = useState(null);
@@ -66,20 +63,10 @@ const CreateGalleryItemScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchLocations();
-    fetchIndustries();
+    fetchCategories();
     fetchMediaUsage();
     fetchPlatformCodePreview();
   }, []);
-
-  useEffect(() => {
-    if (formData.industryId) {
-      fetchCategoriesForIndustry(formData.industryId);
-    } else {
-      setCategories([]);
-      setFormData(prev => ({ ...prev, categoryId: '' }));
-      setCommissionRate(0);
-    }
-  }, [formData.industryId]);
 
   useEffect(() => {
     if (formData.categoryId) {
@@ -100,20 +87,9 @@ const CreateGalleryItemScreen = ({ navigation }) => {
     }
   };
 
-  const fetchIndustries = async () => {
+  const fetchCategories = async () => {
     try {
-      const result = await ApiService.getGalleryIndustries();
-      if (result.success) {
-        setIndustries(result.data.industries);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to fetch industries');
-    }
-  };
-
-  const fetchCategoriesForIndustry = async (industryId) => {
-    try {
-      const result = await ApiService.getGalleryCategories(industryId);
+      const result = await ApiService.getGalleryCategories();
       if (result.success) {
         setCategories(result.data.categories);
       }
@@ -212,7 +188,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
   };
 
   const createGalleryItem = async () => {
-    if (!formData.name.trim() || !formData.description.trim() || !formData.itemType || !formData.industryId || !formData.categoryId || !formData.locationIndex) {
+    if (!formData.name.trim() || !formData.description.trim() || !formData.itemType || !formData.categoryId || !formData.locationIndex) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -225,7 +201,6 @@ const CreateGalleryItemScreen = ({ navigation }) => {
         name: formData.name,
         description: formData.description,
         itemType: formData.itemType,
-        industryId: formData.industryId,
         categoryId: formData.categoryId,
         sku: formData.sku,
         upc: formData.upc,
@@ -471,25 +446,10 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             numberOfLines={3}
           />
 
-          <Text style={styles.inputLabel}>Industry *</Text>
-          <TouchableOpacity
-            style={styles.dropdownButton}
-            onPress={() => setIndustryModalVisible(true)}
-          >
-            <Text style={[
-              styles.dropdownText,
-              !formData.industryId && styles.placeholderText
-            ]}>
-              {formData.industryId ? industries.find(i => i.id === formData.industryId)?.name : 'Select Industry'}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color="#666" />
-          </TouchableOpacity>
-
           <Text style={styles.inputLabel}>Category *</Text>
           <TouchableOpacity
-            style={[styles.dropdownButton, !formData.industryId && styles.disabledButton]}
-            onPress={() => formData.industryId && setCategoryModalVisible(true)}
-            disabled={!formData.industryId}
+            style={styles.dropdownButton}
+            onPress={() => setCategoryModalVisible(true)}
           >
             <Text style={[
               styles.dropdownText,
@@ -505,36 +465,6 @@ const CreateGalleryItemScreen = ({ navigation }) => {
               <Text style={styles.commissionText}>Platform Commission: {commissionRate}%</Text>
             </View>
           )}
-
-          <Modal
-            visible={industryModalVisible}
-            transparent
-            animationType="slide"
-          >
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Select Industry</Text>
-                {industries.map((industry) => (
-                  <TouchableOpacity
-                    key={industry.id}
-                    style={styles.modalItem}
-                    onPress={() => {
-                      setFormData({...formData, industryId: industry.id, categoryId: ''});
-                      setIndustryModalVisible(false);
-                    }}
-                  >
-                    <Text style={styles.modalItemText}>{industry.name}</Text>
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity
-                  style={styles.modalCloseButton}
-                  onPress={() => setIndustryModalVisible(false)}
-                >
-                  <Text style={styles.modalCloseText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Modal>
 
           <Modal
             visible={categoryModalVisible}

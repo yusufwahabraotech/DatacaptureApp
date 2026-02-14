@@ -10,6 +10,7 @@ import {
   RefreshControl,
   TextInput,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +20,6 @@ const GalleryManagementScreen = ({ navigation, route }) => {
   const [galleryItems, setGalleryItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [mediaUsage, setMediaUsage] = useState(null);
   const [filterVisible, setFilterVisible] = useState(false);
   const [filters, setFilters] = useState({
     category: '',
@@ -31,7 +31,6 @@ const GalleryManagementScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     fetchGalleryItems();
-    fetchMediaUsage();
   }, [filters]);
 
   useEffect(() => {
@@ -51,9 +50,6 @@ const GalleryManagementScreen = ({ navigation, route }) => {
       const result = await ApiService.getGalleryItems(filters);
       if (result.success) {
         setGalleryItems(result.data.items);
-        if (result.data.mediaUsage) {
-          setMediaUsage(result.data.mediaUsage);
-        }
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to fetch gallery items');
@@ -63,16 +59,7 @@ const GalleryManagementScreen = ({ navigation, route }) => {
     }
   };
 
-  const fetchMediaUsage = async () => {
-    try {
-      const result = await ApiService.getGalleryMediaUsage();
-      if (result.success) {
-        setMediaUsage(result.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch media usage:', error);
-    }
-  };
+
 
   const deleteGalleryItem = async (itemId) => {
     Alert.alert(
@@ -116,7 +103,19 @@ const GalleryManagementScreen = ({ navigation, route }) => {
       <View style={styles.itemActions}>
         <TouchableOpacity
           style={styles.editButton}
-          onPress={() => navigation.navigate('EditGalleryItem', { itemId: item._id })}
+          onPress={() => {
+            try {
+              console.log('Navigating to EditGalleryItem with itemId:', item._id);
+              if (!item._id) {
+                Alert.alert('Error', 'Invalid item ID');
+                return;
+              }
+              navigation.navigate('EditGalleryItem', { itemId: item._id });
+            } catch (error) {
+              console.error('Navigation error:', error);
+              Alert.alert('Error', 'Failed to open edit screen');
+            }
+          }}
         >
           <Ionicons name="pencil" size={20} color="#7B2CBF" />
         </TouchableOpacity>
@@ -130,20 +129,7 @@ const GalleryManagementScreen = ({ navigation, route }) => {
     </View>
   );
 
-  const MediaUsageCard = () => (
-    <View style={styles.usageCard}>
-      <Text style={styles.usageTitle}>Media Usage</Text>
-      <View style={styles.usageRow}>
-        <Text>Images: {mediaUsage?.images?.current || 0}/{mediaUsage?.images?.max || 0}</Text>
-        <Text>Videos: {mediaUsage?.videos?.current || 0}/{mediaUsage?.videos?.max || 0}</Text>
-      </View>
-      {!mediaUsage?.verified && (
-        <Text style={styles.upgradeText}>
-          Upgrade to verified badge for more uploads
-        </Text>
-      )}
-    </View>
-  );
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -157,22 +143,27 @@ const GalleryManagementScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       </View>
 
-      {mediaUsage && <MediaUsageCard />}
-
-      <FlatList
-        data={galleryItems}
-        renderItem={renderGalleryItem}
-        keyExtractor={(item) => item._id}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => {
-            setRefreshing(true);
-            fetchGalleryItems();
-          }} />
-        }
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No gallery items found</Text>
-        }
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#7B2CBF" />
+          <Text style={styles.loadingText}>Loading gallery items...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={galleryItems}
+          renderItem={renderGalleryItem}
+          keyExtractor={(item) => item._id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => {
+              setRefreshing(true);
+              fetchGalleryItems();
+            }} />
+          }
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No gallery items found</Text>
+          }
+        />
+      )}
 
       <TouchableOpacity
         style={styles.fab}
@@ -253,28 +244,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  usageCard: {
-    backgroundColor: 'white',
-    margin: 16,
-    padding: 16,
-    borderRadius: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: '#7B2CBF',
-  },
-  usageTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  usageRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  upgradeText: {
-    color: '#FF6B35',
-    fontSize: 12,
-    marginTop: 4,
-  },
+
   itemCard: {
     backgroundColor: 'white',
     marginHorizontal: 16,
@@ -353,6 +323,17 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     marginTop: 50,
+    fontSize: 16,
+    color: '#666',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  loadingText: {
+    marginTop: 10,
     fontSize: 16,
     color: '#666',
   },
