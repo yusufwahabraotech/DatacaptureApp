@@ -154,20 +154,6 @@ const CreateLocationScreen = ({ navigation, route }) => {
       (field === 'lga' && !formData.state) ||
       (field === 'city' && !formData.lga);
 
-    // Use SearchableDropdown for countries
-    if (field === 'country') {
-      return (
-        <SearchableDropdown
-          placeholder={placeholder}
-          value={formData[field]}
-          options={data.map(item => ({ label: item.name || item, value: item.name || item }))}
-          onSelect={(value) => handleDropdownSelect(field, value)}
-          disabled={isDisabled}
-          searchPlaceholder="Search countries..."
-        />
-      );
-    }
-
     return (
       <TouchableOpacity
         style={[styles.dropdown, isDisabled && styles.disabledDropdown]}
@@ -190,37 +176,16 @@ const CreateLocationScreen = ({ navigation, route }) => {
                                    showDropdown === 'lga' ? 'lgas' : 'cities'];
 
     return (
-      <Modal visible={true} transparent animationType="fade">
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          onPress={() => setShowDropdown(null)}
-        >
-          <View style={styles.dropdownModal}>
-            <Text style={styles.modalTitle}>
-              Select {showDropdown.charAt(0).toUpperCase() + showDropdown.slice(1)}
-            </Text>
-            {loadingDropdown ? (
-              <ActivityIndicator size="small" color="#7C3AED" style={styles.modalLoader} />
-            ) : (
-              <FlatList
-                data={currentData}
-                keyExtractor={(item, index) => index.toString()}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.dropdownItem}
-                    onPress={() => handleDropdownSelect(showDropdown, item.name || item)}
-                  >
-                    <Text style={styles.dropdownItemText}>
-                      {item.name || item}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                maxHeight={300}
-              />
-            )}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      <SearchableDropdown
+        visible={true}
+        onClose={() => setShowDropdown(null)}
+        data={currentData.map(item => ({ label: item.name || item, value: item.name || item }))}
+        onSelect={(item) => handleDropdownSelect(showDropdown, item.value || item.label)}
+        title={`Select ${showDropdown.charAt(0).toUpperCase() + showDropdown.slice(1)}`}
+        searchPlaceholder={`Search ${showDropdown}...`}
+        showOthersOption={true}
+        onOthersSelect={(customValue) => handleDropdownSelect(showDropdown, customValue)}
+      />
     );
   };
 

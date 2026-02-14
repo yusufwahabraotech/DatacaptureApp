@@ -70,6 +70,7 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
   const [lgas, setLgas] = useState([]);
   const [showCustomCountry, setShowCustomCountry] = useState(false);
   const [showCustomState, setShowCustomState] = useState(false);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [formData, setFormData] = useState({
     country: '',
     state: '',
@@ -318,13 +319,15 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
               >
                 <Text style={styles.modalTitle}>Create Default Pricing</Text>
                 
-                <SearchableDropdown
-                  placeholder="Select Country *"
-                  value={formData.country}
-                  options={[...countries.map(c => ({ label: c.name, value: c.name })), { label: 'Others', value: 'Others' }]}
-                  onSelect={onCountryChange}
-                  searchPlaceholder="Search countries..."
-                />
+                <TouchableOpacity
+                  style={styles.dropdownButton}
+                  onPress={() => setShowCountryDropdown(true)}
+                >
+                  <Text style={[styles.dropdownText, !formData.country && styles.placeholderText]}>
+                    {formData.country || 'Select Country *'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
                 
                 {showCustomCountry && (
                   <TextInput
@@ -407,6 +410,20 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Country Dropdown Modal */}
+      <SearchableDropdown
+        visible={showCountryDropdown}
+        onClose={() => setShowCountryDropdown(false)}
+        data={[...countries.map(c => ({ label: c.name, value: c.name })), { label: 'Others', value: 'Others' }]}
+        onSelect={(item) => {
+          onCountryChange(item.value || item.label);
+          setShowCountryDropdown(false);
+        }}
+        title="Select Country"
+        searchPlaceholder="Search countries..."
+        showOthersOption={false}
+      />
     </View>
   );
 };
