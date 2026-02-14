@@ -10,6 +10,8 @@ import {
   Modal,
   TextInput,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
@@ -414,7 +416,11 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
   const formatPrice = (price) => `₦${price.toLocaleString()}`;
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <LinearGradient
         colors={['#6366F1', '#8B5CF6', '#A855F7']}
         start={{ x: 0, y: 0 }}
@@ -431,7 +437,11 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
         <Text style={styles.headerSubtitle}>Subscription + Verified Badge</Text>
       </LinearGradient>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Package Summary */}
         <View style={styles.packageSummary}>
           <Text style={styles.sectionTitle}>Selected Package</Text>
@@ -710,7 +720,7 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
           )}
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 

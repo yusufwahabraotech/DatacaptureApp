@@ -9,6 +9,8 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
@@ -386,7 +388,7 @@ const SubscriptionPackageScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* Package Form Modal */}
-      <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={modalVisible} animationType="slide" presentationStyle="fullScreen">
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -400,7 +402,16 @@ const SubscriptionPackageScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <KeyboardAvoidingView 
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <ScrollView 
+              style={styles.modalContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 300 }}
+            >
             <View style={styles.formGroup}>
               <Text style={styles.label}>Package Title *</Text>
               <TextInput
@@ -594,6 +605,7 @@ const SubscriptionPackageScreen = ({ navigation }) => {
               </View>
             </View>
           </ScrollView>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </View>
