@@ -18,6 +18,7 @@ const VerificationManagementScreen = ({ navigation }) => {
   const [verifications, setVerifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [filterLoading, setFilterLoading] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedVerification, setSelectedVerification] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -50,6 +51,7 @@ const VerificationManagementScreen = ({ navigation }) => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setFilterLoading(false);
     }
   };
 
@@ -177,21 +179,51 @@ const VerificationManagementScreen = ({ navigation }) => {
       <View style={styles.filterContainer}>
         <TouchableOpacity 
           style={[styles.filterButton, activeFilter === 'pending' && styles.activeFilter]}
-          onPress={() => setActiveFilter('pending')}
+          onPress={() => {
+            if (activeFilter !== 'pending') {
+              setFilterLoading(true);
+              setActiveFilter('pending');
+            }
+          }}
+          disabled={filterLoading}
         >
-          <Text style={[styles.filterText, activeFilter === 'pending' && styles.activeFilterText]}>Pending</Text>
+          {filterLoading && activeFilter === 'pending' ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={[styles.filterText, activeFilter === 'pending' && styles.activeFilterText]}>Pending</Text>
+          )}
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.filterButton, activeFilter === 'rejected' && styles.activeFilter]}
-          onPress={() => setActiveFilter('rejected')}
+          onPress={() => {
+            if (activeFilter !== 'rejected') {
+              setFilterLoading(true);
+              setActiveFilter('rejected');
+            }
+          }}
+          disabled={filterLoading}
         >
-          <Text style={[styles.filterText, activeFilter === 'rejected' && styles.activeFilterText]}>Rejected</Text>
+          {filterLoading && activeFilter === 'rejected' ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={[styles.filterText, activeFilter === 'rejected' && styles.activeFilterText]}>Rejected</Text>
+          )}
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.filterButton, activeFilter === 'verified' && styles.activeFilter]}
-          onPress={() => setActiveFilter('verified')}
+          onPress={() => {
+            if (activeFilter !== 'verified') {
+              setFilterLoading(true);
+              setActiveFilter('verified');
+            }
+          }}
+          disabled={filterLoading}
         >
-          <Text style={[styles.filterText, activeFilter === 'verified' && styles.activeFilterText]}>Verified</Text>
+          {filterLoading && activeFilter === 'verified' ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={[styles.filterText, activeFilter === 'verified' && styles.activeFilterText]}>Verified</Text>
+          )}
         </TouchableOpacity>
       </View>
 
