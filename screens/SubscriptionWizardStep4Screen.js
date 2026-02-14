@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,70 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import ApiService from '../services/api';
 
 const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
   const { selectedPackage, selectedDuration, promoCode, includeVerifiedBadge, profileData, locationData } = route.params;
 
+  const [promoValidation, setPromoValidation] = useState({ isValid: false, discount: 0, message: '' });
+  const [validatingPromo, setValidatingPromo] = useState(false);
+
   const packagePrice = 3000;
   const locationVerificationPrice = 2000;
-  const totalAmount = packagePrice + locationVerificationPrice;
+  
+  // Calculate package price with promo discount
+  const getPackagePrice = (applyPromoDiscount = true) => {
+    let basePrice = packagePrice;
+    
+    if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {
+      const discountAmount = (basePrice * promoValidation.discount) / 100;
+      return basePrice - discountAmount;
+    }
+    
+    return basePrice;
+  };
+  
+  const totalAmount = getPackagePrice(true) + locationVerificationPrice;
+
+  useEffect(() => {
+    // Validate promo code if provided
+    if (promoCode && selectedPackage) {
+      validatePromoCode(promoCode, selectedPackage._id);
+    }
+  }, []);
+
+  const validatePromoCode = async (code, packageId) => {
+    if (!code.trim()) {
+      setPromoValidation({ isValid: false, discount: 0, message: '' });
+      return;
+    }
+
+    setValidatingPromo(true);
+    try {
+      const response = await ApiService.validatePromoCode(packageId, code.trim());
+      if (response.success) {
+        setPromoValidation({
+          isValid: true,
+          discount: response.data.discountPercentage,
+          message: `${response.data.discountPercentage}% discount applied!`
+        });
+      } else {
+        setPromoValidation({
+          isValid: false,
+          discount: 0,
+          message: response.message || 'Invalid promo code'
+        });
+      }
+    } catch (error) {
+      setPromoValidation({
+        isValid: false,
+        discount: 0,
+        message: 'Error validating promo code'
+      });
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
 
   const handleNext = () => {
     navigation.navigate('SubscriptionWizardStep5', {
@@ -24,9 +81,9 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
       profileData,
       locationData,
       paymentSummary: {
-        packagePrice,
+        packagePrice: getPackagePrice(true),
         locationVerificationPrice,
-        totalAmount,
+        totalAmount: getPackagePrice(true) + locationVerificationPrice,
       },
     });
   };
@@ -101,9 +158,33 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
             <View style={styles.packageInfo}>
               <Text style={styles.packageName}>{selectedPackage.title}</Text>
               <Text style={styles.packagePlan}>Monthly Plan</Text>
+              {promoCode && (
+                <View style={styles.promoSection}>
+                  <Text style={styles.promoLabel}>Promo: {promoCode}</Text>
+                  {validatingPromo && (
+                    <Text style={styles.promoValidating}>Validating...</Text>
+                  )}
+                  {!validatingPromo && promoValidation.message && (
+                    <Text style={[
+                      styles.promoMessage,
+                      promoValidation.isValid ? styles.promoValid : styles.promoInvalid
+                    ]}>
+                      {promoValidation.message}
+                    </Text>
+                  )}
+                </View>
+              )}
             </View>
             <View style={styles.packagePriceContainer}>
-              <Text style={styles.packagePrice}>{formatPrice(packagePrice)}</Text>
+              {promoValidation.isValid && promoValidation.discount > 0 ? (
+                <View style={styles.discountPricing}>
+                  <Text style={styles.originalPrice}>{formatPrice(getPackagePrice(false))}</Text>
+                  <Text style={styles.discountLabel}>-{promoValidation.discount}%</Text>
+                  <Text style={styles.packagePrice}>{formatPrice(getPackagePrice(true))}</Text>
+                </View>
+              ) : (
+                <Text style={styles.packagePrice}>{formatPrice(getPackagePrice(false))}</Text>
+              )}
               <Text style={styles.packagePriceLabel}>Package amount</Text>
             </View>
           </View>
@@ -145,7 +226,7 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
           
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Package Subscription:</Text>
-            <Text style={styles.totalValue}>{formatPrice(packagePrice)}</Text>
+            <Text style={styles.totalValue}>{formatPrice(getPackagePrice(true))}</Text>
           </View>
           <Text style={styles.totalSubLabel}>{selectedPackage.title} - monthly</Text>
           
@@ -162,7 +243,7 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
               <Text style={styles.finalTotalLabel}>Total Amount:</Text>
               <Text style={styles.combinedPaymentLabel}>Combined Payment</Text>
             </View>
-            <Text style={styles.finalTotalAmount}>{formatPrice(totalAmount)}</Text>
+            <Text style={styles.finalTotalAmount}>{formatPrice(getPackagePrice(true) + locationVerificationPrice)}</Text>
           </View>
         </View>
       </ScrollView>
@@ -300,6 +381,19 @@ const styles = StyleSheet.create({
   packagePriceContainer: {
     alignItems: 'flex-end',
   },
+  discountPricing: {
+    alignItems: 'flex-end',
+  },
+  originalPrice: {
+    fontSize: 14,
+    color: '#6B7280',
+    textDecorationLine: 'line-through',
+  },
+  discountLabel: {
+    fontSize: 12,
+    color: '#10B981',
+    fontWeight: '600',
+  },
   packagePrice: {
     fontSize: 18,
     fontWeight: '700',
@@ -308,6 +402,29 @@ const styles = StyleSheet.create({
   packagePriceLabel: {
     fontSize: 12,
     color: '#7C3AED',
+  },
+  promoSection: {
+    marginTop: 4,
+  },
+  promoLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  promoValidating: {
+    fontSize: 10,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  promoMessage: {
+    fontSize: 10,
+    marginTop: 2,
+  },
+  promoValid: {
+    color: '#10B981',
+  },
+  promoInvalid: {
+    color: '#EF4444',
   },
   locationsBox: {
     marginBottom: 24,

@@ -43,35 +43,40 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
 
     setLoading(true);
     try {
-      // Add organization location
-      const locationPayload = {
-        locationType: locationData.locationType,
-        brandName: locationData.brandName,
-        country: locationData.country,
-        state: locationData.state,
-        city: locationData.city,
-        lga: locationData.lga,
-        cityRegion: locationData.cityRegion,
-        houseNumber: locationData.houseNumber,
-        street: locationData.street,
-        ...(locationData.landmark && { landmark: locationData.landmark }),
-        ...(locationData.buildingColor && { buildingColor: locationData.buildingColor }),
-        ...(locationData.buildingType && { buildingType: locationData.buildingType }),
-        gallery: {
-          images: [],
-          videos: []
-        }
-      };
-
-      console.log('Adding organization location:', locationPayload);
-      const locationResponse = await ApiService.addOrganizationLocation(locationPayload);
+      // Check if we need location setup and combined payment
+      const needsLocationSetup = locationData && profileData?.verificationStatus === 'verified';
       
-      if (!locationResponse.success) {
-        Alert.alert('Error', locationResponse.message || 'Failed to add location');
-        return;
+      if (needsLocationSetup) {
+        // Add organization location
+        const locationPayload = {
+          locationType: locationData.locationType,
+          brandName: locationData.brandName,
+          country: locationData.country,
+          state: locationData.state,
+          city: locationData.city,
+          lga: locationData.lga,
+          cityRegion: locationData.cityRegion,
+          houseNumber: locationData.houseNumber,
+          street: locationData.street,
+          ...(locationData.landmark && { landmark: locationData.landmark }),
+          ...(locationData.buildingColor && { buildingColor: locationData.buildingColor }),
+          ...(locationData.buildingType && { buildingType: locationData.buildingType }),
+          gallery: {
+            images: [],
+            videos: []
+          }
+        };
+
+        console.log('Adding organization location:', locationPayload);
+        const locationResponse = await ApiService.addOrganizationLocation(locationPayload);
+        
+        if (!locationResponse.success) {
+          Alert.alert('Error', locationResponse.message || 'Failed to add location');
+          return;
+        }
       }
 
-      // Initialize payment
+      // Prepare payment data
       const paymentData = {
         userId: userProfile._id,
         userType: 'organization',
@@ -81,15 +86,38 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
         name: userProfile.fullName || userProfile.firstName + ' ' + userProfile.lastName,
         phone: userProfile.phone || userProfile.phoneNumber,
         totalAmount: paymentSummary.totalAmount,
-        includeLocationVerification: true,
-        locationVerificationAmount: paymentSummary.locationVerificationPrice,
         promoCode: promoCode || undefined,
-        includeVerifiedBadge,
       };
+
+      // Add location verification data if needed
+      if (needsLocationSetup) {
+        paymentData.includeVerifiedBadge = true;
+        paymentData.locations = [{
+          locationType: locationData.locationType,
+          brandName: locationData.brandName,
+          country: locationData.country,
+          state: locationData.state,
+          city: locationData.city,
+          lga: locationData.lga,
+          cityRegion: locationData.cityRegion,
+          houseNumber: locationData.houseNumber,
+          street: locationData.street,
+          ...(locationData.landmark && { landmark: locationData.landmark }),
+          ...(locationData.buildingColor && { buildingColor: locationData.buildingColor }),
+          ...(locationData.buildingType && { buildingType: locationData.buildingType }),
+          gallery: {
+            images: [],
+            videos: []
+          }
+        }];
+      }
 
       console.log('Final payment data:', JSON.stringify(paymentData, null, 2));
 
-      const response = await ApiService.initializePayment(paymentData);
+      // Use appropriate payment endpoint
+      const response = needsLocationSetup 
+        ? await ApiService.initializeCombinedPayment(paymentData)
+        : await ApiService.initializePayment(paymentData);
       
       if (response.success) {
         setPaymentUrl(response.data.paymentLink);
@@ -239,18 +267,20 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
         </View>
 
         {/* Location Details */}
-        <View style={styles.locationDetailsCard}>
-          <Text style={styles.locationDetailsTitle}>Location to be Verified</Text>
-          <Text style={styles.locationName}>{locationData.brandName || 'Your Business'}</Text>
-          <Text style={styles.locationAddress}>
-            {locationData.houseNumber && `${locationData.houseNumber} `}
-            {locationData.street && `${locationData.street}, `}
-            {locationData.city}, {locationData.state}, {locationData.country}
-          </Text>
-          {locationData.cityRegion && (
-            <Text style={styles.locationRegion}>Region: {locationData.cityRegion}</Text>
-          )}
-        </View>
+        {locationData && (
+          <View style={styles.locationDetailsCard}>
+            <Text style={styles.locationDetailsTitle}>Location to be Verified</Text>
+            <Text style={styles.locationName}>{locationData.brandName || 'Your Business'}</Text>
+            <Text style={styles.locationAddress}>
+              {locationData.houseNumber && `${locationData.houseNumber} `}
+              {locationData.street && `${locationData.street}, `}
+              {locationData.city}, {locationData.state}, {locationData.country}
+            </Text>
+            {locationData.cityRegion && (
+              <Text style={styles.locationRegion}>Region: {locationData.cityRegion}</Text>
+            )}
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>

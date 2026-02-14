@@ -31,7 +31,6 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
   const [promoValidation, setPromoValidation] = useState({ isValid: false, discount: 0, message: '' });
   const [validatingPromo, setValidatingPromo] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
-  const [includeVerifiedBadge, setIncludeVerifiedBadge] = useState(false);
 
   useEffect(() => {
     checkExistingSubscription();
@@ -175,11 +174,9 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
 
   const handleSelectPackage = (pkg) => {
     setSelectedPackage(pkg);
-    setIncludeVerifiedBadge(false); // Reset verified badge option
-    setPromoValidation({ isValid: false, discount: 0, message: '' }); // Reset promo validation
+    setPromoValidation({ isValid: false, discount: 0, message: '' });
     setShowPaymentModal(true);
     
-    // Validate existing promo code for new package
     if (promoCode.trim()) {
       validatePromoCode(promoCode, pkg._id);
     }
@@ -193,22 +190,11 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
       selectedPackage,
       selectedDuration,
       promoCode: promoValidation.isValid ? promoCode : '',
-      includeVerifiedBadge,
     });
   };
 
   const handlePayment = async () => {
     if (!selectedPackage || !userProfile) return;
-
-    // If verified badge is selected, navigate to combined payment
-    if (includeVerifiedBadge) {
-      setShowPaymentModal(false);
-      navigation.navigate('CombinedPayment', {
-        selectedPackage,
-        selectedDuration
-      });
-      return;
-    }
 
     console.log('🚨 PAYMENT HANDLER DEBUG 🚨');
     console.log('Selected package:', JSON.stringify(selectedPackage, null, 2));
@@ -448,36 +434,7 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
                   )}
                 </View>
 
-                <View style={styles.verifiedBadgeSection}>
-                  <Text style={styles.sectionTitle}>Verified Badge (Optional):</Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.verifiedBadgeOption,
-                      includeVerifiedBadge && styles.verifiedBadgeSelected
-                    ]}
-                    onPress={() => setIncludeVerifiedBadge(!includeVerifiedBadge)}
-                  >
-                    <View style={styles.verifiedBadgeContent}>
-                      <View style={styles.verifiedBadgeInfo}>
-                        <Text style={[
-                          styles.verifiedBadgeTitle,
-                          includeVerifiedBadge && styles.verifiedBadgeSelectedText
-                        ]}>Add Verified Badge</Text>
-                        <Text style={styles.verifiedBadgeDescription}>
-                          Enhance credibility and allow multiple locations
-                        </Text>
-                      </View>
-                      <View style={[
-                        styles.checkbox,
-                        includeVerifiedBadge && styles.checkboxSelected
-                      ]}>
-                        {includeVerifiedBadge && (
-                          <Ionicons name="checkmark" size={16} color="white" />
-                        )}
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                </View>
+
 
                 <View style={styles.totalSection}>
                   <View style={styles.totalRow}>
@@ -504,7 +461,7 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
                 </View>
 
                 <TouchableOpacity style={styles.payButton} onPress={handleProceedToWizard}>
-                  <Text style={styles.payButtonText}>Proceed to Wizard</Text>
+                  <Text style={styles.payButtonText}>Continue</Text>
                 </TouchableOpacity>
               </ScrollView>
             )}
@@ -834,40 +791,7 @@ const styles = StyleSheet.create({
   promoMessageInvalid: {
     color: '#EF4444',
   },
-  verifiedBadgeSection: {
-    marginBottom: 20,
-  },
-  verifiedBadgeOption: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 16,
-  },
-  verifiedBadgeSelected: {
-    borderColor: '#7C3AED',
-    backgroundColor: '#F5F3FF',
-  },
-  verifiedBadgeContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  verifiedBadgeInfo: {
-    flex: 1,
-  },
-  verifiedBadgeTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  verifiedBadgeSelectedText: {
-    color: '#7C3AED',
-  },
-  verifiedBadgeDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
+
   checkbox: {
     width: 24,
     height: 24,

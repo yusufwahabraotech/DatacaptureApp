@@ -56,17 +56,43 @@ const SubscriptionWizardStep2Screen = ({ navigation, route }) => {
       const response = await ApiService.updateOrganizationProfileSettings(organizationId, profileData);
       
       if (response.success) {
-        navigation.navigate('SubscriptionWizardStep3', {
-          selectedPackage,
-          selectedDuration,
-          promoCode,
-          includeVerifiedBadge,
-          profileData: {
-            businessRegistrationStatus,
-            publicProfile,
-            verificationStatus,
-          },
-        });
+        // If public profile is 'no', skip to step 5
+        if (publicProfile === 'no') {
+          navigation.navigate('SubscriptionWizardStep5', {
+            selectedPackage,
+            selectedDuration,
+            promoCode,
+            includeVerifiedBadge: false,
+            profileData: {
+              businessRegistrationStatus,
+              publicProfile,
+              verificationStatus,
+            },
+            locationData: null,
+            paymentSummary: {
+              packagePrice: selectedPackage.services
+                ?.filter(service => service.duration === selectedDuration)
+                ?.reduce((total, service) => total + service.price, 0) || 0,
+              locationVerificationPrice: 0,
+              totalAmount: selectedPackage.services
+                ?.filter(service => service.duration === selectedDuration)
+                ?.reduce((total, service) => total + service.price, 0) || 0,
+            },
+          });
+        } else {
+          // Continue to next step for location setup
+          navigation.navigate('SubscriptionWizardStep3', {
+            selectedPackage,
+            selectedDuration,
+            promoCode,
+            includeVerifiedBadge,
+            profileData: {
+              businessRegistrationStatus,
+              publicProfile,
+              verificationStatus,
+            },
+          });
+        }
       } else {
         Alert.alert('Error', response.message || 'Failed to update organization profile');
       }
@@ -77,6 +103,8 @@ const SubscriptionWizardStep2Screen = ({ navigation, route }) => {
       setLoading(false);
     }
   };
+
+
 
   const renderProgressSteps = () => (
     <View style={styles.progressContainer}>
@@ -156,15 +184,27 @@ const SubscriptionWizardStep2Screen = ({ navigation, route }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Make Your Organization Profile Available to the Public?</Text>
-          {renderRadioOption('yes', publicProfile, setPublicProfile, 'Yes')}
-          {renderRadioOption('no', publicProfile, setPublicProfile, 'No')}
+          {renderRadioOption('yes', publicProfile, (value) => {
+            setPublicProfile(value);
+            if (value === 'no') {
+              setVerificationStatus('unverified');
+            }
+          }, 'Yes')}
+          {renderRadioOption('no', publicProfile, (value) => {
+            setPublicProfile(value);
+            if (value === 'no') {
+              setVerificationStatus('unverified');
+            }
+          }, 'No')}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Verification Status:</Text>
-          {renderRadioOption('verified', verificationStatus, setVerificationStatus, 'Verified')}
-          {renderRadioOption('unverified', verificationStatus, setVerificationStatus, 'Unverified')}
-        </View>
+        {publicProfile === 'yes' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Verification Status:</Text>
+            {renderRadioOption('verified', verificationStatus, setVerificationStatus, 'Verified')}
+            {renderRadioOption('unverified', verificationStatus, setVerificationStatus, 'Unverified')}
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -177,7 +217,9 @@ const SubscriptionWizardStep2Screen = ({ navigation, route }) => {
             <ActivityIndicator size="small" color="white" />
           ) : (
             <>
-              <Text style={styles.nextButtonText}>Next</Text>
+              <Text style={styles.nextButtonText}>
+                {publicProfile === 'no' ? 'Pay Now' : 'Next'}
+              </Text>
               <Ionicons name="arrow-forward" size={20} color="white" />
             </>
           )}

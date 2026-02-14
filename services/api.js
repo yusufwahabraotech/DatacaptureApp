@@ -2191,9 +2191,23 @@ class ApiService {
     console.log('🚨 COMBINED PAYMENT INITIALIZATION DEBUG 🚨');
     console.log('Combined payment data being sent:', JSON.stringify(paymentData, null, 2));
     
+    // Ensure correct field names for backend compatibility
+    const correctedPaymentData = {
+      ...paymentData,
+      includeVerifiedBadge: paymentData.includeVerifiedBadge || paymentData.includeLocationVerification,
+      locations: paymentData.locations || []
+    };
+    
+    // Remove old field names if they exist
+    delete correctedPaymentData.includeLocationVerification;
+    delete correctedPaymentData.locationVerificationAmount;
+    
+    console.log('🚨 CORRECTED PAYMENT DATA 🚨');
+    console.log('Final payload:', JSON.stringify(correctedPaymentData, null, 2));
+    
     return this.apiCall('/payment/combined/initialize', {
       method: 'POST',
-      body: JSON.stringify(paymentData),
+      body: JSON.stringify(correctedPaymentData),
     });
   }
 
