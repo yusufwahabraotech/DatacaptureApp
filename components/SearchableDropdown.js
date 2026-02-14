@@ -7,6 +7,8 @@ import {
   Modal,
   FlatList,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -50,7 +52,10 @@ const SearchableDropdown = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView 
+        style={styles.modalOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{title}</Text>
@@ -129,7 +134,7 @@ const SearchableDropdown = ({
             />
           )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

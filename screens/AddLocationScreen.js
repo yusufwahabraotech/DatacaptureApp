@@ -9,6 +9,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
@@ -43,6 +44,7 @@ const AddLocationScreen = ({ navigation, route }) => {
   const [showLGAModal, setShowLGAModal] = useState(false);
   const [showCityModal, setShowCityModal] = useState(false);
   const [showCityRegionModal, setShowCityRegionModal] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadCountries();
@@ -234,6 +236,7 @@ const AddLocationScreen = ({ navigation, route }) => {
       return;
     }
 
+    setLoading(true);
     try {
       const payload = {
         locationType: locationData.locationType,
@@ -265,6 +268,8 @@ const AddLocationScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       Alert.alert('Error', `Failed to ${editingLocation ? 'update' : 'add'} location`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -470,13 +475,17 @@ const AddLocationScreen = ({ navigation, route }) => {
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.submitButton, !canSubmit() && styles.disabledButton]} 
+            style={[styles.submitButton, (!canSubmit() || loading) && styles.disabledButton]} 
             onPress={handleSubmit}
-            disabled={!canSubmit()}
+            disabled={!canSubmit() || loading}
           >
-            <Text style={styles.submitButtonText}>
-              {editingLocation ? 'Update Location' : 'Add Location'}
-            </Text>
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.submitButtonText}>
+                {editingLocation ? 'Update Location' : 'Add Location'}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       );
