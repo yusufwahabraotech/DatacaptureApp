@@ -32,16 +32,10 @@ const CreateGalleryItemScreen = ({ navigation }) => {
     // Service fields
     productMarker: '',
     totalAvailableServiceProviders: '0',
-    discountedAmount: '0.00',
-    platformCharge: '0.00',
     hasSubServices: false,
     subServices: [],
     availability: {
-      type: 'period',
-      period: {
-        startYear: new Date().getFullYear(),
-        endYear: new Date().getFullYear() + 1
-      }
+      type: 'unlimited'
     },
     // Common fields
     priceInDollars: '0.00',
@@ -176,6 +170,26 @@ const CreateGalleryItemScreen = ({ navigation }) => {
     }
   };
 
+  const pickSubServiceImage = async (index) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      try {
+        const imageUrl = await ApiService.uploadToCloudinary(result.assets[0].uri);
+        const updatedSubServices = [...formData.subServices];
+        updatedSubServices[index] = {...updatedSubServices[index], uploadPicture: imageUrl};
+        setFormData({...formData, subServices: updatedSubServices});
+      } catch (error) {
+        Alert.alert('Error', 'Failed to upload image');
+      }
+    }
+  };
+
   const pickVideo = async () => {
     const selectedLocation = locations.find(loc => loc.locationIndex.toString() === formData.locationIndex);
     const isVerified = selectedLocation?.status === 'Verified';
@@ -244,12 +258,26 @@ const CreateGalleryItemScreen = ({ navigation }) => {
       if (formData.itemType === 'service') {
         payload.productMarker = formData.productMarker;
         payload.totalAvailableServiceProviders = parseInt(formData.totalAvailableServiceProviders) || 0;
-        payload.discountedAmount = parseFloat(formData.discountedAmount) || 0;
-        payload.platformCharge = parseFloat(formData.platformCharge) || 0;
         payload.hasSubServices = formData.hasSubServices;
-        payload.subServiceCount = formData.subServices.length;
-        payload.subServices = formData.subServices;
-        payload.availability = formData.availability;
+        
+        // Only include sub-service fields when hasSubServices is true
+        if (formData.hasSubServices === true) {
+          payload.subServiceCount = formData.subServices.length;
+          payload.subServices = formData.subServices;
+        }
+        
+        // Handle availability based on type
+        if (formData.availability.type === 'unlimited') {
+          payload.availability = { type: 'unlimited' };
+        } else {
+          payload.availability = {
+            type: formData.availability.type,
+            startDate: formData.startDate,
+            startTime: formData.startTime,
+            endDate: formData.endDate,
+            endTime: formData.endTime
+          };
+        }
       }
 
       const result = await ApiService.createGalleryItem(payload, selectedImages[0]);
@@ -593,23 +621,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                 keyboardType="numeric"
               />
 
-              <Text style={styles.inputLabel}>Discounted Amount (₦)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="0.00"
-                value={formData.discountedAmount}
-                onChangeText={(text) => setFormData({...formData, discountedAmount: text})}
-                keyboardType="numeric"
-              />
 
-              <Text style={styles.inputLabel}>Platform Charge (₦)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="0.00"
-                value={formData.platformCharge}
-                onChangeText={(text) => setFormData({...formData, platformCharge: text})}
-                keyboardType="numeric"
-              />
 
               <Text style={styles.inputLabel}>Has Sub-Services</Text>
               <View style={styles.radioGroup}>
@@ -655,11 +667,11 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                       />
                       <TextInput
                         style={styles.input}
-                        placeholder="Summary"
-                        value={subService.summary}
+                        placeholder="Description"
+                        value={subService.description}
                         onChangeText={(text) => {
                           const updatedSubServices = [...formData.subServices];
-                          updatedSubServices[index] = {...updatedSubServices[index], summary: text};
+                          updatedSubServices[index] = {...updatedSubServices[index], description: text};
                           setFormData({...formData, subServices: updatedSubServices});
                         }}
                         multiline
@@ -677,6 +689,30 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                         keyboardType="numeric"
                       />
                       <TouchableOpacity
+                        style={styles.subServiceImageButton}
+                        onPress={() => pickSubServiceImage(index)}
+                      >
+                        <Ionicons name="image" size={20} color="#7B2CBF" />
+                        <Text style={styles.subServiceImageText}>
+                          {subService.uploadPicture ? 'Change Picture' : 'Add Picture'}
+                        </Text>
+                      </TouchableOpacity>
+                      {subService.uploadPicture && (
+                        <View style={styles.subServiceImagePreview}>
+                          <Image source={{ uri: subService.uploadPicture }} style={styles.subServiceImage} />
+                          <TouchableOpacity
+                            style={styles.removeSubServiceImageButton}
+                            onPress={() => {
+                              const updatedSubServices = [...formData.subServices];
+                              updatedSubServices[index] = {...updatedSubServices[index], uploadPicture: ''};
+                              setFormData({...formData, subServices: updatedSubServices});
+                            }}
+                          >
+                            <Ionicons name="close-circle" size={20} color="#FF4444" />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      <TouchableOpacity
                         style={styles.removeSubServiceButton}
                         onPress={() => {
                           const updatedSubServices = formData.subServices.filter((_, i) => i !== index);
@@ -690,7 +726,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                   <TouchableOpacity
                     style={styles.addSubServiceButton}
                     onPress={() => {
-                      const newSubService = { name: '', summary: '', price: 0 };
+                      const newSubService = { name: '', description: '', price: 0, uploadPicture: '' };
                       setFormData({...formData, subServices: [...formData.subServices, newSubService]});
                     }}
                   >
@@ -699,47 +735,114 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                 </View>
               )}
 
-              <Text style={styles.inputLabel}>Availability Period</Text>
-              <View style={styles.availabilityContainer}>
-                <View style={styles.yearInputContainer}>
-                  <Text style={styles.yearLabel}>Start Year</Text>
-                  <TextInput
-                    style={styles.yearInput}
-                    placeholder="2025"
-                    value={formData.availability.period.startYear.toString()}
-                    onChangeText={(text) => {
-                      const updatedAvailability = {
-                        ...formData.availability,
-                        period: {
-                          ...formData.availability.period,
-                          startYear: parseInt(text) || new Date().getFullYear()
-                        }
-                      };
-                      setFormData({...formData, availability: updatedAvailability});
-                    }}
-                    keyboardType="numeric"
-                  />
-                </View>
-                <View style={styles.yearInputContainer}>
-                  <Text style={styles.yearLabel}>End Year</Text>
-                  <TextInput
-                    style={styles.yearInput}
-                    placeholder="2026"
-                    value={formData.availability.period.endYear.toString()}
-                    onChangeText={(text) => {
-                      const updatedAvailability = {
-                        ...formData.availability,
-                        period: {
-                          ...formData.availability.period,
-                          endYear: parseInt(text) || new Date().getFullYear() + 1
-                        }
-                      };
-                      setFormData({...formData, availability: updatedAvailability});
-                    }}
-                    keyboardType="numeric"
-                  />
-                </View>
+              <Text style={styles.inputLabel}>Service Provider's Calendar/Availability</Text>
+              <View style={styles.availabilityOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.availabilityOption,
+                    formData.availability.type === 'within_year' && styles.availabilityOptionSelected
+                  ]}
+                  onPress={() => setFormData({...formData, availability: {type: 'within_year'}})}
+                >
+                  <View style={styles.radioButton}>
+                    {formData.availability.type === 'within_year' && (
+                      <View style={styles.radioButtonSelected} />
+                    )}
+                  </View>
+                  <View style={styles.availabilityOptionText}>
+                    <Text style={styles.availabilityTitle}>Available Within a Year</Text>
+                    <Text style={styles.availabilitySubtitle}>Repeats annually</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.availabilityOption,
+                    formData.availability.type === 'within_years' && styles.availabilityOptionSelected
+                  ]}
+                  onPress={() => setFormData({...formData, availability: {type: 'within_years'}})}
+                >
+                  <View style={styles.radioButton}>
+                    {formData.availability.type === 'within_years' && (
+                      <View style={styles.radioButtonSelected} />
+                    )}
+                  </View>
+                  <View style={styles.availabilityOptionText}>
+                    <Text style={styles.availabilityTitle}>Available Within Years</Text>
+                    <Text style={styles.availabilitySubtitle}>Spans across multiple years</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.availabilityOption,
+                    formData.availability.type === 'unlimited' && styles.availabilityOptionSelected
+                  ]}
+                  onPress={() => setFormData({...formData, availability: {type: 'unlimited'}})}
+                >
+                  <View style={styles.radioButton}>
+                    {formData.availability.type === 'unlimited' && (
+                      <View style={styles.radioButtonSelected} />
+                    )}
+                  </View>
+                  <View style={styles.availabilityOptionText}>
+                    <Text style={styles.availabilityTitle}>Unlimited</Text>
+                    <Text style={styles.availabilitySubtitle}>No expiry, always available</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.availabilityOption,
+                    formData.availability.type === 'period' && styles.availabilityOptionSelected
+                  ]}
+                  onPress={() => setFormData({...formData, availability: {type: 'period'}})}
+                >
+                  <View style={styles.radioButton}>
+                    {formData.availability.type === 'period' && (
+                      <View style={styles.radioButtonSelected} />
+                    )}
+                  </View>
+                  <View style={styles.availabilityOptionText}>
+                    <Text style={styles.availabilityTitle}>Over a Period of Time</Text>
+                    <Text style={styles.availabilitySubtitle}>One-time specific date range</Text>
+                  </View>
+                </TouchableOpacity>
               </View>
+
+              {(formData.availability.type === 'within_year' || 
+                formData.availability.type === 'within_years' || 
+                formData.availability.type === 'period') && (
+                <View style={styles.dateTimeInputs}>
+                  <Text style={styles.inputLabel}>Start Date</Text>
+                  <TouchableOpacity style={styles.input} onPress={() => setShowStartDatePicker(true)}>
+                    <Text style={startDate ? styles.inputText : styles.placeholderText}>
+                      {startDate ? startDate.toDateString() : 'Select Start Date'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.inputLabel}>Start Time</Text>
+                  <TouchableOpacity style={styles.input} onPress={() => setShowStartTimePicker(true)}>
+                    <Text style={startTime ? styles.inputText : styles.placeholderText}>
+                      {startTime ? startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Select Start Time'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.inputLabel}>End Date</Text>
+                  <TouchableOpacity style={styles.input} onPress={() => setShowEndDatePicker(true)}>
+                    <Text style={endDate ? styles.inputText : styles.placeholderText}>
+                      {endDate ? endDate.toDateString() : 'Select End Date'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.inputLabel}>End Time</Text>
+                  <TouchableOpacity style={styles.input} onPress={() => setShowEndTimePicker(true)}>
+                    <Text style={endTime ? styles.inputText : styles.placeholderText}>
+                      {endTime ? endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Select End Time'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </>
           )}
 
@@ -1388,6 +1491,76 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     backgroundColor: '#FAFAFA',
+  },
+  subServiceImageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#7B2CBF',
+    borderStyle: 'dashed',
+    borderRadius: 6,
+    padding: 12,
+    marginBottom: 8,
+  },
+  subServiceImageText: {
+    marginLeft: 6,
+    fontSize: 14,
+    color: '#7B2CBF',
+    fontWeight: '500',
+  },
+  subServiceImagePreview: {
+    position: 'relative',
+    marginBottom: 8,
+  },
+  subServiceImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 6,
+  },
+  removeSubServiceImageButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'white',
+    borderRadius: 10,
+  },
+  availabilityOptions: {
+    marginBottom: 16,
+  },
+  availabilityOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#FAFAFA',
+  },
+  availabilityOptionSelected: {
+    borderColor: '#7B2CBF',
+    backgroundColor: '#F3E5F5',
+  },
+  availabilityOptionText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  availabilityTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  availabilitySubtitle: {
+    fontSize: 13,
+    color: '#666',
+  },
+  dateTimeInputs: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 12,
   },
 });
 
