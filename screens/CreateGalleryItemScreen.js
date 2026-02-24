@@ -26,10 +26,28 @@ const CreateGalleryItemScreen = ({ navigation }) => {
     sku: '',
     upc: '',
     platformUniqueCode: '',
+    // Product fields
     totalAvailableQuantity: '0',
+    ingredients: '',
+    // Service fields
+    productMarker: '',
+    totalAvailableServiceProviders: '0',
+    discountedAmount: '0.00',
+    platformCharge: '0.00',
+    hasSubServices: false,
+    subServices: [],
+    availability: {
+      type: 'period',
+      period: {
+        startYear: new Date().getFullYear(),
+        endYear: new Date().getFullYear() + 1
+      }
+    },
+    // Common fields
     priceInDollars: '0.00',
     discountPercentage: '0',
     upfrontPaymentPercentage: '0',
+    paymentMethods: '',
     startDate: '',
     startTime: '09:00',
     endDate: '',
@@ -196,18 +214,17 @@ const CreateGalleryItemScreen = ({ navigation }) => {
     setLoading(true);
 
     try {
-      // Create gallery item with image
-      const result = await ApiService.createGalleryItem({
+      let payload = {
         name: formData.name,
         description: formData.description,
         itemType: formData.itemType,
         categoryId: formData.categoryId,
         sku: formData.sku,
         upc: formData.upc,
-        totalAvailableQuantity: parseInt(formData.totalAvailableQuantity) || 0,
         priceInDollars: parseFloat(formData.priceInDollars) || 0,
         discountPercentage: parseFloat(formData.discountPercentage) || 0,
         upfrontPaymentPercentage: parseFloat(formData.upfrontPaymentPercentage) || 0,
+        paymentMethods: formData.paymentMethods,
         startDate: formData.startDate,
         startTime: formData.startTime,
         endDate: formData.endDate,
@@ -215,7 +232,27 @@ const CreateGalleryItemScreen = ({ navigation }) => {
         visibilityToPublic: formData.visibilityToPublic,
         notes: formData.notes,
         locationIndex: parseInt(formData.locationIndex),
-      }, selectedImages[0]); // Pass first image
+      };
+
+      // Add product-specific fields
+      if (formData.itemType === 'product') {
+        payload.totalAvailableQuantity = parseInt(formData.totalAvailableQuantity) || 0;
+        payload.ingredients = formData.ingredients;
+      }
+
+      // Add service-specific fields
+      if (formData.itemType === 'service') {
+        payload.productMarker = formData.productMarker;
+        payload.totalAvailableServiceProviders = parseInt(formData.totalAvailableServiceProviders) || 0;
+        payload.discountedAmount = parseFloat(formData.discountedAmount) || 0;
+        payload.platformCharge = parseFloat(formData.platformCharge) || 0;
+        payload.hasSubServices = formData.hasSubServices;
+        payload.subServiceCount = formData.subServices.length;
+        payload.subServices = formData.subServices;
+        payload.availability = formData.availability;
+      }
+
+      const result = await ApiService.createGalleryItem(payload, selectedImages[0]);
 
       if (!result.success) {
         Alert.alert('Error', result.message || 'Failed to create gallery item');
@@ -512,6 +549,200 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             onChangeText={(text) => setFormData({...formData, upc: text})}
           />
 
+          {/* Product-specific fields */}
+          {formData.itemType === 'product' && (
+            <>
+              <Text style={styles.inputLabel}>Total Available Quantity</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0"
+                value={formData.totalAvailableQuantity}
+                onChangeText={(text) => setFormData({...formData, totalAvailableQuantity: text})}
+                keyboardType="numeric"
+              />
+
+              <Text style={styles.inputLabel}>Ingredients</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter ingredients"
+                value={formData.ingredients}
+                onChangeText={(text) => setFormData({...formData, ingredients: text})}
+                multiline
+                numberOfLines={2}
+              />
+            </>
+          )}
+
+          {/* Service-specific fields */}
+          {formData.itemType === 'service' && (
+            <>
+              <Text style={styles.inputLabel}>Producer</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter producer name"
+                value={formData.productMarker}
+                onChangeText={(text) => setFormData({...formData, productMarker: text})}
+              />
+
+              <Text style={styles.inputLabel}>Total Available Service Providers</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0"
+                value={formData.totalAvailableServiceProviders}
+                onChangeText={(text) => setFormData({...formData, totalAvailableServiceProviders: text})}
+                keyboardType="numeric"
+              />
+
+              <Text style={styles.inputLabel}>Discounted Amount (₦)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0.00"
+                value={formData.discountedAmount}
+                onChangeText={(text) => setFormData({...formData, discountedAmount: text})}
+                keyboardType="numeric"
+              />
+
+              <Text style={styles.inputLabel}>Platform Charge (₦)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0.00"
+                value={formData.platformCharge}
+                onChangeText={(text) => setFormData({...formData, platformCharge: text})}
+                keyboardType="numeric"
+              />
+
+              <Text style={styles.inputLabel}>Has Sub-Services</Text>
+              <View style={styles.radioGroup}>
+                <TouchableOpacity
+                  style={styles.radioItem}
+                  onPress={() => setFormData({...formData, hasSubServices: true})}
+                >
+                  <View style={styles.radioButton}>
+                    {formData.hasSubServices && (
+                      <View style={styles.radioButtonSelected} />
+                    )}
+                  </View>
+                  <Text style={styles.radioText}>Yes</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.radioItem}
+                  onPress={() => setFormData({...formData, hasSubServices: false, subServices: []})}
+                >
+                  <View style={styles.radioButton}>
+                    {!formData.hasSubServices && (
+                      <View style={styles.radioButtonSelected} />
+                    )}
+                  </View>
+                  <Text style={styles.radioText}>No</Text>
+                </TouchableOpacity>
+              </View>
+
+              {formData.hasSubServices && (
+                <View style={styles.subServicesSection}>
+                  <Text style={styles.subSectionTitle}>Sub-Services</Text>
+                  {formData.subServices.map((subService, index) => (
+                    <View key={index} style={styles.subServiceItem}>
+                      <Text style={styles.subServiceTitle}>Sub-Service {index + 1}</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Sub-service name"
+                        value={subService.name}
+                        onChangeText={(text) => {
+                          const updatedSubServices = [...formData.subServices];
+                          updatedSubServices[index] = {...updatedSubServices[index], name: text};
+                          setFormData({...formData, subServices: updatedSubServices});
+                        }}
+                      />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Summary"
+                        value={subService.summary}
+                        onChangeText={(text) => {
+                          const updatedSubServices = [...formData.subServices];
+                          updatedSubServices[index] = {...updatedSubServices[index], summary: text};
+                          setFormData({...formData, subServices: updatedSubServices});
+                        }}
+                        multiline
+                        numberOfLines={2}
+                      />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Price (₦)"
+                        value={subService.price?.toString() || ''}
+                        onChangeText={(text) => {
+                          const updatedSubServices = [...formData.subServices];
+                          updatedSubServices[index] = {...updatedSubServices[index], price: parseFloat(text) || 0};
+                          setFormData({...formData, subServices: updatedSubServices});
+                        }}
+                        keyboardType="numeric"
+                      />
+                      <TouchableOpacity
+                        style={styles.removeSubServiceButton}
+                        onPress={() => {
+                          const updatedSubServices = formData.subServices.filter((_, i) => i !== index);
+                          setFormData({...formData, subServices: updatedSubServices});
+                        }}
+                      >
+                        <Text style={styles.removeSubServiceText}>Remove Sub-Service</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  <TouchableOpacity
+                    style={styles.addSubServiceButton}
+                    onPress={() => {
+                      const newSubService = { name: '', summary: '', price: 0 };
+                      setFormData({...formData, subServices: [...formData.subServices, newSubService]});
+                    }}
+                  >
+                    <Text style={styles.addSubServiceText}>+ Add Sub-Service</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <Text style={styles.inputLabel}>Availability Period</Text>
+              <View style={styles.availabilityContainer}>
+                <View style={styles.yearInputContainer}>
+                  <Text style={styles.yearLabel}>Start Year</Text>
+                  <TextInput
+                    style={styles.yearInput}
+                    placeholder="2025"
+                    value={formData.availability.period.startYear.toString()}
+                    onChangeText={(text) => {
+                      const updatedAvailability = {
+                        ...formData.availability,
+                        period: {
+                          ...formData.availability.period,
+                          startYear: parseInt(text) || new Date().getFullYear()
+                        }
+                      };
+                      setFormData({...formData, availability: updatedAvailability});
+                    }}
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={styles.yearInputContainer}>
+                  <Text style={styles.yearLabel}>End Year</Text>
+                  <TextInput
+                    style={styles.yearInput}
+                    placeholder="2026"
+                    value={formData.availability.period.endYear.toString()}
+                    onChangeText={(text) => {
+                      const updatedAvailability = {
+                        ...formData.availability,
+                        period: {
+                          ...formData.availability.period,
+                          endYear: parseInt(text) || new Date().getFullYear() + 1
+                        }
+                      };
+                      setFormData({...formData, availability: updatedAvailability});
+                    }}
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+            </>
+          )}
+
           <Text style={styles.inputLabel}>Platform Unique Code (Auto-generated)</Text>
           <View style={styles.platformCodeContainer}>
             <TextInput
@@ -525,17 +756,8 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             </View>
           </View>
           <Text style={styles.platformCodeInfo}>
-            This will be product #{platformCodePreview.orgProductNumber} in your organization and #{platformCodePreview.globalProductNumber} globally
+            This will be {formData.itemType || 'item'} #{platformCodePreview.orgProductNumber} in your organization and #{platformCodePreview.globalProductNumber} globally
           </Text>
-
-          <Text style={styles.inputLabel}>Total Available Quantity</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="0"
-            value={formData.totalAvailableQuantity}
-            onChangeText={(text) => setFormData({...formData, totalAvailableQuantity: text})}
-            keyboardType="numeric"
-          />
 
           <Text style={styles.inputLabel}>Price (₦)</Text>
           <TextInput
@@ -568,6 +790,14 @@ const CreateGalleryItemScreen = ({ navigation }) => {
               <Text style={styles.upfrontText}>Upfront Amount: ₦{calculateUpfrontAmount().toFixed(2)}</Text>
             </View>
           )}
+
+          <Text style={styles.inputLabel}>Payment Methods</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., Cash, Card, Bank Transfer"
+            value={formData.paymentMethods}
+            onChangeText={(text) => setFormData({...formData, paymentMethods: text})}
+          />
 
           <Text style={styles.inputLabel}>Platform Charge (%)</Text>
           <View style={styles.platformChargeContainer}>
@@ -669,6 +899,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
           value={startDate || new Date()}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          minimumDate={new Date()}
           onChange={(event, selectedDate) => {
             setShowStartDatePicker(false);
             if (selectedDate) {
@@ -684,6 +915,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
           value={endDate || new Date()}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          minimumDate={startDate || new Date()}
           onChange={(event, selectedDate) => {
             setShowEndDatePicker(false);
             if (selectedDate) {
@@ -1086,6 +1318,76 @@ const styles = StyleSheet.create({
     right: 8,
     backgroundColor: 'white',
     borderRadius: 12,
+  },
+  subServicesSection: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+  },
+  subSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  subServiceItem: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  subServiceTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7B2CBF',
+    marginBottom: 8,
+  },
+  addSubServiceButton: {
+    backgroundColor: '#7B2CBF',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+  },
+  addSubServiceText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  removeSubServiceButton: {
+    backgroundColor: '#FF4444',
+    borderRadius: 6,
+    padding: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  removeSubServiceText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  availabilityContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  yearInputContainer: {
+    flex: 0.48,
+  },
+  yearLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  yearInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#FAFAFA',
   },
 });
 
