@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-const BASE_URL = 'http://192.168.1.183:3000/api';
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -2345,22 +2345,93 @@ class ApiService {
     return this.apiCall(`/admin/gallery/${itemId}`);
   }
 
-  static async createGalleryItem(itemData, imageFile = null) {
-    const formData = new FormData();
+  static async createGalleryItem(itemData, imageFile = null, subServiceImages = []) {
+    console.log('🚨 CREATE GALLERY ITEM DEBUG 🚨');
+    console.log('Item data:', JSON.stringify(itemData, null, 2));
+    console.log('Sub-service images count:', subServiceImages.length);
     
-    // Add all form fields
-    Object.keys(itemData).forEach(key => {
-      if (itemData[key] !== null && itemData[key] !== undefined) {
-        formData.append(key, itemData[key]);
+    // Clean up the data to prevent validation errors
+    const cleanedData = { ...itemData };
+    
+    // For services, ensure availability is properly structured
+    if (cleanedData.itemType === 'service') {
+      console.log('🚨 SERVICE FIELD PROCESSING 🚨');
+      console.log('Original producer:', cleanedData.producer);
+      console.log('Original subServices:', cleanedData.subServices);
+      console.log('Original availability:', cleanedData.availability);
+      
+      if (!cleanedData.availability || typeof cleanedData.availability !== 'object') {
+        cleanedData.availability = { type: 'unlimited' };
+      }
+      
+      // Ensure subServices is always an array and remove hasImage field
+      if (!Array.isArray(cleanedData.subServices)) {
+        cleanedData.subServices = [];
+      } else {
+        // Remove hasImage field from sub-services as it's only for UI
+        cleanedData.subServices = cleanedData.subServices.map(subService => {
+          const { hasImage, ...cleanSubService } = subService;
+          return cleanSubService;
+        });
+      }
+      
+      console.log('🚨 CLEANED SERVICE FIELDS 🚨');
+      console.log('Cleaned producer:', cleanedData.producer);
+      console.log('Cleaned subServices:', cleanedData.subServices);
+      console.log('Cleaned availability:', cleanedData.availability);
+    } else {
+      // For products, remove availability field entirely
+      delete cleanedData.availability;
+    }
+    
+    // Remove empty string fields that should be objects or arrays
+    Object.keys(cleanedData).forEach(key => {
+      if (cleanedData[key] === '' && (key === 'availability' || key === 'subServices')) {
+        if (key === 'availability') {
+          cleanedData[key] = { type: 'unlimited' };
+        } else if (key === 'subServices') {
+          cleanedData[key] = [];
+        }
       }
     });
     
-    // Add image file if provided
+    console.log('🚨 FINAL CLEANED DATA 🚨');
+    console.log('Final cleaned data:', JSON.stringify(cleanedData, null, 2));
+    
+    const formData = new FormData();
+    
+    // Add all form fields
+    Object.keys(cleanedData).forEach(key => {
+      if (cleanedData[key] !== null && cleanedData[key] !== undefined) {
+        if (typeof cleanedData[key] === 'object') {
+          formData.append(key, JSON.stringify(cleanedData[key]));
+        } else {
+          formData.append(key, cleanedData[key].toString());
+        }
+      }
+    });
+    
+    // Add main image file if provided
     if (imageFile) {
       formData.append('image', {
         uri: imageFile.uri,
         type: 'image/jpeg',
         name: 'image.jpg',
+      });
+    }
+    
+    // Add sub-service images if provided
+    if (subServiceImages && subServiceImages.length > 0) {
+      console.log('🚨 ADDING SUB-SERVICE IMAGES 🚨');
+      subServiceImages.forEach((imageFile, index) => {
+        if (imageFile && imageFile.uri) {
+          console.log(`Adding sub-service image ${index + 1}:`, imageFile.uri);
+          formData.append('subServiceImages', {
+            uri: imageFile.uri,
+            type: 'image/jpeg',
+            name: `sub-service-${index + 1}.jpg`,
+          });
+        }
       });
     }
 
@@ -2374,8 +2445,13 @@ class ApiService {
       body: formData,
     });
 
+    console.log('🚨 GALLERY CREATION RESPONSE 🚨');
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.log('❌ GALLERY CREATION ERROR:', JSON.stringify(error, null, 2));
       return {
         success: false,
         message: error.message || `HTTP ${response.status}: ${response.statusText}`,
@@ -2383,7 +2459,9 @@ class ApiService {
       };
     }
 
-    return await response.json();
+    const result = await response.json();
+    console.log('✅ GALLERY CREATION SUCCESS:', JSON.stringify(result, null, 2));
+    return result;
   }
 
   static async updateGalleryItem(itemId, itemData) {
@@ -2464,12 +2542,18 @@ class ApiService {
   // PUBLIC PRODUCT SEARCH
   static async searchPublicProducts(params = {}) {
     const queryParams = new URLSearchParams();
-    if (params.page) queryParams.append('page', params.page.toString());
-    if (params.limit) queryParams.append('limit', params.limit.toString());
     if (params.search) queryParams.append('search', params.search);
     if (params.itemType) queryParams.append('itemType', params.itemType);
     if (params.categoryId) queryParams.append('categoryId', params.categoryId);
-    if (params.industryId) queryParams.append('industryId', params.industryId);
+    if (params.categoryName) queryParams.append('categoryName', params.categoryName);
+    if (params.minPrice) queryParams.append('minPrice', params.minPrice);
+    if (params.maxPrice) queryParams.append('maxPrice', params.maxPrice);
+    if (params.city) queryParams.append('city', params.city);
+    if (params.state) queryParams.append('state', params.state);
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
     
     const queryString = queryParams.toString();
     const endpoint = `/public/products/search${queryString ? '?' + queryString : ''}`;

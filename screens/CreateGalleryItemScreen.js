@@ -61,6 +61,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
   });
   const [selectedImages, setSelectedImages] = useState([]);
   const [selectedVideos, setSelectedVideos] = useState([]);
+  const [subServiceImages, setSubServiceImages] = useState([]); // Store sub-service image files
   const [mediaUsage, setMediaUsage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
@@ -179,14 +180,15 @@ const CreateGalleryItemScreen = ({ navigation }) => {
     });
 
     if (!result.canceled) {
-      try {
-        const imageUrl = await ApiService.uploadToCloudinary(result.assets[0].uri);
-        const updatedSubServices = [...formData.subServices];
-        updatedSubServices[index] = {...updatedSubServices[index], uploadPicture: imageUrl};
-        setFormData({...formData, subServices: updatedSubServices});
-      } catch (error) {
-        Alert.alert('Error', 'Failed to upload image');
-      }
+      // Store the image file for later upload
+      const newSubServiceImages = [...subServiceImages];
+      newSubServiceImages[index] = result.assets[0];
+      setSubServiceImages(newSubServiceImages);
+      
+      // Update the sub-service to show it has an image (for UI purposes)
+      const updatedSubServices = [...formData.subServices];
+      updatedSubServices[index] = {...updatedSubServices[index], hasImage: true};
+      setFormData({...formData, subServices: updatedSubServices});
     }
   };
 
@@ -256,14 +258,14 @@ const CreateGalleryItemScreen = ({ navigation }) => {
 
       // Add service-specific fields
       if (formData.itemType === 'service') {
-        payload.productMarker = formData.productMarker;
+        payload.producer = formData.productMarker; // Backend expects 'producer' field
         payload.totalAvailableServiceProviders = parseInt(formData.totalAvailableServiceProviders) || 0;
         payload.hasSubServices = formData.hasSubServices;
         
-        // Only include sub-service fields when hasSubServices is true
+        // Always include subServices array (empty if hasSubServices is false)
+        payload.subServices = formData.hasSubServices ? formData.subServices : [];
         if (formData.hasSubServices === true) {
           payload.subServiceCount = formData.subServices.length;
-          payload.subServices = formData.subServices;
         }
         
         // Handle availability based on type
@@ -280,7 +282,16 @@ const CreateGalleryItemScreen = ({ navigation }) => {
         }
       }
 
-      const result = await ApiService.createGalleryItem(payload, selectedImages[0]);
+      console.log('🚨 PAYLOAD DEBUG BEFORE API CALL 🚨');
+      console.log('Full payload:', JSON.stringify(payload, null, 2));
+      console.log('Service-specific fields:');
+      console.log('- producer:', payload.producer);
+      console.log('- hasSubServices:', payload.hasSubServices);
+      console.log('- subServices:', payload.subServices);
+      console.log('- availability:', payload.availability);
+      console.log('- totalAvailableServiceProviders:', payload.totalAvailableServiceProviders);
+
+      const result = await ApiService.createGalleryItem(payload, selectedImages[0], subServiceImages);
 
       if (!result.success) {
         Alert.alert('Error', result.message || 'Failed to create gallery item');
@@ -694,17 +705,21 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                       >
                         <Ionicons name="image" size={20} color="#7B2CBF" />
                         <Text style={styles.subServiceImageText}>
-                          {subService.uploadPicture ? 'Change Picture' : 'Add Picture'}
+                          {subService.hasImage ? 'Change Picture' : 'Add Picture'}
                         </Text>
                       </TouchableOpacity>
-                      {subService.uploadPicture && (
+                      {subService.hasImage && subServiceImages[index] && (
                         <View style={styles.subServiceImagePreview}>
-                          <Image source={{ uri: subService.uploadPicture }} style={styles.subServiceImage} />
+                          <Image source={{ uri: subServiceImages[index].uri }} style={styles.subServiceImage} />
                           <TouchableOpacity
                             style={styles.removeSubServiceImageButton}
                             onPress={() => {
+                              const newSubServiceImages = [...subServiceImages];
+                              newSubServiceImages[index] = null;
+                              setSubServiceImages(newSubServiceImages);
+                              
                               const updatedSubServices = [...formData.subServices];
-                              updatedSubServices[index] = {...updatedSubServices[index], uploadPicture: ''};
+                              updatedSubServices[index] = {...updatedSubServices[index], hasImage: false};
                               setFormData({...formData, subServices: updatedSubServices});
                             }}
                           >
