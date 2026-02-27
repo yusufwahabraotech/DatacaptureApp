@@ -98,6 +98,8 @@ import ProductPaymentVerificationScreen from './screens/ProductPaymentVerificati
 import MyOrdersScreen from './screens/MyOrdersScreen';
 import OrderDetailsScreen from './screens/OrderDetailsScreen';
 import OrganizationOrdersScreen from './screens/OrganizationOrdersScreen';
+import SuperAdminOrdersScreen from './screens/SuperAdminOrdersScreen';
+import SuperAdminOrderDetailsScreen from './screens/SuperAdminOrderDetailsScreen';
 
 const Stack = createStackNavigator();
 
@@ -217,6 +219,8 @@ export default function App() {
         <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
         <Stack.Screen name="OrganizationOrders" component={OrganizationOrdersScreen} />
         <Stack.Screen name="OrganizationOrderDetails" component={OrderDetailsScreen} />
+        <Stack.Screen name="SuperAdminOrders" component={SuperAdminOrdersScreen} />
+        <Stack.Screen name="SuperAdminOrderDetails" component={SuperAdminOrderDetailsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

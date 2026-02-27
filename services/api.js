@@ -2802,6 +2802,18 @@ class ApiService {
     return { success: false, message: 'Failed to get user profile' };
   }
 
+  // SUPER ADMIN ORDERS
+  static async getAllPlatformOrders(page = 1, limit = 20) {
+    return this.apiCall(`/orders/super-admin/all?page=${page}&limit=${limit}`);
+  }
+
+  static async getSuperAdminOrderById(orderId) {
+    if (!orderId || orderId === 'undefined') {
+      return { success: false, message: 'Order ID is required' };
+    }
+    return this.apiCall(`/orders/super-admin/${orderId}`);
+  }
+
 }
 
 export default ApiService;

@@ -21,32 +21,53 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
   const [showWebView, setShowWebView] = useState(true);
 
   useEffect(() => {
-    // Auto-verify payment after 30 seconds
-    const timer = setTimeout(() => {
-      if (paymentStatus === 'pending') {
-        handleVerifyPayment();
-      }
-    }, 30000);
-
-    return () => clearTimeout(timer);
+    // Don't auto-verify - only verify when user indicates payment is complete
+    // This prevents false verification attempts before payment is made
+    console.log('🚨 PAYMENT VERIFICATION SCREEN LOADED 🚨');
+    console.log('Auto-verification disabled - waiting for user action');
   }, []);
 
   const handleWebViewNavigationStateChange = (navState) => {
     const { url } = navState;
     console.log('WebView URL:', url);
 
-    // Check if payment is completed (Flutterwave success/failure URLs)
-    if (url.includes('successful') || url.includes('success') || url.includes('completed')) {
+    // More comprehensive detection of Flutterwave completion
+    const isPaymentComplete = (
+      url.includes('successful') || 
+      url.includes('success') || 
+      url.includes('completed') ||
+      url.includes('tx_ref') || 
+      url.includes('transaction_id') ||
+      url.includes('status=successful') ||
+      url.includes('status=completed') ||
+      // Check if URL contains our transaction reference
+      (txRef && url.includes(txRef))
+    );
+
+    const isPaymentFailed = (
+      url.includes('failed') || 
+      url.includes('cancelled') || 
+      url.includes('error') ||
+      url.includes('status=failed') ||
+      url.includes('status=cancelled')
+    );
+
+    if (isPaymentComplete) {
+      console.log('🚨 PAYMENT COMPLETION DETECTED - READY FOR VERIFICATION 🚨');
+      console.log('Completion URL:', url);
       setShowWebView(false);
-      handleVerifyPayment();
-    } else if (url.includes('failed') || url.includes('cancelled') || url.includes('error')) {
+      // Don't auto-verify immediately - let user confirm
+      console.log('Payment completion detected - user can now verify manually');
+    } else if (isPaymentFailed) {
+      console.log('🚨 PAYMENT FAILED/CANCELLED 🚨');
+      console.log('Failure URL:', url);
       setShowWebView(false);
       setPaymentStatus('failed');
     }
   };
 
   const handleVerifyPayment = async () => {
-    if (loading || verificationAttempts >= 3) return;
+    if (loading || verificationAttempts >= 5) return;
 
     setLoading(true);
     setVerificationAttempts(prev => prev + 1);
@@ -58,10 +79,16 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
       console.log('🚨 VERIFYING PAYMENT 🚨');
       console.log('Transaction ID:', transactionId);
       console.log('Order ID:', orderId);
+      console.log('TxRef:', txRef);
+      console.log('Verification attempt:', verificationAttempts + 1);
 
       const response = await ApiService.verifyProductPayment(transactionId);
       
+      console.log('🚨 VERIFICATION RESPONSE 🚨');
+      console.log('Response:', JSON.stringify(response, null, 2));
+      
       if (response.success) {
+        console.log('✅ PAYMENT VERIFIED SUCCESSFULLY');
         setPaymentStatus('success');
         
         // Show success message and navigate
@@ -80,16 +107,24 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
           ]
         );
       } else {
-        if (verificationAttempts < 3) {
-          // Retry verification
+        console.log('❌ VERIFICATION FAILED:', response.message);
+        
+        // Don't show success UI if verification actually failed
+        if (verificationAttempts < 4) {
+          console.log('Retrying verification in 5 seconds...');
+          // Retry verification with longer delay for backend processing
           setTimeout(() => handleVerifyPayment(), 5000);
         } else {
+          console.log('❌ MAX ATTEMPTS REACHED - MARKING AS FAILED');
           setPaymentStatus('failed');
           Alert.alert(
             'Payment Verification Failed',
-            'We could not verify your payment. Please contact support if money was deducted.',
+            `Verification failed: ${response.message || 'Unknown error'}. Please contact support if money was deducted.`,
             [
-              { text: 'Try Again', onPress: () => setVerificationAttempts(0) },
+              { text: 'Try Again', onPress: () => {
+                setVerificationAttempts(0);
+                handleVerifyPayment();
+              }},
               { text: 'Contact Support', onPress: () => {} }
             ]
           );
@@ -97,10 +132,23 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.error('Payment verification error:', error);
-      if (verificationAttempts < 3) {
+      if (verificationAttempts < 4) {
+        console.log('Retrying verification due to error in 5 seconds...');
         setTimeout(() => handleVerifyPayment(), 5000);
       } else {
+        console.log('❌ MAX ATTEMPTS REACHED DUE TO ERROR - MARKING AS FAILED');
         setPaymentStatus('failed');
+        Alert.alert(
+          'Payment Verification Error',
+          'Unable to verify payment due to network error. Please contact support if money was deducted.',
+          [
+            { text: 'Try Again', onPress: () => {
+              setVerificationAttempts(0);
+              handleVerifyPayment();
+            }},
+            { text: 'Contact Support', onPress: () => {} }
+          ]
+        );
       }
     } finally {
       setLoading(false);
@@ -193,38 +241,71 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
       </View>
 
       {showWebView ? (
-        <WebView
-          source={{ uri: paymentLink }}
-          style={styles.webView}
-          onNavigationStateChange={handleWebViewNavigationStateChange}
-          startInLoadingState={true}
-          renderLoading={() => (
-            <View style={styles.webViewLoading}>
-              <ActivityIndicator size="large" color="#7B2CBF" />
-              <Text style={styles.loadingText}>Loading payment page...</Text>
-            </View>
-          )}
-        />
+        <>
+          <WebView
+            source={{ uri: paymentLink }}
+            style={styles.webView}
+            onNavigationStateChange={handleWebViewNavigationStateChange}
+            startInLoadingState={true}
+            renderLoading={() => (
+              <View style={styles.webViewLoading}>
+                <ActivityIndicator size="large" color="#7B2CBF" />
+                <Text style={styles.loadingText}>Loading payment page...</Text>
+              </View>
+            )}
+          />
+          
+          {/* Manual completion button overlay */}
+          <View style={styles.manualButtonOverlay}>
+            <TouchableOpacity
+              style={styles.manualCompleteButton}
+              onPress={() => {
+                setShowWebView(false);
+                handleVerifyPayment();
+              }}
+            >
+              <Ionicons name="checkmark-circle" size={20} color="white" />
+              <Text style={styles.manualCompleteText}>I've Completed Payment</Text>
+            </TouchableOpacity>
+          </View>
+        </>
       ) : (
         <View style={styles.verificationContainer}>
-          <ActivityIndicator size="large" color="#7B2CBF" />
-          <Text style={styles.verificationText}>Verifying your payment...</Text>
+          <Ionicons name="card" size={80} color="#7B2CBF" />
+          <Text style={styles.verificationText}>Payment Ready for Verification</Text>
           <Text style={styles.verificationSubtext}>
-            Please wait while we confirm your payment
+            Click the button below after completing your payment on Flutterwave
           </Text>
           
           {verificationAttempts > 0 && (
             <Text style={styles.attemptText}>
-              Verification attempt {verificationAttempts} of 3
+              Verification attempt {verificationAttempts} of 5
             </Text>
           )}
+          
+          {/* Debug info */}
+          <View style={styles.debugInfo}>
+            <Text style={styles.debugText}>Order ID: {orderId}</Text>
+            <Text style={styles.debugText}>Transaction Ref: {txRef}</Text>
+          </View>
 
           <TouchableOpacity
             style={styles.manualVerifyButton}
             onPress={handleVerifyPayment}
             disabled={loading}
           >
-            <Text style={styles.manualVerifyText}>Check Payment Status</Text>
+            {loading ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <Text style={styles.manualVerifyText}>Verify Payment</Text>
+            )}
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.backToPaymentButton}
+            onPress={() => setShowWebView(true)}
+          >
+            <Text style={styles.backToPaymentText}>Back to Payment</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -293,6 +374,19 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 16,
   },
+  debugInfo: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+    width: '100%',
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'monospace',
+    marginBottom: 4,
+  },
   manualVerifyButton: {
     backgroundColor: '#7B2CBF',
     borderRadius: 8,
@@ -304,6 +398,46 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  backToPaymentButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#7B2CBF',
+    borderRadius: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginTop: 16,
+  },
+  backToPaymentText: {
+    color: '#7B2CBF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  manualButtonOverlay: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    alignItems: 'center',
+  },
+  manualCompleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4CAF50',
+    borderRadius: 25,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  manualCompleteText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
   statusContainer: {
     flex: 1,

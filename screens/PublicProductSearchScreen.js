@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import BottomNavigation from '../components/BottomNavigation';
 
 const PublicProductSearchScreen = ({ navigation }) => {
   const [products, setProducts] = useState([]);
@@ -205,6 +206,8 @@ const PublicProductSearchScreen = ({ navigation }) => {
           }
         />
       )}
+      
+      <BottomNavigation navigation={navigation} activeTab="Products" />
     </SafeAreaView>
   );
 };
@@ -288,6 +291,7 @@ const styles = StyleSheet.create({
   },
   productList: {
     padding: 16,
+    paddingBottom: 100, // Add bottom padding for navigation
   },
   productCard: {
     backgroundColor: 'white',

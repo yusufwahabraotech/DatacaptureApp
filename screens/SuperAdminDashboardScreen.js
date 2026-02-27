@@ -192,6 +192,12 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
       subtitle: 'View public organization profiles',
       icon: 'library',
       onPress: () => navigation.navigate('PublicOrganizationProfiles')
+    },
+    {
+      title: 'Platform Orders',
+      subtitle: 'View all orders across organizations',
+      icon: 'receipt',
+      onPress: () => navigation.navigate('SuperAdminOrders')
     }
   ];
 
