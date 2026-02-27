@@ -24,6 +24,7 @@ const ProductPaymentScreen = ({ navigation, route }) => {
     phone: '',
   });
   const [user, setUser] = useState(null);
+  const [selectedSubServices, setSelectedSubServices] = useState([]);
 
   useEffect(() => {
     fetchUserProfile();
@@ -48,16 +49,22 @@ const ProductPaymentScreen = ({ navigation, route }) => {
   const calculatePaymentAmount = () => {
     const basePrice = product.pricing?.discountedPrice || product.pricing?.originalPrice || 0;
     const upfrontPercentage = product.pricing?.upfrontPaymentPercentage || 50;
+    const subServicesTotal = selectedSubServices.reduce((sum, service) => sum + (service.price || 0), 0);
     
+    let mainAmount;
     switch (paymentType) {
       case 'upfront':
-        return Math.round(basePrice * (upfrontPercentage / 100));
+        mainAmount = Math.round(basePrice * (upfrontPercentage / 100));
+        break;
       case 'remaining':
-        return Math.round(basePrice * ((100 - upfrontPercentage) / 100));
+        mainAmount = Math.round(basePrice * ((100 - upfrontPercentage) / 100));
+        break;
       case 'full':
       default:
-        return basePrice;
+        mainAmount = basePrice;
     }
+    
+    return mainAmount + subServicesTotal;
   };
 
   const handlePayment = async () => {
@@ -91,6 +98,7 @@ const ProductPaymentScreen = ({ navigation, route }) => {
         customerName: customerInfo.name,
         customerPhone: customerInfo.phone,
         paymentType: paymentType,
+        ...(selectedSubServices.length > 0 && { subServices: selectedSubServices }),
       };
 
       console.log('🚨 PAYMENT DATA 🚨');
@@ -191,6 +199,46 @@ const ProductPaymentScreen = ({ navigation, route }) => {
           )}
         </View>
 
+        {/* Sub-Services Selection */}
+        {product.itemType === 'service' && product.subServices && product.subServices.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Additional Services</Text>
+            {product.subServices.map((subService, index) => {
+              const serviceId = subService.code || `${subService.name}-${index}`;
+              const isSelected = selectedSubServices.some(s => (s.code || `${s.name}-${s.index}`) === serviceId);
+              return (
+                <TouchableOpacity
+                  key={serviceId}
+                  style={[styles.subServiceOption, isSelected && styles.selectedSubService]}
+                  onPress={() => {
+                    if (isSelected) {
+                      setSelectedSubServices(prev => prev.filter(s => 
+                        (s.code || `${s.name}-${s.index}`) !== serviceId
+                      ));
+                    } else {
+                      const serviceToAdd = {
+                        name: subService.name,
+                        code: subService.code || `${subService.name}-${index}`,
+                        price: subService.price || 0,
+                        index
+                      };
+                      setSelectedSubServices(prev => [...prev, serviceToAdd]);
+                    }
+                  }}
+                >
+                  <View style={styles.subServiceContent}>
+                    <Text style={styles.subServiceName}>{subService.name}</Text>
+                    <Text style={styles.subServicePrice}>+₦{subService.price?.toLocaleString()}</Text>
+                  </View>
+                  <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                    {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+
         {/* Customer Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Customer Information</Text>
@@ -247,6 +295,13 @@ const ProductPaymentScreen = ({ navigation, route }) => {
             <Text style={styles.summaryLabel}>Amount to Pay:</Text>
             <Text style={styles.summaryAmount}>₦{paymentAmount.toLocaleString()}</Text>
           </View>
+          
+          {selectedSubServices.length > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Sub-services:</Text>
+              <Text style={styles.summaryValue}>₦{selectedSubServices.reduce((sum, s) => sum + (s.price || 0), 0).toLocaleString()}</Text>
+            </View>
+          )}
           
           {paymentType === 'upfront' && (
             <View style={styles.summaryRow}>
@@ -412,6 +467,49 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: '#7B2CBF',
+  },
+  subServiceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  selectedSubService: {
+    borderColor: '#7B2CBF',
+    backgroundColor: '#F3E5F5',
+  },
+  subServiceContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  subServiceName: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  subServicePrice: {
+    fontSize: 14,
+    color: '#7B2CBF',
+    fontWeight: 'bold',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  checkboxSelected: {
+    backgroundColor: '#7B2CBF',
+    borderColor: '#7B2CBF',
   },
   inputGroup: {
     marginBottom: 16,
