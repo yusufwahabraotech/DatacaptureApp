@@ -21,10 +21,7 @@ const OrganizationOrdersScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [showStatusModal, setShowStatusModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [statusNotes, setStatusNotes] = useState('');
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+const [sendingReminder, setSendingReminder] = useState(false);
 
   const statusOptions = [
     { value: 'all', label: 'All Orders' },
@@ -114,34 +111,20 @@ const OrganizationOrdersScreen = ({ navigation }) => {
     navigation.navigate('OrganizationOrderDetails', { orderId: order._id });
   };
 
-  const handleUpdateStatus = (order, newStatus) => {
-    setSelectedOrder(order);
-    setShowStatusModal(true);
-    setStatusNotes('');
-  };
-
-  const confirmStatusUpdate = async (newStatus) => {
-    if (!selectedOrder) return;
-
-    setUpdatingStatus(true);
+  const handleSendReminder = async (order) => {
+    setSendingReminder(true);
     try {
-      const response = await ApiService.updateOrderStatus(
-        selectedOrder._id,
-        newStatus,
-        statusNotes
-      );
-
+      const response = await ApiService.sendOrderReminder(order._id);
+      
       if (response.success) {
-        Alert.alert('Success', 'Order status updated successfully');
-        setShowStatusModal(false);
-        fetchOrders(true);
+        Alert.alert('Success', 'Reminder sent successfully to customer');
       } else {
-        Alert.alert('Error', response.message || 'Failed to update order status');
+        Alert.alert('Error', response.message || 'Failed to send reminder');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to update order status. Please try again.');
+      Alert.alert('Error', 'Failed to send reminder. Please try again.');
     } finally {
-      setUpdatingStatus(false);
+      setSendingReminder(false);
     }
   };
 
@@ -206,11 +189,14 @@ const OrganizationOrdersScreen = ({ navigation }) => {
 
           {item.orderStatus !== 'cancelled' && (
             <TouchableOpacity
-              style={styles.statusButton}
-              onPress={() => handleUpdateStatus(item)}
+              style={styles.reminderButton}
+              onPress={() => handleSendReminder(item)}
+              disabled={sendingReminder}
             >
-              <Ionicons name="create" size={16} color="#FF9800" />
-              <Text style={styles.statusButtonText}>Update Status</Text>
+              <Ionicons name="mail" size={16} color="white" />
+              <Text style={styles.reminderButtonText}>
+                {sendingReminder ? 'Sending...' : 'Send Reminder'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -230,69 +216,7 @@ const OrganizationOrdersScreen = ({ navigation }) => {
     </View>
   );
 
-  const StatusUpdateModal = () => (
-    <Modal
-      visible={showStatusModal}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={() => setShowStatusModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Update Order Status</Text>
-            <TouchableOpacity onPress={() => setShowStatusModal(false)}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
 
-          {selectedOrder && (
-            <View style={styles.orderSummary}>
-              <Text style={styles.orderSummaryText}>
-                Order: {selectedOrder.productName}
-              </Text>
-              <Text style={styles.orderSummaryText}>
-                Customer: {selectedOrder.customerName}
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.statusOptions}>
-            {statusOptions.slice(1).map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={styles.statusOption}
-                onPress={() => confirmStatusUpdate(option.value)}
-                disabled={updatingStatus}
-              >
-                <Text style={styles.statusOptionText}>{option.label}</Text>
-                <Ionicons name="chevron-forward" size={20} color="#666" />
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <View style={styles.notesSection}>
-            <Text style={styles.notesLabel}>Notes (Optional):</Text>
-            <TextInput
-              style={styles.notesInput}
-              value={statusNotes}
-              onChangeText={setStatusNotes}
-              placeholder="Add notes about this status update..."
-              multiline
-              numberOfLines={3}
-            />
-          </View>
-
-          {updatingStatus && (
-            <View style={styles.updatingContainer}>
-              <ActivityIndicator color="#7B2CBF" />
-              <Text style={styles.updatingText}>Updating status...</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
 
   if (loading) {
     return (
@@ -369,7 +293,6 @@ const OrganizationOrdersScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       />
 
-      <StatusUpdateModal />
     </SafeAreaView>
   );
 };
@@ -569,17 +492,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  statusButton: {
+  reminderButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF9800',
+    backgroundColor: '#7B2CBF',
     borderRadius: 8,
     paddingVertical: 12,
     gap: 6,
   },
-  statusButtonText: {
+  reminderButtonText: {
     color: 'white',
     fontSize: 14,
     fontWeight: 'bold',
@@ -604,84 +527,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     paddingHorizontal: 32,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  orderSummary: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 20,
-  },
-  orderSummaryText: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 4,
-  },
-  statusOptions: {
-    marginBottom: 20,
-  },
-  statusOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  statusOptionText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  notesSection: {
-    marginBottom: 20,
-  },
-  notesLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  notesInput: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    textAlignVertical: 'top',
-  },
-  updatingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-  },
-  updatingText: {
-    marginLeft: 12,
-    fontSize: 16,
-    color: '#666',
-  },
+
 });
 
 export default OrganizationOrdersScreen;

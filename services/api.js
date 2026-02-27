@@ -250,6 +250,13 @@ class ApiService {
     return this.apiCall(`/user/users/${userId}`);
   }
 
+  // ORDERS
+  static async sendOrderReminder(orderId) {
+    return this.apiCall(`/orders/admin/${orderId}/send-reminder`, {
+      method: 'POST',
+    });
+  }
+
   // LOCATION DATA
   static async getCities(country, state, lga) {
     return this.apiCall(`/locations/cities?country=${encodeURIComponent(country)}&state=${encodeURIComponent(state)}&lga=${encodeURIComponent(lga)}`);
