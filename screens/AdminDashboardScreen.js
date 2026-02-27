@@ -193,6 +193,12 @@ const AdminDashboardScreen = ({ navigation }) => {
       subtitle: 'Manage product gallery',
       icon: 'images',
       onPress: () => navigation.navigate('GalleryManagement')
+    },
+    {
+      title: 'Orders Management',
+      subtitle: 'View and manage customer orders',
+      icon: 'receipt',
+      onPress: () => navigation.navigate('OrganizationOrders')
     }
   ];
 

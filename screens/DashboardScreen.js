@@ -351,6 +351,21 @@ const DashboardScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           )}
 
+          {/* My Orders Card - For all authenticated users */}
+          <TouchableOpacity 
+            style={[styles.card, styles.ordersCard]}
+            onPress={() => navigation.navigate('MyOrders')}
+          >
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>My Orders</Text>
+              <Ionicons name="receipt" size={24} color="#2196F3" />
+            </View>
+            <Text style={styles.cardValue}>View All</Text>
+            <View style={styles.createNewButton}>
+              <Text style={styles.createNew}>View Orders</Text>
+            </View>
+          </TouchableOpacity>
+
           <TouchableOpacity 
             style={[styles.card, styles.bodyCard]}
             onPress={() => navigation.navigate('BodyMeasurement')}
@@ -622,6 +637,9 @@ const styles = StyleSheet.create({
   },
   verificationCard: {
     backgroundColor: '#ECFDF5',
+  },
+  ordersCard: {
+    backgroundColor: '#E3F2FD',
   },
   cardHeader: {
     flexDirection: 'row',

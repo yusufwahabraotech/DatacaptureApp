@@ -358,10 +358,6 @@ const ProductDetailsScreen = ({ navigation, route }) => {
                               <Text style={styles.subServiceCode}>{subService.subPlatformUniqueCode}</Text>
                             </View>
                           )}
-                          <TouchableOpacity style={styles.subServiceButton}>
-                            <Text style={styles.subServiceButtonText}>Select This Service</Text>
-                            <Ionicons name="arrow-forward" size={16} color="#7B2CBF" />
-                          </TouchableOpacity>
                         </View>
                       </View>
                     ))}
@@ -450,13 +446,17 @@ const ProductDetailsScreen = ({ navigation, route }) => {
       </ScrollView>
 
       <View style={styles.bottomSection}>
-        <TouchableOpacity style={styles.contactButton}>
-          <Ionicons name="call" size={20} color="#fff" />
-          <Text style={styles.contactButtonText}>Contact Seller</Text>
+        <TouchableOpacity 
+          style={styles.orderButton}
+          onPress={() => navigation.navigate('ProductPayment', { product })}
+        >
+          <Ionicons name="card" size={20} color="#fff" />
+          <Text style={styles.orderButtonText}>Order Now</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.inquireButton}>
-          <Ionicons name="chatbubble" size={20} color="#7B2CBF" />
-          <Text style={styles.inquireButtonText}>Send Inquiry</Text>
+        
+        <TouchableOpacity style={styles.cartButton}>
+          <Ionicons name="cart" size={20} color="#7B2CBF" />
+          <Text style={styles.cartButtonText}>Add to Cart</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#7B2CBF',
     marginBottom: 8,
   },
   description: {
@@ -676,7 +676,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E0E0E0',
     gap: 12,
   },
-  contactButton: {
+  orderButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -685,6 +685,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 14,
     gap: 8,
+  },
+  orderButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  cartButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#7B2CBF',
+    borderRadius: 8,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  cartButtonText: {
+    color: '#7B2CBF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   contactButtonText: {
     color: 'white',

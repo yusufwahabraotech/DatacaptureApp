@@ -93,6 +93,11 @@ import SubscriptionWizardStep2Screen from './screens/SubscriptionWizardStep2Scre
 import SubscriptionWizardStep3Screen from './screens/SubscriptionWizardStep3Screen';
 import SubscriptionWizardStep4Screen from './screens/SubscriptionWizardStep4Screen';
 import SubscriptionWizardStep5Screen from './screens/SubscriptionWizardStep5Screen';
+import ProductPaymentScreen from './screens/ProductPaymentScreen';
+import ProductPaymentVerificationScreen from './screens/ProductPaymentVerificationScreen';
+import MyOrdersScreen from './screens/MyOrdersScreen';
+import OrderDetailsScreen from './screens/OrderDetailsScreen';
+import OrganizationOrdersScreen from './screens/OrganizationOrdersScreen';
 
 const Stack = createStackNavigator();
 
@@ -204,6 +209,14 @@ export default function App() {
         <Stack.Screen name="SubscriptionWizardStep3" component={SubscriptionWizardStep3Screen} />
         <Stack.Screen name="SubscriptionWizardStep4" component={SubscriptionWizardStep4Screen} />
         <Stack.Screen name="SubscriptionWizardStep5" component={SubscriptionWizardStep5Screen} />
+        
+        {/* Product Order & Payment Screens */}
+        <Stack.Screen name="ProductPayment" component={ProductPaymentScreen} />
+        <Stack.Screen name="ProductPaymentVerification" component={ProductPaymentVerificationScreen} />
+        <Stack.Screen name="MyOrders" component={MyOrdersScreen} />
+        <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
+        <Stack.Screen name="OrganizationOrders" component={OrganizationOrdersScreen} />
+        <Stack.Screen name="OrganizationOrderDetails" component={OrderDetailsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

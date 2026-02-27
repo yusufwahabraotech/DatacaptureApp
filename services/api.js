@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-const BASE_URL = 'http://192.168.0.183:3000/api';
+const BASE_URL = 'http://192.168.1.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -2693,6 +2693,113 @@ class ApiService {
     return this.apiCall(`/super-admin/platform-commissions/${commissionId}`, {
       method: 'DELETE',
     });
+  }
+
+  // PRODUCT ORDER & PAYMENT SYSTEM
+  // PUBLIC ENDPOINTS (Customers)
+  static async initiateProductPayment(paymentData) {
+    console.log('🚨 PRODUCT PAYMENT INITIALIZATION 🚨');
+    console.log('Payment data:', JSON.stringify(paymentData, null, 2));
+    
+    return this.apiCall('/orders/public/initiate', {
+      method: 'POST',
+      body: JSON.stringify(paymentData),
+    });
+  }
+
+  static async verifyProductPayment(transactionId) {
+    console.log('🚨 PRODUCT PAYMENT VERIFICATION 🚨');
+    console.log('Transaction ID:', transactionId);
+    
+    return this.apiCall('/orders/public/verify', {
+      method: 'POST',
+      body: JSON.stringify({ transactionId }),
+    });
+  }
+
+  // USER ENDPOINTS (Authenticated Users)
+  static async getMyOrders() {
+    console.log('🚨 FETCHING USER ORDERS 🚨');
+    return this.apiCall('/orders/user/my-orders');
+  }
+
+  static async getOrderById(orderId) {
+    console.log('🚨 FETCHING ORDER DETAILS 🚨');
+    console.log('Order ID:', orderId);
+    
+    return this.apiCall(`/orders/user/${orderId}`);
+  }
+
+  // ORGANIZATION ENDPOINTS (For order management)
+  static async getOrganizationOrders(params = {}) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        return { success: false, message: 'Access denied' };
+      }
+      
+      const queryParams = new URLSearchParams();
+      if (params.page) queryParams.append('page', params.page.toString());
+      if (params.limit) queryParams.append('limit', params.limit.toString());
+      if (params.status) queryParams.append('status', params.status);
+      if (params.search) queryParams.append('search', params.search);
+      
+      const queryString = queryParams.toString();
+      const endpoint = `${baseUrl}/orders${queryString ? '?' + queryString : ''}`;
+      
+      return this.apiCall(endpoint);
+    }
+    return { success: false, message: 'Failed to get user profile' };
+  }
+
+  // ADMIN ENDPOINTS (Organization Admins)
+  static async getAdminOrders(params = {}) {
+    console.log('🚨 FETCHING ADMIN ORDERS 🚨');
+    
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.status) queryParams.append('status', params.status);
+    if (params.search) queryParams.append('search', params.search);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/orders/admin/all${queryString ? '?' + queryString : ''}`;
+    
+    return this.apiCall(endpoint);
+  }
+
+  static async getAdminOrderById(orderId) {
+    console.log('🚨 FETCHING ADMIN ORDER DETAILS 🚨');
+    console.log('Order ID:', orderId);
+    
+    return this.apiCall(`/orders/admin/${orderId}`);
+  }
+
+  static async updateOrderStatus(orderId, status, notes = '') {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/org-user';
+      } else {
+        return { success: false, message: 'Access denied' };
+      }
+      
+      return this.apiCall(`${baseUrl}/orders/${orderId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status, notes }),
+      });
+    }
+    return { success: false, message: 'Failed to get user profile' };
   }
 
 }

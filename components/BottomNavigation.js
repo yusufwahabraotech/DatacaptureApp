@@ -120,10 +120,10 @@ const BottomNavigation = ({ navigation, activeTab }) => {
       </TouchableOpacity>
       <TouchableOpacity 
         style={styles.navItem}
-        onPress={() => navigation.navigate('Questionnaire')}
+        onPress={() => navigation.navigate('MyOrders')}
       >
-        <Ionicons name="document-text-outline" size={24} color={activeTab === 'Questionnaire' ? '#7C3AED' : '#9CA3AF'} />
-        <Text style={[styles.navText, activeTab === 'Questionnaire' && styles.activeNavText]}>Questionnaire</Text>
+        <Ionicons name="receipt-outline" size={24} color={activeTab === 'Orders' ? '#7C3AED' : '#9CA3AF'} />
+        <Text style={[styles.navText, activeTab === 'Orders' && styles.activeNavText]}>Orders</Text>
       </TouchableOpacity>
     </View>
   );
