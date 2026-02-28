@@ -55,133 +55,139 @@ const ConfirmedDeliveriesScreen = ({ navigation }) => {
     navigation.navigate('ProcessRemittance', { order });
   };
 
-  const renderOrderItem = ({ item }) => (
-    <View style={styles.orderCard}>
-      <View style={styles.orderHeader}>
-        <View style={styles.orderInfo}>
-          <Text style={styles.productName}>{item.productName}</Text>
-          <Text style={styles.organizationName}>{item.organizationName}</Text>
-          <Text style={styles.orderDate}>
-            Confirmed: {item.deliveryConfirmation ? formatDate(item.deliveryConfirmation.confirmedAt) : 'N/A'}
-          </Text>
-        </View>
-        <View style={styles.amountSection}>
-          <Text style={styles.amountLabel}>Amount</Text>
-          <Text style={styles.amountValue}>₦{item.totalAmountPaid?.toLocaleString()}</Text>
-        </View>
-      </View>
-
-      {/* Bank Details */}
-      {item.organizationBankDetails ? (
-        <View style={styles.bankSection}>
-          <Text style={styles.bankTitle}>Organization Bank Details</Text>
-          <View style={styles.bankDetails}>
-            <View style={styles.bankRow}>
-              <Text style={styles.bankLabel}>Bank:</Text>
-              <Text style={styles.bankValue}>{item.organizationBankDetails.bankName}</Text>
-            </View>
-            <View style={styles.bankRow}>
-              <Text style={styles.bankLabel}>Account:</Text>
-              <Text style={styles.bankValue}>{item.organizationBankDetails.accountNumber}</Text>
-            </View>
-            <View style={styles.bankRow}>
-              <Text style={styles.bankLabel}>Name:</Text>
-              <Text style={styles.bankValue}>{item.organizationBankDetails.accountName}</Text>
-            </View>
+  const renderOrderItem = ({ item }) => {
+    // Extract data from MongoDB document structure
+    const orderData = item._doc || item;
+    const deliveryConfirmation = orderData.deliveryConfirmation;
+    
+    return (
+      <View style={styles.orderCard}>
+        <View style={styles.orderHeader}>
+          <View style={styles.orderInfo}>
+            <Text style={styles.productName}>{orderData.productName}</Text>
+            <Text style={styles.organizationName}>{orderData.organizationName}</Text>
+            <Text style={styles.orderDate}>
+              Confirmed: {deliveryConfirmation ? formatDate(deliveryConfirmation.confirmedAt) : 'N/A'}
+            </Text>
+          </View>
+          <View style={styles.amountSection}>
+            <Text style={styles.amountLabel}>Amount</Text>
+            <Text style={styles.amountValue}>₦{orderData.totalAmountPaid?.toLocaleString()}</Text>
           </View>
         </View>
-      ) : (
-        <View style={styles.warningSection}>
-          <Text style={styles.warningTitle}>⚠️ Bank Details Missing</Text>
-          <Text style={styles.warningText}>Organization has not registered bank details yet.</Text>
-        </View>
-      )}
 
-      {/* Delivery Confirmation - Always show if order exists */}
-      <View style={styles.deliverySection}>
-        <Text style={styles.deliveryTitle}>Delivery Confirmation Details</Text>
-        {item.deliveryConfirmation ? (
-          <View style={styles.deliveryDetails}>
-            <Text style={styles.deliveryMode}>
-              Mode: {item.deliveryConfirmation.deliveryMode === 'pickup_center' ? 'Pickup Center' :
-                     item.deliveryConfirmation.deliveryMode === 'shipping' ? 'Shipping' : 'Organization Location'}
-            </Text>
-            
-            {item.deliveryConfirmation.deliveryAddress && (
-              <Text style={styles.deliveryDetail}>
-                Address: {item.deliveryConfirmation.deliveryAddress}
-              </Text>
-            )}
-            
-            {item.deliveryConfirmation.pickupCenterName && (
-              <Text style={styles.deliveryDetail}>
-                Pickup Center: {item.deliveryConfirmation.pickupCenterName}
-              </Text>
-            )}
-            
-            {item.deliveryConfirmation.imageComment && (
-              <Text style={styles.deliveryDetail}>
-                Comment: {item.deliveryConfirmation.imageComment}
-              </Text>
-            )}
-            
-            <View style={styles.mediaSection}>
-              {item.deliveryConfirmation.productImageUrl && (
-                <Text style={styles.deliveryImages}>✓ Product photo uploaded</Text>
-              )}
-              {item.deliveryConfirmation.representativeImageUrl && (
-                <Text style={styles.deliveryImages}>✓ Representative photo uploaded</Text>
-              )}
-              {item.deliveryConfirmation.userImageUrl && (
-                <Text style={styles.deliveryImages}>✓ Customer photo uploaded</Text>
-              )}
-              {item.deliveryConfirmation.videoUrl && (
-                <Text style={styles.deliveryImages}>✓ Confirmation video uploaded</Text>
-              )}
-            </View>
-            
-            {item.deliveryConfirmation.satisfactionDeclaration && (
-              <View style={styles.declarationSection}>
-                <Text style={styles.declarationTitle}>Satisfaction Declaration:</Text>
-                <Text style={styles.declarationText}>
-                  {item.deliveryConfirmation.satisfactionDeclaration}
-                </Text>
+        {/* Bank Details */}
+        {item.organizationBankDetails ? (
+          <View style={styles.bankSection}>
+            <Text style={styles.bankTitle}>Organization Bank Details</Text>
+            <View style={styles.bankDetails}>
+              <View style={styles.bankRow}>
+                <Text style={styles.bankLabel}>Bank:</Text>
+                <Text style={styles.bankValue}>{item.organizationBankDetails.bankName}</Text>
               </View>
-            )}
-            
-            <TouchableOpacity 
-              style={styles.viewDetailsButton}
-              onPress={() => navigation.navigate('DeliveryDetails', { 
-                deliveryConfirmation: item.deliveryConfirmation,
-                customerName: item.customerName,
-                productName: item.productName
-              })}
-            >
-              <Ionicons name="eye" size={16} color="#10B981" />
-              <Text style={styles.viewDetailsText}>View Full Details</Text>
-            </TouchableOpacity>
+              <View style={styles.bankRow}>
+                <Text style={styles.bankLabel}>Account:</Text>
+                <Text style={styles.bankValue}>{item.organizationBankDetails.accountNumber}</Text>
+              </View>
+              <View style={styles.bankRow}>
+                <Text style={styles.bankLabel}>Name:</Text>
+                <Text style={styles.bankValue}>{item.organizationBankDetails.accountName}</Text>
+              </View>
+            </View>
           </View>
         ) : (
-          <Text style={styles.noDeliveryData}>No delivery confirmation data available</Text>
+          <View style={styles.warningSection}>
+            <Text style={styles.warningTitle}>⚠️ Bank Details Missing</Text>
+            <Text style={styles.warningText}>Organization has not registered bank details yet.</Text>
+          </View>
         )}
-      </View>
 
-      {/* Action Button */}
-      <TouchableOpacity
-        style={[
-          styles.processButton,
-          !item.organizationBankDetails && styles.processButtonDisabled
-        ]}
-        onPress={() => handleProcessRemittance(item)}
-        disabled={!item.organizationBankDetails}
-      >
-        <Ionicons name="card" size={20} color="white" />
-        <Text style={styles.processButtonText}>
-          {item.organizationBankDetails ? 'Process Remittance' : 'Bank Details Required'}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
+        {/* Delivery Confirmation */}
+        <View style={styles.deliverySection}>
+          <Text style={styles.deliveryTitle}>Delivery Confirmation Details</Text>
+          {deliveryConfirmation ? (
+            <View style={styles.deliveryDetails}>
+              <Text style={styles.deliveryMode}>
+                Mode: {deliveryConfirmation.deliveryMode === 'pickup_center' ? 'Pickup Center' :
+                       deliveryConfirmation.deliveryMode === 'shipping' ? 'Shipping' : 'Organization Location'}
+              </Text>
+              
+              {deliveryConfirmation.deliveryAddress && (
+                <Text style={styles.deliveryDetail}>
+                  Address: {deliveryConfirmation.deliveryAddress}
+                </Text>
+              )}
+              
+              {deliveryConfirmation.pickupCenterName && (
+                <Text style={styles.deliveryDetail}>
+                  Pickup Center: {deliveryConfirmation.pickupCenterName}
+                </Text>
+              )}
+              
+              {deliveryConfirmation.imageComment && (
+                <Text style={styles.deliveryDetail}>
+                  Comment: {deliveryConfirmation.imageComment}
+                </Text>
+              )}
+              
+              <View style={styles.mediaSection}>
+                {deliveryConfirmation.productImageUrl && (
+                  <Text style={styles.deliveryImages}>✓ Product photo uploaded</Text>
+                )}
+                {deliveryConfirmation.representativeImageUrl && (
+                  <Text style={styles.deliveryImages}>✓ Representative photo uploaded</Text>
+                )}
+                {deliveryConfirmation.userImageUrl && (
+                  <Text style={styles.deliveryImages}>✓ Customer photo uploaded</Text>
+                )}
+                {deliveryConfirmation.videoUrl && (
+                  <Text style={styles.deliveryImages}>✓ Confirmation video uploaded</Text>
+                )}
+              </View>
+              
+              {deliveryConfirmation.satisfactionDeclaration && (
+                <View style={styles.declarationSection}>
+                  <Text style={styles.declarationTitle}>Satisfaction Declaration:</Text>
+                  <Text style={styles.declarationText}>
+                    {deliveryConfirmation.satisfactionDeclaration}
+                  </Text>
+                </View>
+              )}
+              
+              <TouchableOpacity 
+                style={styles.viewDetailsButton}
+                onPress={() => navigation.navigate('DeliveryDetails', { 
+                  deliveryConfirmation: deliveryConfirmation,
+                  customerName: orderData.customerName,
+                  productName: orderData.productName
+                })}
+              >
+                <Ionicons name="eye" size={16} color="#10B981" />
+                <Text style={styles.viewDetailsText}>View Full Details</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Text style={styles.noDeliveryData}>No delivery confirmation data available</Text>
+          )}
+        </View>
+
+        {/* Action Button */}
+        <TouchableOpacity
+          style={[
+            styles.processButton,
+            !item.organizationBankDetails && styles.processButtonDisabled
+          ]}
+          onPress={() => handleProcessRemittance(orderData)}
+          disabled={!item.organizationBankDetails}
+        >
+          <Ionicons name="card" size={20} color="white" />
+          <Text style={styles.processButtonText}>
+            {item.organizationBankDetails ? 'Process Remittance' : 'Bank Details Required'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
