@@ -78,6 +78,12 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
   const handleProcessRemittance = async () => {
     if (!validateForm()) return;
 
+    // Check if bank details exist
+    if (!order.organizationBankDetails) {
+      Alert.alert('Error', 'Organization bank details are not available');
+      return;
+    }
+
     setLoading(true);
     try {
       const remittanceData = {
@@ -140,20 +146,26 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
         {/* Organization Bank Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Organization Bank Details</Text>
-          <View style={styles.bankCard}>
-            <View style={styles.bankRow}>
-              <Text style={styles.bankLabel}>Bank Name:</Text>
-              <Text style={styles.bankValue}>{order.organizationBankDetails.bankName}</Text>
+          {order.organizationBankDetails ? (
+            <View style={styles.bankCard}>
+              <View style={styles.bankRow}>
+                <Text style={styles.bankLabel}>Bank Name:</Text>
+                <Text style={styles.bankValue}>{order.organizationBankDetails.bankName}</Text>
+              </View>
+              <View style={styles.bankRow}>
+                <Text style={styles.bankLabel}>Account Number:</Text>
+                <Text style={styles.bankValue}>{order.organizationBankDetails.accountNumber}</Text>
+              </View>
+              <View style={styles.bankRow}>
+                <Text style={styles.bankLabel}>Account Name:</Text>
+                <Text style={styles.bankValue}>{order.organizationBankDetails.accountName}</Text>
+              </View>
             </View>
-            <View style={styles.bankRow}>
-              <Text style={styles.bankLabel}>Account Number:</Text>
-              <Text style={styles.bankValue}>{order.organizationBankDetails.accountNumber}</Text>
+          ) : (
+            <View style={styles.warningCard}>
+              <Text style={styles.warningText}>⚠️ Organization bank details are not available</Text>
             </View>
-            <View style={styles.bankRow}>
-              <Text style={styles.bankLabel}>Account Name:</Text>
-              <Text style={styles.bankValue}>{order.organizationBankDetails.accountName}</Text>
-            </View>
-          </View>
+          )}
         </View>
 
         {/* Remittance Details */}
@@ -315,6 +327,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#1F2937',
+  },
+  warningCard: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 16,
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#D97706',
+    textAlign: 'center',
   },
   inputGroup: {
     marginBottom: 20,

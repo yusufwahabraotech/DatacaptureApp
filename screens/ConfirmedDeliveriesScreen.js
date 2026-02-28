@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
@@ -132,13 +133,34 @@ const ConfirmedDeliveriesScreen = ({ navigation }) => {
               
               <View style={styles.mediaSection}>
                 {deliveryConfirmation.productImageUrl && (
-                  <Text style={styles.deliveryImages}>✓ Product photo uploaded</Text>
+                  <View style={styles.imageContainer}>
+                    <Text style={styles.deliveryImages}>✓ Product photo:</Text>
+                    <Image 
+                      source={{ uri: deliveryConfirmation.productImageUrl }} 
+                      style={styles.deliveryImage}
+                      resizeMode="cover"
+                    />
+                  </View>
                 )}
                 {deliveryConfirmation.representativeImageUrl && (
-                  <Text style={styles.deliveryImages}>✓ Representative photo uploaded</Text>
+                  <View style={styles.imageContainer}>
+                    <Text style={styles.deliveryImages}>✓ Representative photo:</Text>
+                    <Image 
+                      source={{ uri: deliveryConfirmation.representativeImageUrl }} 
+                      style={styles.deliveryImage}
+                      resizeMode="cover"
+                    />
+                  </View>
                 )}
                 {deliveryConfirmation.userImageUrl && (
-                  <Text style={styles.deliveryImages}>✓ Customer photo uploaded</Text>
+                  <View style={styles.imageContainer}>
+                    <Text style={styles.deliveryImages}>✓ Customer photo:</Text>
+                    <Image 
+                      source={{ uri: deliveryConfirmation.userImageUrl }} 
+                      style={styles.deliveryImage}
+                      resizeMode="cover"
+                    />
+                  </View>
                 )}
                 {deliveryConfirmation.videoUrl && (
                   <Text style={styles.deliveryImages}>✓ Confirmation video uploaded</Text>
@@ -153,18 +175,6 @@ const ConfirmedDeliveriesScreen = ({ navigation }) => {
                   </Text>
                 </View>
               )}
-              
-              <TouchableOpacity 
-                style={styles.viewDetailsButton}
-                onPress={() => navigation.navigate('DeliveryDetails', { 
-                  deliveryConfirmation: deliveryConfirmation,
-                  customerName: orderData.customerName,
-                  productName: orderData.productName
-                })}
-              >
-                <Ionicons name="eye" size={16} color="#10B981" />
-                <Text style={styles.viewDetailsText}>View Full Details</Text>
-              </TouchableOpacity>
             </View>
           ) : (
             <Text style={styles.noDeliveryData}>No delivery confirmation data available</Text>
@@ -385,6 +395,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 8,
   },
+  imageContainer: {
+    marginBottom: 12,
+  },
+  deliveryImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    marginTop: 4,
+  },
   declarationSection: {
     marginTop: 12,
     paddingTop: 12,
@@ -402,22 +421,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 16,
     fontStyle: 'italic',
-  },
-  viewDetailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F0FDF4',
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginTop: 8,
-    gap: 6,
-  },
-  viewDetailsText: {
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '500',
   },
   processButton: {
     flexDirection: 'row',
