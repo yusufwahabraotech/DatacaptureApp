@@ -131,6 +131,11 @@ const MyOrdersScreen = ({ navigation }) => {
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.orderStatus) }]}>
             <Text style={styles.statusText}>{getStatusText(item.orderStatus)}</Text>
           </View>
+          {item.deliveryStatus === 'confirmed' && (
+            <View style={[styles.statusBadge, { backgroundColor: '#10B981', marginTop: 4 }]}>
+              <Text style={styles.statusText}>Delivery Confirmed</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -195,6 +200,16 @@ const MyOrdersScreen = ({ navigation }) => {
             >
               <Ionicons name="card" size={16} color="white" />
               <Text style={styles.payButtonText}>Complete Payment</Text>
+            </TouchableOpacity>
+          )}
+
+          {item.orderStatus === 'fully_paid' && item.deliveryStatus !== 'confirmed' && (
+            <TouchableOpacity
+              style={styles.confirmButton}
+              onPress={() => navigation.navigate('DeliveryConfirmation', { order: item })}
+            >
+              <Ionicons name="checkmark-circle" size={16} color="white" />
+              <Text style={styles.confirmButtonText}>Confirm Delivery</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -461,6 +476,21 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   payButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  confirmButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#7B2CBF',
+    borderRadius: 8,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  confirmButtonText: {
     color: 'white',
     fontSize: 14,
     fontWeight: 'bold',

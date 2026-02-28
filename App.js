@@ -100,6 +100,11 @@ import OrderDetailsScreen from './screens/OrderDetailsScreen';
 import OrganizationOrdersScreen from './screens/OrganizationOrdersScreen';
 import SuperAdminOrdersScreen from './screens/SuperAdminOrdersScreen';
 import SuperAdminOrderDetailsScreen from './screens/SuperAdminOrderDetailsScreen';
+import DeliveryConfirmationScreen from './screens/DeliveryConfirmationScreen';
+import BankDetailsScreen from './screens/BankDetailsScreen';
+import ConfirmedDeliveriesScreen from './screens/ConfirmedDeliveriesScreen';
+import ProcessRemittanceScreen from './screens/ProcessRemittanceScreen';
+import SettlementsScreen from './screens/SettlementsScreen';
 
 const Stack = createStackNavigator();
 
@@ -221,6 +226,11 @@ export default function App() {
         <Stack.Screen name="OrganizationOrderDetails" component={OrderDetailsScreen} />
         <Stack.Screen name="SuperAdminOrders" component={SuperAdminOrdersScreen} />
         <Stack.Screen name="SuperAdminOrderDetails" component={SuperAdminOrderDetailsScreen} />
+        <Stack.Screen name="DeliveryConfirmation" component={DeliveryConfirmationScreen} />
+        <Stack.Screen name="BankDetails" component={BankDetailsScreen} />
+        <Stack.Screen name="ConfirmedDeliveries" component={ConfirmedDeliveriesScreen} />
+        <Stack.Screen name="ProcessRemittance" component={ProcessRemittanceScreen} />
+        <Stack.Screen name="Settlements" component={SettlementsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

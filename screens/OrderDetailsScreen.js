@@ -11,11 +11,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import DeliveryImagesModal from '../components/DeliveryImagesModal';
 
 const OrderDetailsScreen = ({ navigation, route }) => {
   const { orderId } = route.params;
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showDeliveryImages, setShowDeliveryImages] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -281,6 +283,68 @@ const OrderDetailsScreen = ({ navigation, route }) => {
           </View>
         )}
 
+        {/* Delivery Confirmation */}
+        {order.deliveryConfirmation && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Delivery Confirmation</Text>
+            
+            <View style={styles.deliveryCard}>
+              <View style={styles.deliveryHeader}>
+                <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+                <Text style={styles.deliveryTitle}>Delivery Confirmed</Text>
+              </View>
+              
+              <View style={styles.deliveryDetails}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Delivery Mode:</Text>
+                  <Text style={styles.infoValue}>
+                    {order.deliveryConfirmation.deliveryMode === 'pickup_center' ? 'Pickup Center' :
+                     order.deliveryConfirmation.deliveryMode === 'shipping' ? 'Shipping' : 'Organization Location'}
+                  </Text>
+                </View>
+                
+                {order.deliveryConfirmation.pickupCenterName && (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Pickup Center:</Text>
+                    <Text style={styles.infoValue}>{order.deliveryConfirmation.pickupCenterName}</Text>
+                  </View>
+                )}
+                
+                {order.deliveryConfirmation.deliveryAddress && (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Delivery Address:</Text>
+                    <Text style={styles.infoValue}>{order.deliveryConfirmation.deliveryAddress}</Text>
+                  </View>
+                )}
+                
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Confirmed At:</Text>
+                  <Text style={styles.infoValue}>{formatDate(order.deliveryConfirmation.confirmedAt)}</Text>
+                </View>
+                
+                {order.deliveryConfirmation.imageComment && (
+                  <View style={styles.commentSection}>
+                    <Text style={styles.commentLabel}>Comment:</Text>
+                    <Text style={styles.commentText}>{order.deliveryConfirmation.imageComment}</Text>
+                  </View>
+                )}
+                
+                {(order.deliveryConfirmation.productImageUrl || 
+                  order.deliveryConfirmation.representativeImageUrl || 
+                  order.deliveryConfirmation.userImageUrl) && (
+                  <TouchableOpacity 
+                    style={styles.viewImagesButton}
+                    onPress={() => setShowDeliveryImages(true)}
+                  >
+                    <Ionicons name="images" size={16} color="#7C3AED" />
+                    <Text style={styles.viewImagesText}>View Delivery Photos</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Customer Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Customer Information</Text>
@@ -308,6 +372,16 @@ const OrderDetailsScreen = ({ navigation, route }) => {
 
       {/* Action Buttons */}
       <View style={styles.bottomSection}>
+        {order.orderStatus === 'fully_paid' && !order.deliveryConfirmation && (
+          <TouchableOpacity
+            style={styles.confirmDeliveryButton}
+            onPress={() => navigation.navigate('DeliveryConfirmation', { order })}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="white" />
+            <Text style={styles.confirmDeliveryButtonText}>Confirm Delivery</Text>
+          </TouchableOpacity>
+        )}
+        
         {order.orderStatus === 'partially_paid' && order.upfrontRemainingBalance > 0 && (
           <TouchableOpacity
             style={styles.payButton}
@@ -328,6 +402,12 @@ const OrderDetailsScreen = ({ navigation, route }) => {
           <Text style={styles.contactButtonText}>Contact Seller</Text>
         </TouchableOpacity>
       </View>
+      
+      <DeliveryImagesModal 
+        visible={showDeliveryImages}
+        onClose={() => setShowDeliveryImages(false)}
+        deliveryConfirmation={order?.deliveryConfirmation}
+      />
     </SafeAreaView>
   );
 };
@@ -574,6 +654,62 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
   },
+  deliveryCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 8,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10B981',
+  },
+  deliveryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  deliveryTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#10B981',
+    marginLeft: 8,
+  },
+  deliveryDetails: {
+    borderTopWidth: 1,
+    borderTopColor: '#D1FAE5',
+    paddingTop: 12,
+  },
+  commentSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#D1FAE5',
+  },
+  commentLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  commentText: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+  },
+  viewImagesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F3FF',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    gap: 8,
+  },
+  viewImagesText: {
+    fontSize: 14,
+    color: '#7C3AED',
+    fontWeight: '500',
+  },
   bottomSection: {
     padding: 16,
     backgroundColor: 'white',
@@ -591,6 +727,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   payButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  confirmDeliveryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#7B2CBF',
+    borderRadius: 8,
+    paddingVertical: 16,
+    gap: 8,
+  },
+  confirmDeliveryButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',

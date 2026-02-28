@@ -2821,6 +2821,108 @@ class ApiService {
     return this.apiCall(`/orders/super-admin/${orderId}`);
   }
 
+  // DELIVERY CONFIRMATION
+  static async getDeliveryTemplate(orderId) {
+    return this.apiCall(`/orders/user/${orderId}/delivery-template`);
+  }
+
+  static async confirmDelivery(orderId, confirmationData) {
+    console.log('🚨 DELIVERY CONFIRMATION DEBUG 🚨');
+    console.log('Order ID:', orderId);
+    console.log('Confirmation data:', JSON.stringify(confirmationData, null, 2));
+    
+    const formData = new FormData();
+    
+    // Add text fields
+    formData.append('deliveryMode', confirmationData.deliveryMode);
+    if (confirmationData.deliveryAddress) formData.append('deliveryAddress', confirmationData.deliveryAddress);
+    if (confirmationData.pickupCenterName) formData.append('pickupCenterName', confirmationData.pickupCenterName);
+    if (confirmationData.imageComment) formData.append('imageComment', confirmationData.imageComment);
+    if (confirmationData.videoUrl) formData.append('videoUrl', confirmationData.videoUrl);
+    formData.append('satisfactionDeclaration', confirmationData.satisfactionDeclaration);
+    
+    // Add image files (not base64)
+    if (confirmationData.productImage) {
+      formData.append('productImage', {
+        uri: confirmationData.productImage.uri,
+        type: 'image/jpeg',
+        name: 'product.jpg'
+      });
+    }
+    if (confirmationData.representativeImage) {
+      formData.append('representativeImage', {
+        uri: confirmationData.representativeImage.uri,
+        type: 'image/jpeg',
+        name: 'representative.jpg'
+      });
+    }
+    if (confirmationData.userImage) {
+      formData.append('userImage', {
+        uri: confirmationData.userImage.uri,
+        type: 'image/jpeg',
+        name: 'user.jpg'
+      });
+    }
+    
+    const token = await this.getToken();
+    const response = await fetch(`${BASE_URL}/orders/user/${orderId}/confirm-delivery`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+        // Don't set Content-Type - let browser set it with boundary
+      },
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      return {
+        success: false,
+        message: error.message || `HTTP ${response.status}: ${response.statusText}`,
+        data: error
+      };
+    }
+    
+    return await response.json();
+  }
+
+  // REMITTANCE SYSTEM
+  // Organization Bank Details
+  static async registerBankDetails(bankData) {
+    return this.apiCall('/admin/bank-details', {
+      method: 'POST',
+      body: JSON.stringify(bankData),
+    });
+  }
+
+  static async getBankDetails() {
+    return this.apiCall('/admin/bank-details');
+  }
+
+  // Super Admin Remittance
+  static async getConfirmedDeliveries() {
+    return this.apiCall('/orders/super-admin/confirmed-deliveries/all');
+  }
+
+  static async processRemittance(orderId, remittanceData) {
+    return this.apiCall(`/orders/super-admin/${orderId}/process-remittance`, {
+      method: 'POST',
+      body: JSON.stringify(remittanceData),
+    });
+  }
+
+  // Organization Settlements
+  static async getSettlements() {
+    return this.apiCall('/orders/admin/settlements');
+  }
+
+  static async confirmRemittance(orderId, comment) {
+    return this.apiCall(`/orders/admin/${orderId}/confirm-remittance`, {
+      method: 'POST',
+      body: JSON.stringify({ comment }),
+    });
+  }
+
 }
 
 export default ApiService;

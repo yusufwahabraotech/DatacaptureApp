@@ -199,6 +199,18 @@ const AdminDashboardScreen = ({ navigation }) => {
       subtitle: 'View and manage customer orders',
       icon: 'receipt',
       onPress: () => navigation.navigate('OrganizationOrders')
+    },
+    {
+      title: 'Bank Details',
+      subtitle: 'Manage payment account details',
+      icon: 'card',
+      onPress: () => navigation.navigate('BankDetails')
+    },
+    {
+      title: 'Settlements',
+      subtitle: 'View payment settlements',
+      icon: 'wallet',
+      onPress: () => navigation.navigate('Settlements')
     }
   ];
 

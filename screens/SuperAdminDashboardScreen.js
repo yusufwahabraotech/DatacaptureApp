@@ -198,6 +198,12 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
       subtitle: 'View all orders across organizations',
       icon: 'receipt',
       onPress: () => navigation.navigate('SuperAdminOrders')
+    },
+    {
+      title: 'Confirmed Deliveries',
+      subtitle: 'Process remittances for confirmed orders',
+      icon: 'checkmark-circle',
+      onPress: () => navigation.navigate('ConfirmedDeliveries')
     }
   ];
 
