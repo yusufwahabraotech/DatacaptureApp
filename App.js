@@ -105,6 +105,7 @@ import BankDetailsScreen from './screens/BankDetailsScreen';
 import ConfirmedDeliveriesScreen from './screens/ConfirmedDeliveriesScreen';
 import ProcessRemittanceScreen from './screens/ProcessRemittanceScreen';
 import SettlementsScreen from './screens/SettlementsScreen';
+import MySubscriptionScreen from './screens/MySubscriptionScreen';
 
 const Stack = createStackNavigator();
 
@@ -151,6 +152,7 @@ export default function App() {
         
         {/* Organization Subscription Screens */}
         <Stack.Screen name="OrganizationSubscription" component={OrganizationSubscriptionScreen} />
+        <Stack.Screen name="MySubscription" component={MySubscriptionScreen} />
         <Stack.Screen name="BillingHistory" component={BillingHistoryScreen} />
         <Stack.Screen name="BodyMeasurement" component={BodyMeasurementScreen} />
         <Stack.Screen name="ObjectMeasurement" component={ObjectMeasurementScreen} />

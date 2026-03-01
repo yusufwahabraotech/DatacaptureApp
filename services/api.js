@@ -2205,7 +2205,16 @@ class ApiService {
     console.log('🚨 USAGE LIMIT CHECK 🚨');
     console.log('Checking limit for:', limitType);
     
-    return this.apiCall(`/user-subscriptions/check-usage-limit/${limitType}`);
+    // Map frontend limit types to backend limit types
+    const limitTypeMap = {
+      'orgUsers': 'orgUsersCreated',
+      'bodyMeasurements': 'bodyMeasurementsCreated'
+    };
+    
+    const backendLimitType = limitTypeMap[limitType] || limitType;
+    console.log('Mapped to backend limit type:', backendLimitType);
+    
+    return this.apiCall(`/user-subscriptions/check-usage-limit/${backendLimitType}`);
   }
 
   // GET AVAILABLE MODULES
@@ -2213,36 +2222,30 @@ class ApiService {
     return this.apiCall('/services/available-modules');
   }
 
-  // Check current user's subscription status
-  static async checkMySubscriptionStatus() {
+  // Get current user's active subscription
+  static async getMyActiveSubscription() {
     try {
       const profileResponse = await this.getUserProfile();
-      console.log('🚨 FULL PROFILE RESPONSE DEBUG 🚨');
-      console.log('Profile response:', JSON.stringify(profileResponse, null, 2));
-      
       if (profileResponse.success && profileResponse.data.user) {
-        const user = profileResponse.data.user;
-        console.log('🚨 USER OBJECT DEBUG 🚨');
-        console.log('User keys:', Object.keys(user));
-        console.log('user._id:', user._id);
-        console.log('user.id:', user.id);
-        console.log('user.userId:', user.userId);
-        
-        // Try multiple possible userId fields
-        const userId = user._id || user.id || user.userId || user.ID;
-        console.log('Final userId:', userId);
-        
-        if (!userId) {
-          console.log('❌ No userId found in any field');
-          return { success: false, message: 'User ID not found in profile' };
-        }
-        
-        console.log('✅ Using userId:', userId);
-        return this.checkUserSubscriptionStatus(userId);
+        const userId = profileResponse.data.user._id || profileResponse.data.user.id;
+        return this.apiCall(`/user-subscriptions/user/${userId}/active`);
       }
       return { success: false, message: 'Failed to get user profile' };
     } catch (error) {
-      console.log('Error in checkMySubscriptionStatus:', error);
+      return { success: false, message: 'Error fetching subscription' };
+    }
+  }
+
+  // Check subscription status (returns hasActiveSubscription boolean)
+  static async checkMySubscriptionStatus() {
+    try {
+      const profileResponse = await this.getUserProfile();
+      if (profileResponse.success && profileResponse.data.user) {
+        const userId = profileResponse.data.user._id || profileResponse.data.user.id;
+        return this.apiCall(`/user-subscriptions/user/${userId}/status`);
+      }
+      return { success: false, message: 'Failed to get user profile' };
+    } catch (error) {
       return { success: false, message: 'Error checking subscription status' };
     }
   }

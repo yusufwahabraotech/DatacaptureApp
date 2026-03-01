@@ -199,6 +199,12 @@ const AdminDashboardScreen = ({ navigation }) => {
       )
     },
     {
+      title: 'My Subscription',
+      subtitle: 'View subscription details & usage',
+      icon: 'card-outline',
+      onPress: () => navigation.navigate('MySubscription')
+    },
+    {
       title: 'Subscription',
       subtitle: 'Manage your subscription',
       icon: 'card',
