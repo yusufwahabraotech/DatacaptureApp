@@ -21,6 +21,8 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [promoValidation, setPromoValidation] = useState({ isValid: false, discount: 0, message: '' });
   const [validatingPromo, setValidatingPromo] = useState(false);
+  const [calculatedPrice, setCalculatedPrice] = useState(null);
+  const [calculating, setCalculating] = useState(false);
 
   useEffect(() => {
     fetchUserProfile();
@@ -28,24 +30,79 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
     if (promoCode && selectedPackage) {
       validatePromoCode(promoCode, selectedPackage._id);
     }
+    // Calculate package price
+    calculatePackagePrice();
   }, []);
 
+  const calculatePackagePrice = async () => {
+    if (!selectedPackage?.services) return;
+    
+    setCalculating(true);
+    try {
+      const price = await getPackagePrice(false);
+      setCalculatedPrice(price);
+    } catch (error) {
+      console.log('Error calculating price:', error);
+      setCalculatedPrice(0);
+    } finally {
+      setCalculating(false);
+    }
+  };
+
   // Calculate package price based on selected duration and services (same as Step 3 & 4)
-  const getPackagePrice = (applyPromoDiscount = true) => {
+  const getPackagePrice = async (applyPromoDiscount = true) => {
     if (!selectedPackage?.services) return 0;
     
-    // Calculate base price for the selected duration
-    let basePrice = selectedPackage.services
-      .filter(service => service.duration === selectedDuration)
-      .reduce((total, service) => total + service.price, 0);
+    console.log('🚨 GET PACKAGE PRICE DEBUG 🚨');
+    console.log('Selected package:', selectedPackage.title);
+    console.log('Selected duration:', selectedDuration);
+    
+    let total = 0;
+    
+    // Get unique service IDs from package
+    const serviceIds = [...new Set(selectedPackage.services.map(s => s.serviceId))];
+    console.log('Service IDs:', serviceIds);
+    
+    // Fetch each service's full pricing
+    for (const serviceId of serviceIds) {
+      try {
+        const response = await ApiService.getServiceById(serviceId);
+        if (response.success) {
+          const service = response.data.service;
+          
+          // Use service's price for requested duration
+          if (selectedDuration === 'monthly') {
+            total += service.monthlyPrice || 0;
+          } else if (selectedDuration === 'quarterly') {
+            total += service.quarterlyPrice || 0;
+          } else if (selectedDuration === 'yearly') {
+            total += service.yearlyPrice || 0;
+          }
+          console.log(`Service ${service.serviceName} ${selectedDuration} price:`, service[selectedDuration + 'Price'] || 0);
+        }
+      } catch (error) {
+        console.log('Error fetching service:', serviceId, error);
+      }
+    }
+    
+    console.log('Calculated total before discount:', total);
+    
+    // Apply package discount if exists
+    if (selectedPackage.discountPercentage && selectedPackage.discountPercentage > 0) {
+      const packageDiscount = (total * selectedPackage.discountPercentage) / 100;
+      total = total - packageDiscount;
+      console.log('Applied package discount:', selectedPackage.discountPercentage + '%', 'New total:', total);
+    }
     
     // Apply promo discount if valid and requested
     if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {
-      const discountAmount = (basePrice * promoValidation.discount) / 100;
-      return basePrice - discountAmount;
+      const discountAmount = (total * promoValidation.discount) / 100;
+      total = total - discountAmount;
+      console.log('Applied promo discount:', promoValidation.discount + '%', 'Final total:', total);
     }
     
-    return basePrice;
+    console.log('Final calculated price:', total);
+    return total;
   };
 
   const validatePromoCode = async (code, packageId) => {
@@ -134,6 +191,7 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
       }
 
       // Prepare payment data
+      const packagePrice = await getPackagePrice(true);
       const paymentData = {
         userId: userProfile._id,
         userType: 'organization',
@@ -142,7 +200,7 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
         email: userProfile.email,
         name: userProfile.fullName || userProfile.firstName + ' ' + userProfile.lastName,
         phone: userProfile.phone || userProfile.phoneNumber,
-        totalAmount: locationData ? paymentSummary.totalAmount : getPackagePrice(true),
+        totalAmount: locationData ? paymentSummary.totalAmount : packagePrice,
         promoCode: promoValidation.isValid ? promoCode : undefined,
       };
 
@@ -195,12 +253,18 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
     
     if (url.includes('status=successful')) {
       const urlParams = new URLSearchParams(url.split('?')[1]);
-      const transactionId = urlParams.get('transaction_id');
+      // Flutterwave sends tx_ref, not transaction_id
+      const transactionId = urlParams.get('tx_ref') || urlParams.get('transaction_id');
+      
+      console.log('🚨 PAYMENT SUCCESS REDIRECT DEBUG 🚨');
+      console.log('Full URL:', url);
+      console.log('Extracted tx_ref:', transactionId);
       
       setShowPaymentWebView(false);
       navigation.navigate('PaymentVerification', {
         transactionId,
-        status: 'successful'
+        status: 'successful',
+        paymentType: locationData ? 'combined' : 'regular'
       });
     } else if (url.includes('status=cancelled') || url.includes('status=failed')) {
       setShowPaymentWebView(false);
@@ -310,7 +374,7 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
                 <Text style={styles.summaryValue}>{formatPrice(getPackagePrice(true))}</Text>
               </View>
             ) : (
-              <Text style={styles.summaryValue}>{formatPrice(locationData ? paymentSummary.packagePrice : getPackagePrice(false))}</Text>
+              <Text style={styles.summaryValue}>{calculatedPrice !== null ? formatPrice(calculatedPrice) : 'Calculating...'}</Text>
             )}
           </View>
           <Text style={styles.summarySubtext}>{selectedPackage.title} - {selectedDuration}</Text>
@@ -329,7 +393,7 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
           
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total Amount</Text>
-            <Text style={styles.totalAmount}>{formatPrice(locationData ? paymentSummary.totalAmount : getPackagePrice(true))}</Text>
+            <Text style={styles.totalAmount}>{calculatedPrice !== null ? formatPrice(calculatedPrice) : 'Calculating...'}</Text>
           </View>
         </View>
 

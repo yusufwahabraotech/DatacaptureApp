@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-const BASE_URL = 'http://192.168.1.183:3000/api';
+const BASE_URL = 'http://172.20.10.2:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -1495,6 +1495,9 @@ class ApiService {
 
   // SERVICE MANAGEMENT (Super Admin)
   static async createService(serviceData) {
+    console.log('🚨 CREATE SERVICE WITH MODULES DEBUG 🚨');
+    console.log('Service data:', JSON.stringify(serviceData, null, 2));
+    
     return this.apiCall('/services', {
       method: 'POST',
       body: JSON.stringify(serviceData),
@@ -1506,7 +1509,11 @@ class ApiService {
   }
 
   static async getServiceById(serviceId) {
-    return this.apiCall(`/services/${serviceId}`);
+    console.log('🚨 GET SERVICE BY ID DEBUG 🚨');
+    console.log('Fetching service ID:', serviceId);
+    const response = await this.apiCall(`/services/${serviceId}`);
+    console.log('Service response:', JSON.stringify(response, null, 2));
+    return response;
   }
 
   static async updateService(serviceId, serviceData) {
@@ -1528,6 +1535,9 @@ class ApiService {
   }
 
   static async createSubscriptionPackage(packageData) {
+    console.log('🚨 CREATE SUBSCRIPTION PACKAGE WITH MODULES DEBUG 🚨');
+    console.log('Package data:', JSON.stringify(packageData, null, 2));
+    
     return this.apiCall('/subscription-packages', {
       method: 'POST',
       body: JSON.stringify(packageData),
@@ -1688,9 +1698,12 @@ class ApiService {
   }
 
   static async verifyPayment(transactionId) {
+    console.log('🚨 PAYMENT VERIFICATION DEBUG 🚨');
+    console.log('Transaction ID/tx_ref:', transactionId);
+    
     return this.apiCall('/payment/verify', {
       method: 'POST',
-      body: JSON.stringify({ transactionId }),
+      body: JSON.stringify({ tx_ref: transactionId }),
     });
   }
 
@@ -2030,9 +2043,12 @@ class ApiService {
   }
 
   static async verifyVerifiedBadgePayment(transactionId) {
+    console.log('🚨 VERIFIED BADGE PAYMENT VERIFICATION DEBUG 🚨');
+    console.log('Transaction ID/tx_ref:', transactionId);
+    
     return this.apiCall('/payment/verified-badge/verify', {
       method: 'POST',
-      body: JSON.stringify({ transactionId }),
+      body: JSON.stringify({ tx_ref: transactionId }),
     });
   }
 
@@ -2112,9 +2128,12 @@ class ApiService {
   }
 
   static async verifyVerifiedBadgePayment(transactionId) {
+    console.log('🚨 VERIFIED BADGE PAYMENT VERIFICATION DEBUG 🚨');
+    console.log('Transaction ID/tx_ref:', transactionId);
+    
     return this.apiCall('/payment/verified-badge/verify', {
       method: 'POST',
-      body: JSON.stringify({ transactionId }),
+      body: JSON.stringify({ tx_ref: transactionId }),
     });
   }
 
@@ -2171,6 +2190,27 @@ class ApiService {
   // USER SUBSCRIPTION STATUS CHECK
   static async checkUserSubscriptionStatus(userId) {
     return this.apiCall(`/user-subscriptions/user/${userId}/status`);
+  }
+
+  // MODULE ACCESS CHECK
+  static async checkModuleAccess(moduleKey) {
+    console.log('🚨 MODULE ACCESS CHECK 🚨');
+    console.log('Checking access for module:', moduleKey);
+    
+    return this.apiCall(`/user-subscriptions/check-module-access/${moduleKey}`);
+  }
+
+  // USAGE LIMIT CHECK
+  static async checkUsageLimit(limitType) {
+    console.log('🚨 USAGE LIMIT CHECK 🚨');
+    console.log('Checking limit for:', limitType);
+    
+    return this.apiCall(`/user-subscriptions/check-usage-limit/${limitType}`);
+  }
+
+  // GET AVAILABLE MODULES
+  static async getAvailableModules() {
+    return this.apiCall('/services/available-modules');
   }
 
   // Check current user's subscription status
@@ -2238,9 +2278,12 @@ class ApiService {
   }
 
   static async verifyCombinedPayment(transactionId) {
+    console.log('🚨 COMBINED PAYMENT VERIFICATION DEBUG 🚨');
+    console.log('Transaction ID/tx_ref:', transactionId);
+    
     return this.apiCall('/payment/combined/verify', {
       method: 'POST',
-      body: JSON.stringify({ transactionId }),
+      body: JSON.stringify({ tx_ref: transactionId }),
     });
   }
 

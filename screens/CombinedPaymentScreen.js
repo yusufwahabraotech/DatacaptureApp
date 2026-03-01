@@ -363,15 +363,50 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
     };
   };
 
-  const calculatePackagePrice = () => {
+  const calculatePackagePrice = async () => {
+    console.log('🚨 CALCULATE PACKAGE PRICE DEBUG 🚨');
+    console.log('Selected package:', selectedPackage.title);
+    console.log('Selected duration:', selectedDuration);
+    
     let total = 0;
-    selectedPackage.services?.forEach(service => {
-      if (service.duration === selectedDuration) {
-        total += service.price || 0;
+    
+    // Get unique service IDs from package
+    const serviceIds = [...new Set(selectedPackage.services?.map(s => s.serviceId) || [])];
+    console.log('Service IDs:', serviceIds);
+    
+    // Fetch each service's full pricing
+    for (const serviceId of serviceIds) {
+      try {
+        const response = await ApiService.getServiceById(serviceId);
+        if (response.success) {
+          const service = response.data.service;
+          
+          // Use service's price for requested duration
+          if (selectedDuration === 'monthly') {
+            total += service.monthlyPrice || 0;
+          } else if (selectedDuration === 'quarterly') {
+            total += service.quarterlyPrice || 0;
+          } else if (selectedDuration === 'yearly') {
+            total += service.yearlyPrice || 0;
+          }
+          console.log(`Service ${service.serviceName} ${selectedDuration} price:`, service[selectedDuration + 'Price'] || 0);
+        }
+      } catch (error) {
+        console.log('Error fetching service:', serviceId, error);
       }
-    });
-    const discountAmount = (total * (selectedPackage.discountPercentage || 0)) / 100;
-    return total - discountAmount;
+    }
+    
+    console.log('Calculated total before discount:', total);
+    
+    // Apply package discount
+    if (selectedPackage.discountPercentage) {
+      const discountAmount = (total * selectedPackage.discountPercentage) / 100;
+      total = total - discountAmount;
+      console.log('Applied package discount:', selectedPackage.discountPercentage + '%', 'Final total:', total);
+    }
+    
+    console.log('Final calculated price:', total);
+    return total;
   };
 
   const handleCombinedPayment = async () => {

@@ -143,6 +143,12 @@ const SignUpScreen = ({ navigation, route }) => {
             {/* Logo */}
             <View style={styles.logoContainer}>
               <Image source={require('../assets/PurpleLogo.png')} style={styles.logoImage} />
+              <TouchableOpacity 
+                style={styles.roleToggleButton}
+                onPress={() => navigation.navigate('RoleSelection')}
+              >
+                <Ionicons name="people" size={20} color="#7C3AED" />
+              </TouchableOpacity>
             </View>
 
             {/* Header */}
@@ -392,8 +398,20 @@ const styles = StyleSheet.create({
     minHeight: '100%',
   },
   logoContainer: {
-    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 30,
+  },
+  roleToggleButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5F3FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   logoImage: {
     width: 60,

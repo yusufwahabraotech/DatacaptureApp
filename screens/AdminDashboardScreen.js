@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import ModuleAccessChecker from '../utils/ModuleAccessChecker';
+import UsageTracker from '../components/UsageTracker';
 import BottomNavigation from '../components/BottomNavigation';
 
 const AdminDashboardScreen = ({ navigation }) => {
@@ -118,49 +120,83 @@ const AdminDashboardScreen = ({ navigation }) => {
       title: 'Manage Users',
       subtitle: 'Add, edit, and manage users',
       icon: 'people',
-      onPress: () => navigation.navigate('UserManagement')
+      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.USER_MANAGEMENT,
+      onPress: () => ModuleAccessChecker.checkLimitAndNavigate(
+        ModuleAccessChecker.SUBSCRIPTION_MODULES.USER_MANAGEMENT,
+        'orgUsers',
+        () => navigation.navigate('UserManagement')
+      )
     },
     {
       title: 'Export Users',
       subtitle: 'Export users to CSV/PDF',
       icon: 'download',
-      onPress: () => navigation.navigate('ExportUsers')
+      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.USER_MANAGEMENT,
+      onPress: () => ModuleAccessChecker.checkAndNavigate(
+        ModuleAccessChecker.SUBSCRIPTION_MODULES.USER_MANAGEMENT,
+        () => navigation.navigate('ExportUsers')
+      )
     },
     {
       title: 'Manage Roles',
       subtitle: 'Create and manage user roles',
       icon: 'shield',
-      onPress: () => navigation.navigate('Roles')
+      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.ROLE_MANAGEMENT,
+      onPress: () => ModuleAccessChecker.checkAndNavigate(
+        ModuleAccessChecker.SUBSCRIPTION_MODULES.ROLE_MANAGEMENT,
+        () => navigation.navigate('Roles')
+      )
     },
     {
       title: 'Manage Groups',
       subtitle: 'Create and manage user groups',
       icon: 'people-circle',
-      onPress: () => navigation.navigate('Groups')
+      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.GROUP_MANAGEMENT,
+      onPress: () => ModuleAccessChecker.checkAndNavigate(
+        ModuleAccessChecker.SUBSCRIPTION_MODULES.GROUP_MANAGEMENT,
+        () => navigation.navigate('Groups')
+      )
     },
     {
       title: 'View Measurements',
       subtitle: 'View all user measurements',
       icon: 'body',
-      onPress: () => navigation.navigate('AdminMeasurements')
+      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.BODY_MEASUREMENTS,
+      onPress: () => ModuleAccessChecker.checkAndNavigate(
+        ModuleAccessChecker.SUBSCRIPTION_MODULES.BODY_MEASUREMENTS,
+        () => navigation.navigate('AdminMeasurements')
+      )
     },
     {
       title: 'Create User Measurement',
       subtitle: 'Create measurement for users',
       icon: 'add-circle',
-      onPress: () => navigation.navigate('AdminCreateMeasurement')
+      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.BODY_MEASUREMENTS,
+      onPress: () => ModuleAccessChecker.checkLimitAndNavigate(
+        ModuleAccessChecker.SUBSCRIPTION_MODULES.BODY_MEASUREMENTS,
+        'bodyMeasurements',
+        () => navigation.navigate('AdminCreateMeasurement')
+      )
     },
     {
       title: 'One-Time Codes',
       subtitle: 'Generate access codes',
       icon: 'key',
-      onPress: () => navigation.navigate('OneTimeCodes')
+      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.ONE_TIME_CODES,
+      onPress: () => ModuleAccessChecker.checkAndNavigate(
+        ModuleAccessChecker.SUBSCRIPTION_MODULES.ONE_TIME_CODES,
+        () => navigation.navigate('OneTimeCodes')
+      )
     },
     {
       title: 'Permissions',
       subtitle: 'Manage user permissions',
       icon: 'shield-checkmark',
-      onPress: () => navigation.navigate('PermissionsManagement')
+      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.USER_MANAGEMENT,
+      onPress: () => ModuleAccessChecker.checkAndNavigate(
+        ModuleAccessChecker.SUBSCRIPTION_MODULES.USER_MANAGEMENT,
+        () => navigation.navigate('PermissionsManagement')
+      )
     },
     {
       title: 'Subscription',
@@ -176,14 +212,11 @@ const AdminDashboardScreen = ({ navigation }) => {
         try {
           const response = await ApiService.getOrganizationProfile();
           if (response.success && response.data?.profile?.locations?.length > 0) {
-            // Has existing locations, go directly to locations screen
             navigation.navigate('OrganizationLocations');
           } else {
-            // No locations, go through setup wizard first
             navigation.navigate('OrganizationProfileSetup');
           }
         } catch (error) {
-          // On error, go to setup wizard
           navigation.navigate('OrganizationProfileSetup');
         }
       }
@@ -192,24 +225,28 @@ const AdminDashboardScreen = ({ navigation }) => {
       title: 'Gallery Management',
       subtitle: 'Manage product gallery',
       icon: 'images',
+      moduleKey: ModuleAccessChecker.FREE_MODULES.GALLERY,
       onPress: () => navigation.navigate('GalleryManagement')
     },
     {
       title: 'Orders Management',
       subtitle: 'View and manage customer orders',
       icon: 'receipt',
+      moduleKey: ModuleAccessChecker.FREE_MODULES.ORDERS,
       onPress: () => navigation.navigate('OrganizationOrders')
     },
     {
       title: 'Bank Details',
       subtitle: 'Manage payment account details',
       icon: 'card',
+      moduleKey: ModuleAccessChecker.FREE_MODULES.PAYMENTS,
       onPress: () => navigation.navigate('BankDetails')
     },
     {
       title: 'Settlements',
       subtitle: 'View payment settlements',
       icon: 'wallet',
+      moduleKey: ModuleAccessChecker.FREE_MODULES.PAYMENTS,
       onPress: () => navigation.navigate('Settlements')
     }
   ];
@@ -219,25 +256,43 @@ const AdminDashboardScreen = ({ navigation }) => {
       title: 'Body Measurement',
       subtitle: 'Take body measurements',
       icon: 'body',
-      onPress: () => navigation.navigate('BodyMeasurement')
+      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.BODY_MEASUREMENTS,
+      onPress: () => ModuleAccessChecker.checkLimitAndNavigate(
+        ModuleAccessChecker.SUBSCRIPTION_MODULES.BODY_MEASUREMENTS,
+        'bodyMeasurements',
+        () => navigation.navigate('BodyMeasurement')
+      )
     },
     {
       title: 'Object Measurement',
       subtitle: 'Measure objects',
       icon: 'cube',
-      onPress: () => navigation.navigate('ObjectMeasurement')
+      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.BODY_MEASUREMENTS,
+      onPress: () => ModuleAccessChecker.checkAndNavigate(
+        ModuleAccessChecker.SUBSCRIPTION_MODULES.BODY_MEASUREMENTS,
+        () => navigation.navigate('ObjectMeasurement')
+      )
     },
     {
       title: 'Questionnaire',
       subtitle: 'Fill questionnaire',
       icon: 'document-text',
-      onPress: () => navigation.navigate('Questionnaire')
+      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.BODY_MEASUREMENTS,
+      onPress: () => ModuleAccessChecker.checkAndNavigate(
+        ModuleAccessChecker.SUBSCRIPTION_MODULES.BODY_MEASUREMENTS,
+        () => navigation.navigate('Questionnaire')
+      )
     },
     {
       title: 'New Measurement',
       subtitle: 'Create new measurement',
       icon: 'add-circle',
-      onPress: () => navigation.navigate('TakeNewMeasurement')
+      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.BODY_MEASUREMENTS,
+      onPress: () => ModuleAccessChecker.checkLimitAndNavigate(
+        ModuleAccessChecker.SUBSCRIPTION_MODULES.BODY_MEASUREMENTS,
+        'bodyMeasurements',
+        () => navigation.navigate('TakeNewMeasurement')
+      )
     }
   ];
 
@@ -281,6 +336,11 @@ const AdminDashboardScreen = ({ navigation }) => {
               <Text style={styles.statTitle}>{stat.title}</Text>
             </View>
           ))}
+        </View>
+
+        {/* Usage Tracker */}
+        <View style={styles.usageSection}>
+          <UsageTracker navigation={navigation} />
         </View>
 
         {/* One-Time Codes Summary - Only show if data exists */}
@@ -580,6 +640,10 @@ const styles = StyleSheet.create({
   measurementSubtitle: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  usageSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
   },
 });
 

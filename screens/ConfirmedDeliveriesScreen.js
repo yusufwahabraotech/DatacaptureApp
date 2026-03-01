@@ -187,7 +187,10 @@ const ConfirmedDeliveriesScreen = ({ navigation }) => {
             styles.processButton,
             !item.organizationBankDetails && styles.processButtonDisabled
           ]}
-          onPress={() => handleProcessRemittance(orderData)}
+          onPress={() => handleProcessRemittance({
+            ...orderData,
+            organizationBankDetails: item.organizationBankDetails
+          })}
           disabled={!item.organizationBankDetails}
         >
           <Ionicons name="card" size={20} color="white" />

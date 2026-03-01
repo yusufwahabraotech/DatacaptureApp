@@ -18,7 +18,8 @@ import ApiService from '../services/api';
 
 const SubscriptionSelectionScreen = ({ navigation }) => {
   const [packages, setPackages] = useState([]);
-  const [packagePricing, setPackagePricing] = useState({});
+  const [packagePrices, setPackagePrices] = useState({});
+  const [servicesData, setServicesData] = useState({});
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
@@ -81,15 +82,30 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
         console.log('Active packages:', JSON.stringify(activePackages, null, 2));
         setPackages(activePackages);
         
-        // Fetch pricing for each package
-        const pricingData = {};
+        // Fetch original service data for each package
+        const servicesCache = {};
         for (const pkg of activePackages) {
-          const pricingResponse = await ApiService.getPackagePricing(pkg._id);
-          if (pricingResponse.success) {
-            pricingData[pkg._id] = pricingResponse.data;
+          const serviceIds = [...new Set(pkg.services.map(s => s.serviceId))];
+          for (const serviceId of serviceIds) {
+            if (!servicesCache[serviceId]) {
+              const serviceResponse = await ApiService.getServiceById(serviceId);
+              if (serviceResponse.success) {
+                servicesCache[serviceId] = serviceResponse.data.service;
+              }
+            }
           }
         }
-        setPackagePricing(pricingData);
+        setServicesData(servicesCache);
+        
+        // Calculate prices for all packages and durations
+        const pricesCache = {};
+        for (const pkg of activePackages) {
+          pricesCache[pkg._id] = {};
+          for (const duration of ['monthly', 'quarterly', 'yearly']) {
+            pricesCache[pkg._id][duration] = await calculatePrice(pkg, duration, false, servicesCache);
+          }
+        }
+        setPackagePrices(pricesCache);
       }
     } catch (error) {
       console.log('Error fetching packages:', error);
@@ -99,32 +115,62 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
     }
   };
 
-  const calculatePrice = (pkg, duration, applyPromoDiscount = false) => {
-    // Use the pricing data from the backend API
-    const pricing = packagePricing[pkg._id];
-    if (pricing && pricing[duration]) {
-      const basePrice = pricing[duration].finalPrice;
-      if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {
-        const discountAmount = (basePrice * promoValidation.discount) / 100;
-        return basePrice - discountAmount;
+  const calculatePrice = async (pkg, duration, applyPromoDiscount = false, servicesCache = null) => {
+    console.log('🚨 CALCULATE PRICE DEBUG 🚨');
+    console.log('Package:', pkg.title);
+    console.log('Duration:', duration);
+    
+    let total = 0;
+    
+    // Get unique service IDs from package
+    const serviceIds = [...new Set(pkg.services.map(s => s.serviceId))];
+    console.log('Service IDs:', serviceIds);
+    
+    // Use provided cache or fetch each service's full pricing
+    for (const serviceId of serviceIds) {
+      try {
+        let service;
+        if (servicesCache && servicesCache[serviceId]) {
+          service = servicesCache[serviceId];
+        } else {
+          const response = await ApiService.getServiceById(serviceId);
+          if (response.success) {
+            service = response.data.service;
+          }
+        }
+        
+        if (service) {
+          // Use service's price for requested duration
+          if (duration === 'monthly') {
+            total += service.monthlyPrice || 0;
+          } else if (duration === 'quarterly') {
+            total += service.quarterlyPrice || 0;
+          } else if (duration === 'yearly') {
+            total += service.yearlyPrice || 0;
+          }
+          console.log(`Service ${service.serviceName} ${duration} price:`, service[duration + 'Price'] || 0);
+        }
+      } catch (error) {
+        console.log('Error fetching service:', serviceId, error);
       }
-      return basePrice;
     }
     
-    // Calculate base price from services filtered by duration
-    let total = 0;
-    pkg.services?.forEach(service => {
-      if (service.duration === duration) {
-        total += service.price || 0;
-      }
-    });
+    console.log('Calculated total before discount:', total);
+    
+    // Apply package discount
+    if (pkg.discountPercentage) {
+      total = total - (total * pkg.discountPercentage / 100);
+      console.log('Applied package discount:', pkg.discountPercentage + '%', 'New total:', total);
+    }
     
     // Apply promo discount if valid
     if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {
       const discountAmount = (total * promoValidation.discount) / 100;
       total = total - discountAmount;
+      console.log('Applied promo discount:', promoValidation.discount + '%', 'Final total:', total);
     }
     
+    console.log('Final calculated price:', total);
     return total;
   };
 
@@ -175,6 +221,7 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
   const handleSelectPackage = (pkg) => {
     setSelectedPackage(pkg);
     setPromoValidation({ isValid: false, discount: 0, message: '' });
+    setSelectedDuration('yearly'); // Reset to default
     setShowPaymentModal(true);
     
     if (promoCode.trim()) {
@@ -320,19 +367,19 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
               <View style={styles.priceRow}>
                 <Text style={styles.priceLabel}>Monthly</Text>
                 <Text style={styles.priceValue}>
-                  {formatPrice(calculatePrice(pkg, 'monthly'))}
+                  {packagePrices[pkg._id]?.monthly ? formatPrice(packagePrices[pkg._id].monthly) : 'Loading...'}
                 </Text>
               </View>
               <View style={styles.priceRow}>
                 <Text style={styles.priceLabel}>Quarterly</Text>
                 <Text style={styles.priceValue}>
-                  {formatPrice(calculatePrice(pkg, 'quarterly'))}
+                  {packagePrices[pkg._id]?.quarterly ? formatPrice(packagePrices[pkg._id].quarterly) : 'Loading...'}
                 </Text>
               </View>
               <View style={styles.priceRow}>
                 <Text style={styles.priceLabel}>Yearly</Text>
                 <Text style={styles.priceValue}>
-                  {formatPrice(calculatePrice(pkg, 'yearly'))}
+                  {packagePrices[pkg._id]?.yearly ? formatPrice(packagePrices[pkg._id].yearly) : 'Loading...'}
                 </Text>
               </View>
             </View>
@@ -369,7 +416,7 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
             </View>
 
             {selectedPackage && (
-              <ScrollView style={styles.modalContent}>
+              <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalScrollContent}>
                 <Text style={styles.selectedPackageTitle}>{selectedPackage.title}</Text>
                 
                 <View style={styles.durationSelector}>
@@ -387,7 +434,7 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
                         styles.durationText,
                         selectedDuration === duration && styles.selectedDurationText
                       ]}>
-                        {duration.charAt(0).toUpperCase() + duration.slice(1)} - {formatPrice(calculatePrice(selectedPackage, duration))}
+                        {duration.charAt(0).toUpperCase() + duration.slice(1)} - {packagePrices[selectedPackage._id]?.[duration] ? formatPrice(packagePrices[selectedPackage._id][duration]) : 'Loading...'}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -440,14 +487,15 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
                   <View style={styles.totalRow}>
                     <Text style={styles.totalLabel}>Subtotal:</Text>
                     <Text style={styles.subtotalAmount}>
-                      {formatPrice(calculatePrice(selectedPackage, selectedDuration, false))}
+                      {packagePrices[selectedPackage._id]?.[selectedDuration] ? formatPrice(packagePrices[selectedPackage._id][selectedDuration]) : 'Loading...'}
                     </Text>
                   </View>
                   {promoValidation.isValid && promoValidation.discount > 0 && (
                     <View style={styles.totalRow}>
                       <Text style={styles.discountLabel}>Discount ({promoValidation.discount}%):</Text>
                       <Text style={styles.discountAmount}>
-                        -{formatPrice(calculatePrice(selectedPackage, selectedDuration, false) - calculatePrice(selectedPackage, selectedDuration, true))}
+                        {packagePrices[selectedPackage._id]?.[selectedDuration] && promoValidation.discount > 0 ? 
+                          formatPrice((packagePrices[selectedPackage._id][selectedDuration] * promoValidation.discount) / 100) : 'Loading...'}
                       </Text>
                     </View>
                   )}
@@ -455,7 +503,10 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
                   <View style={styles.totalRow}>
                     <Text style={styles.totalLabel}>Total Amount:</Text>
                     <Text style={styles.totalAmount}>
-                      {formatPrice(calculatePrice(selectedPackage, selectedDuration, true))}
+                      {packagePrices[selectedPackage._id]?.[selectedDuration] ? 
+                        formatPrice(packagePrices[selectedPackage._id][selectedDuration] - 
+                          (promoValidation.isValid && promoValidation.discount > 0 ? 
+                            (packagePrices[selectedPackage._id][selectedDuration] * promoValidation.discount) / 100 : 0)) : 'Loading...'}
                     </Text>
                   </View>
                 </View>
@@ -463,6 +514,8 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
                 <TouchableOpacity style={styles.payButton} onPress={handleProceedToWizard}>
                   <Text style={styles.payButtonText}>Continue</Text>
                 </TouchableOpacity>
+                
+                <View style={styles.bottomSafeArea} />
               </ScrollView>
             )}
           </View>
@@ -709,6 +762,9 @@ const styles = StyleSheet.create({
   modalContent: {
     padding: 20,
   },
+  modalScrollContent: {
+    paddingBottom: 40,
+  },
   selectedPackageTitle: {
     fontSize: 20,
     fontWeight: '700',
@@ -886,6 +942,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#6B7280',
+  },
+  bottomSafeArea: {
+    height: 40,
   },
 });
 

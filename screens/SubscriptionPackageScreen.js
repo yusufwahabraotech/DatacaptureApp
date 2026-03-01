@@ -31,6 +31,7 @@ const SubscriptionPackageScreen = ({ navigation }) => {
     promoCode: '',
     promoStartDate: '',
     promoEndDate: '',
+    note: '',
   });
 
   useEffect(() => {
@@ -69,6 +70,7 @@ const SubscriptionPackageScreen = ({ navigation }) => {
       promoCode: '',
       promoStartDate: '',
       promoEndDate: '',
+      note: '',
     });
     setModalVisible(true);
   };
@@ -85,6 +87,7 @@ const SubscriptionPackageScreen = ({ navigation }) => {
       promoCode: pkg.promoCode || '',
       promoStartDate: pkg.promoStartDate ? new Date(pkg.promoStartDate).toISOString().split('T')[0] : '',
       promoEndDate: pkg.promoEndDate ? new Date(pkg.promoEndDate).toISOString().split('T')[0] : '',
+      note: pkg.note || '',
     });
     setModalVisible(true);
   };
@@ -189,23 +192,21 @@ const SubscriptionPackageScreen = ({ navigation }) => {
     const packageData = {
       title: formData.title,
       description: formData.description,
-      services: formData.selectedServices.flatMap(selectedService => {
-        const service = services.find(s => s._id === selectedService.serviceId);
-        // Create entries for all three durations
-        return ['monthly', 'quarterly', 'yearly'].map(duration => ({
-          serviceId: selectedService.serviceId,
-          serviceName: service?.serviceName || '',
-          duration: duration,
-          price: service?.[`${duration}Price`] || 0,
-        }));
-      }),
+      services: formData.selectedServices.map(selectedService => ({
+        serviceId: selectedService.serviceId,
+        duration: selectedService.duration || 'yearly'
+      })),
       features: validFeatures,
       maxUsers: parseInt(formData.maxUsers),
       discountPercentage: parseFloat(formData.discountPercentage) || 0,
       promoCode: formData.promoCode || undefined,
       promoStartDate: formData.promoStartDate || undefined,
       promoEndDate: formData.promoEndDate || undefined,
+      note: formData.note || undefined
     };
+
+    console.log('🚨 PACKAGE DATA BEING SENT 🚨');
+    console.log('Package data:', JSON.stringify(packageData, null, 2));
 
     try {
       let response;
@@ -376,12 +377,40 @@ const SubscriptionPackageScreen = ({ navigation }) => {
                 ))}
               </View>
 
+              {pkg.enabledModules && pkg.enabledModules.length > 0 && (
+                <View style={styles.modulesContainer}>
+                  <Text style={styles.modulesTitle}>Enabled Modules:</Text>
+                  {pkg.enabledModules.map((module, index) => (
+                    <Text key={index} style={styles.moduleItem}>• {module.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</Text>
+                  ))}
+                </View>
+              )}
+
+              {pkg.limits && Object.keys(pkg.limits).length > 0 && (
+                <View style={styles.limitsContainer}>
+                  <Text style={styles.limitsTitle}>Usage Limits:</Text>
+                  {pkg.limits.maxBodyMeasurements && (
+                    <Text style={styles.limitItem}>• Max Body Measurements: {pkg.limits.maxBodyMeasurements}</Text>
+                  )}
+                  {pkg.limits.maxOrgUsers && (
+                    <Text style={styles.limitItem}>• Max Organization Users: {pkg.limits.maxOrgUsers}</Text>
+                  )}
+                </View>
+              )}
+
               <View style={styles.featuresContainer}>
                 <Text style={styles.featuresTitle}>Features:</Text>
                 {pkg.features?.map((feature, index) => (
                   <Text key={index} style={styles.featureItem}>• {feature}</Text>
                 ))}
               </View>
+
+              {pkg.note && (
+                <View style={styles.noteContainer}>
+                  <Text style={styles.noteTitle}>Note:</Text>
+                  <Text style={styles.noteText}>{pkg.note}</Text>
+                </View>
+              )}
             </View>
           ))
         )}
@@ -603,6 +632,19 @@ const SubscriptionPackageScreen = ({ navigation }) => {
                   placeholderTextColor="#9CA3AF"
                 />
               </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Package Note</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={formData.note}
+                onChangeText={(text) => setFormData({ ...formData, note: text })}
+                placeholder="Additional notes about this package (optional)"
+                placeholderTextColor="#9CA3AF"
+                multiline
+                numberOfLines={3}
+              />
             </View>
           </ScrollView>
           </KeyboardAvoidingView>
@@ -1197,6 +1239,57 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 20,
     paddingHorizontal: 4,
+  },
+  modulesContainer: {
+    marginTop: 8,
+    backgroundColor: '#F0F9FF',
+    padding: 12,
+    borderRadius: 8,
+  },
+  modulesTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  moduleItem: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  limitsContainer: {
+    marginTop: 8,
+    backgroundColor: '#FEF3C7',
+    padding: 12,
+    borderRadius: 8,
+  },
+  limitsTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  limitItem: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  noteContainer: {
+    marginTop: 8,
+    backgroundColor: '#F3F4F6',
+    padding: 12,
+    borderRadius: 8,
+  },
+  noteTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  noteText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
 });
 

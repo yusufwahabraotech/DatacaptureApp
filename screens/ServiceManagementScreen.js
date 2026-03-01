@@ -24,7 +24,20 @@ const ServiceManagementScreen = ({ navigation }) => {
     monthlyPrice: '',
     quarterlyPrice: '',
     yearlyPrice: '',
+    modules: [],
+    limits: {
+      maxBodyMeasurements: '',
+      maxOrgUsers: ''
+    }
   });
+
+  const availableModules = [
+    { key: 'body_measurements', name: 'Body Measurements Management', description: 'AI-powered body measurement analysis' },
+    { key: 'user_management', name: 'User Management', description: 'Organization user management system' },
+    { key: 'role_management', name: 'Role Management', description: 'Role and permission management' },
+    { key: 'group_management', name: 'Group Management', description: 'User group organization' },
+    { key: 'one_time_codes', name: 'One-Time Code Management', description: 'Generate and manage one-time access codes' }
+  ];
 
   useEffect(() => {
     fetchServices();
@@ -51,6 +64,11 @@ const ServiceManagementScreen = ({ navigation }) => {
       monthlyPrice: '',
       quarterlyPrice: '',
       yearlyPrice: '',
+      modules: [],
+      limits: {
+        maxBodyMeasurements: '',
+        maxOrgUsers: ''
+      }
     });
     setModalVisible(true);
   };
@@ -63,6 +81,11 @@ const ServiceManagementScreen = ({ navigation }) => {
       monthlyPrice: service.monthlyPrice.toString(),
       quarterlyPrice: service.quarterlyPrice.toString(),
       yearlyPrice: service.yearlyPrice.toString(),
+      modules: service.modules || [],
+      limits: {
+        maxBodyMeasurements: service.limits?.maxBodyMeasurements?.toString() || '',
+        maxOrgUsers: service.limits?.maxOrgUsers?.toString() || ''
+      }
     });
     setModalVisible(true);
   };
@@ -73,12 +96,22 @@ const ServiceManagementScreen = ({ navigation }) => {
       return;
     }
 
+    if (formData.modules.length === 0) {
+      Alert.alert('Error', 'Please select at least one module');
+      return;
+    }
+
     const serviceData = {
       serviceName: formData.serviceName,
       description: formData.description,
       monthlyPrice: parseFloat(formData.monthlyPrice),
       quarterlyPrice: parseFloat(formData.quarterlyPrice),
       yearlyPrice: parseFloat(formData.yearlyPrice),
+      modules: formData.modules,
+      limits: {
+        ...(formData.limits.maxBodyMeasurements && { maxBodyMeasurements: parseInt(formData.limits.maxBodyMeasurements) }),
+        ...(formData.limits.maxOrgUsers && { maxOrgUsers: parseInt(formData.limits.maxOrgUsers) })
+      }
     };
 
     try {
@@ -128,6 +161,26 @@ const ServiceManagementScreen = ({ navigation }) => {
 
   const formatPrice = (price) => {
     return `₦${price.toLocaleString()}`;
+  };
+
+  const toggleModule = (moduleKey) => {
+    const existingModule = formData.modules.find(m => m.moduleKey === moduleKey);
+    if (existingModule) {
+      setFormData({
+        ...formData,
+        modules: formData.modules.filter(m => m.moduleKey !== moduleKey)
+      });
+    } else {
+      const moduleInfo = availableModules.find(m => m.key === moduleKey);
+      setFormData({
+        ...formData,
+        modules: [...formData.modules, {
+          moduleKey,
+          moduleName: moduleInfo.name,
+          isEnabled: true
+        }]
+      });
+    }
   };
 
   if (loading) {
@@ -206,6 +259,27 @@ const ServiceManagementScreen = ({ navigation }) => {
                   <Text style={styles.priceValue}>{formatPrice(service.yearlyPrice)}</Text>
                 </View>
               </View>
+              
+              {service.modules && service.modules.length > 0 && (
+                <View style={styles.modulesContainer}>
+                  <Text style={styles.modulesTitle}>Enabled Modules:</Text>
+                  {service.modules.map((module, index) => (
+                    <Text key={index} style={styles.moduleItem}>• {module.moduleName}</Text>
+                  ))}
+                </View>
+              )}
+              
+              {service.limits && Object.keys(service.limits).length > 0 && (
+                <View style={styles.limitsContainer}>
+                  <Text style={styles.limitsTitle}>Usage Limits:</Text>
+                  {service.limits.maxBodyMeasurements && (
+                    <Text style={styles.limitItem}>• Max Body Measurements: {service.limits.maxBodyMeasurements}</Text>
+                  )}
+                  {service.limits.maxOrgUsers && (
+                    <Text style={styles.limitItem}>• Max Organization Users: {service.limits.maxOrgUsers}</Text>
+                  )}
+                </View>
+              )}
             </View>
           ))
         )}
@@ -280,6 +354,61 @@ const ServiceManagementScreen = ({ navigation }) => {
                 value={formData.yearlyPrice}
                 onChangeText={(text) => setFormData({ ...formData, yearlyPrice: text })}
                 placeholder="0"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <Text style={styles.sectionTitle}>Modules & Features *</Text>
+            <Text style={styles.sectionSubtitle}>Select modules to include in this service</Text>
+
+            {availableModules.map((module) => {
+              const isSelected = formData.modules.some(m => m.moduleKey === module.key);
+              return (
+                <TouchableOpacity
+                  key={module.key}
+                  style={[styles.moduleCard, isSelected && styles.selectedModuleCard]}
+                  onPress={() => toggleModule(module.key)}
+                >
+                  <View style={styles.moduleInfo}>
+                    <Text style={[styles.moduleName, isSelected && styles.selectedModuleName]}>
+                      {module.name}
+                    </Text>
+                    <Text style={styles.moduleDescription}>{module.description}</Text>
+                  </View>
+                  <View style={[styles.checkbox, isSelected && styles.checkedBox]}>
+                    {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+
+            <Text style={styles.sectionTitle}>Usage Limits</Text>
+            <Text style={styles.sectionSubtitle}>Set limits for resource usage (optional)</Text>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Max Body Measurements</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.limits.maxBodyMeasurements}
+                onChangeText={(text) => setFormData({ 
+                  ...formData, 
+                  limits: { ...formData.limits, maxBodyMeasurements: text }
+                })}
+                placeholder="e.g., 100, 500, 1000"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Max Organization Users</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.limits.maxOrgUsers}
+                onChangeText={(text) => setFormData({ 
+                  ...formData, 
+                  limits: { ...formData.limits, maxOrgUsers: text }
+                })}
+                placeholder="e.g., 10, 50, 100"
                 keyboardType="numeric"
               />
             </View>
@@ -473,6 +602,90 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 16,
     marginTop: 8,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 16,
+    marginTop: -8,
+  },
+  moduleCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: 'white',
+  },
+  selectedModuleCard: {
+    borderColor: '#7C3AED',
+    backgroundColor: '#F5F3FF',
+  },
+  moduleInfo: {
+    flex: 1,
+  },
+  moduleName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1F2937',
+  },
+  selectedModuleName: {
+    color: '#7C3AED',
+  },
+  moduleDescription: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkedBox: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
+  },
+  modulesContainer: {
+    marginTop: 12,
+    backgroundColor: '#F0F9FF',
+    padding: 12,
+    borderRadius: 8,
+  },
+  modulesTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  moduleItem: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  limitsContainer: {
+    marginTop: 8,
+    backgroundColor: '#FEF3C7',
+    padding: 12,
+    borderRadius: 8,
+  },
+  limitsTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  limitItem: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 2,
   },
 });
 
