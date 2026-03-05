@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -454,7 +455,10 @@ const ProductDetailsScreen = ({ navigation, route }) => {
           <Text style={styles.orderButtonText}>Order Now</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.cartButton}>
+        <TouchableOpacity 
+          style={styles.cartButton}
+          onPress={() => Alert.alert('Coming Soon', 'Feature coming soon')}
+        >
           <Ionicons name="cart" size={20} color="#7B2CBF" />
           <Text style={styles.cartButtonText}>Add to Cart</Text>
         </TouchableOpacity>
