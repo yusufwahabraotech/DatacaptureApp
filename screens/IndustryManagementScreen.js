@@ -165,6 +165,12 @@ const IndustryManagementScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
+      <View style={styles.infoContainer}>
+        <Text style={styles.infoText}>
+          Industries are arranged in alphabetical order. Please refresh after creating an industry.
+        </Text>
+      </View>
+
       <View style={styles.statsContainer}>
         <Text style={styles.statsText}>Total Industries: {industries.length}</Text>
       </View>
@@ -302,6 +308,19 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  infoContainer: {
+    backgroundColor: '#e8f4fd',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#1976d2',
+    textAlign: 'center',
+    fontWeight: '500',
   },
   statsContainer: {
     backgroundColor: '#fff',
