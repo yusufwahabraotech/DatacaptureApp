@@ -10,8 +10,8 @@ import {
   Modal,
   TextInput,
   FlatList,
-  TouchableWithoutFeedback,
-  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
@@ -65,6 +65,7 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
   const [pricingList, setPricingList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingPricing, setEditingPricing] = useState(null);
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [lgas, setLgas] = useState([]);
@@ -175,6 +176,19 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
     }
   };
 
+  const openEditModal = (pricing) => {
+    setEditingPricing(pricing);
+    setFormData({
+      country: pricing.country || '',
+      state: pricing.state || '',
+      lga: pricing.lga || '',
+      city: pricing.city || '',
+      defaultFee: pricing.defaultFee?.toString() || '',
+      description: pricing.description || ''
+    });
+    setShowCreateModal(true);
+  };
+
   const createDefaultPricing = async () => {
     console.log('Form data before validation:', formData);
     
@@ -200,11 +214,17 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
       };
 
       console.log('Sending pricing data:', pricingData);
-      const response = await ApiService.createDefaultPricing(pricingData);
+      let response;
+      if (editingPricing) {
+        response = await ApiService.updateDefaultPricing(editingPricing._id, pricingData);
+      } else {
+        response = await ApiService.createDefaultPricing(pricingData);
+      }
       
       if (response.success) {
-        Alert.alert('Success', 'Default pricing created successfully');
+        Alert.alert('Success', `Default pricing ${editingPricing ? 'updated' : 'created'} successfully`);
         setShowCreateModal(false);
+        setEditingPricing(null);
         setFormData({
           country: '',
           state: '',
@@ -305,9 +325,17 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
                 </View>
                 <View style={styles.pricingActions}>
                   <Text style={styles.pricingFee}>{formatPrice(pricing.defaultFee)}</Text>
-                  <TouchableOpacity onPress={() => deletePricing(pricing._id)}>
-                    <Ionicons name="trash" size={20} color="#EF4444" />
-                  </TouchableOpacity>
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity 
+                      style={styles.editButton}
+                      onPress={() => openEditModal(pricing)}
+                    >
+                      <Ionicons name="pencil" size={16} color="#7C3AED" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => deletePricing(pricing._id)}>
+                      <Ionicons name="trash" size={16} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
               {pricing.description && (
@@ -319,16 +347,24 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* Create Pricing Modal */}
-      <Modal visible={showCreateModal} transparent animationType="slide">
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <ScrollView 
-                style={styles.modalContainer}
-                contentContainerStyle={styles.modalScrollContent}
-                keyboardShouldPersistTaps="handled"
-              >
-                <Text style={styles.modalTitle}>Create Default Pricing</Text>
+      <Modal 
+        visible={showCreateModal} 
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCreateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView 
+            style={styles.keyboardAvoidingView}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <View style={styles.modalContainer}>
+            <ScrollView 
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+                <Text style={styles.modalTitle}>{editingPricing ? 'Edit' : 'Create'} Default Pricing</Text>
                 
                 <TouchableOpacity
                   style={[styles.dropdownButton, styles.dropdownContainer]}
@@ -423,29 +459,29 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
                     style={styles.createButton}
                     onPress={createDefaultPricing}
                   >
-                    <Text style={styles.createButtonText}>Create</Text>
+                    <Text style={styles.createButtonText}>{editingPricing ? 'Update' : 'Create'}</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* Country Dropdown Modal */}
-                {showCountryDropdown && (
-                  <SearchableDropdown
-                    visible={showCountryDropdown}
-                    onClose={() => setShowCountryDropdown(false)}
-                    data={[...countries.map(c => ({ label: c.name, value: c.name })), { label: 'Others', value: 'Others' }]}
-                    onSelect={(item) => {
-                      onCountryChange(item.value || item.label);
-                      setShowCountryDropdown(false);
-                    }}
-                    title="Select Country"
-                    searchPlaceholder="Search countries..."
-                    showOthersOption={false}
-                  />
-                )}
-              </ScrollView>
-            </TouchableWithoutFeedback>
+              {/* Country Dropdown Modal */}
+              {showCountryDropdown && (
+                <SearchableDropdown
+                  visible={showCountryDropdown}
+                  onClose={() => setShowCountryDropdown(false)}
+                  data={[...countries.map(c => ({ label: c.name, value: c.name })), { label: 'Others', value: 'Others' }]}
+                  onSelect={(item) => {
+                    onCountryChange(item.value || item.label);
+                    setShowCountryDropdown(false);
+                  }}
+                  title="Select Country"
+                  searchPlaceholder="Search countries..."
+                  showOthersOption={false}
+                />
+              )}
+            </ScrollView>
           </View>
-        </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
     </View>
   );
@@ -525,6 +561,16 @@ const styles = StyleSheet.create({
   pricingActions: {
     alignItems: 'flex-end',
   },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editButton: {
+    padding: 4,
+    borderRadius: 4,
+    backgroundColor: '#F5F3FF',
+  },
   pricingFee: {
     fontSize: 18,
     fontWeight: '700',
@@ -541,12 +587,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
   },
   modalContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    margin: 20,
-    maxHeight: '80%',
+    width: '90%',
+    maxHeight: '90%',
   },
   modalScrollContent: {
     padding: 20,
