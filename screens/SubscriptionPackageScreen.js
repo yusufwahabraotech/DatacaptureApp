@@ -13,14 +13,18 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import ApiService from '../services/api';
 
 const SubscriptionPackageScreen = ({ navigation }) => {
   const [packages, setPackages] = useState([]);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingPackage, setEditingPackage] = useState(null);
+  const [isDatePickerVisible, setDatePickerVisible] = useState(false);
+  const [currentDateField, setCurrentDateField] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -166,7 +170,42 @@ const SubscriptionPackageScreen = ({ navigation }) => {
     return pricing;
   };
 
+  const openDatePicker = (field) => {
+    setCurrentDateField(field);
+    setDatePickerVisible(true);
+  };
+
+  const handleDateConfirm = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    if (selectedDate < today) {
+      Alert.alert('Error', `${currentDateField === 'start' ? 'Start' : 'End'} date cannot be in the past`);
+      setDatePickerVisible(false);
+      setCurrentDateField(null);
+      return;
+    }
+    
+    const dateStr = date.toISOString().split('T')[0];
+    if (currentDateField === 'start') {
+      setFormData({ ...formData, promoStartDate: dateStr });
+    } else {
+      setFormData({ ...formData, promoEndDate: dateStr });
+    }
+    setDatePickerVisible(false);
+    setCurrentDateField(null);
+  };
+
+  const handleDateCancel = () => {
+    setDatePickerVisible(false);
+    setCurrentDateField(null);
+  };
+
   const handleSavePackage = async () => {
+    if (saving) return; // Prevent duplicate saves
+    
     if (!formData.title || !formData.description || formData.selectedServices.length === 0 || !formData.maxUsers) {
       Alert.alert('Error', 'Please fill in all required fields (title, description, services, and max users)');
       return;
@@ -189,6 +228,37 @@ const SubscriptionPackageScreen = ({ navigation }) => {
       return;
     }
 
+    // Validate promo dates
+    if (formData.promoStartDate || formData.promoEndDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (formData.promoStartDate) {
+        const startDate = new Date(formData.promoStartDate);
+        if (startDate < today) {
+          Alert.alert('Error', 'Promo start date cannot be in the past');
+          return;
+        }
+      }
+      
+      if (formData.promoEndDate) {
+        const endDate = new Date(formData.promoEndDate);
+        if (endDate < today) {
+          Alert.alert('Error', 'Promo end date cannot be in the past');
+          return;
+        }
+      }
+      
+      if (formData.promoStartDate && formData.promoEndDate) {
+        const startDate = new Date(formData.promoStartDate);
+        const endDate = new Date(formData.promoEndDate);
+        if (endDate <= startDate) {
+          Alert.alert('Error', 'Promo end date must be after start date');
+          return;
+        }
+      }
+    }
+
     const packageData = {
       title: formData.title,
       description: formData.description,
@@ -208,6 +278,7 @@ const SubscriptionPackageScreen = ({ navigation }) => {
     console.log('🚨 PACKAGE DATA BEING SENT 🚨');
     console.log('Package data:', JSON.stringify(packageData, null, 2));
 
+    setSaving(true);
     try {
       let response;
       if (editingPackage) {
@@ -225,6 +296,8 @@ const SubscriptionPackageScreen = ({ navigation }) => {
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to save package');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -332,17 +405,17 @@ const SubscriptionPackageScreen = ({ navigation }) => {
               </View>
 
               <View style={styles.pricingInfo}>
-                <Text style={styles.originalPrice}>
+                {/* <Text style={styles.originalPrice}>
                   Original: {formatPrice(pkg.totalServiceCost || 0)}
-                </Text>
+                </Text> */}
                 {pkg.discountPercentage > 0 && (
                   <Text style={styles.discount}>
                     Discount: {pkg.discountPercentage}% (-{formatPrice(pkg.discountAmount || 0)})
                   </Text>
                 )}
-                <Text style={styles.finalPrice}>
+                {/* <Text style={styles.finalPrice}>
                   Final: {formatPrice(pkg.finalPriceAfterDiscount || pkg.totalServiceCost || 0)}
-                </Text>
+                </Text> */}
                 
                 {/* All Duration Pricing */}
                 <View style={styles.allPricingContainer}>
@@ -426,8 +499,10 @@ const SubscriptionPackageScreen = ({ navigation }) => {
             <Text style={styles.modalTitle}>
               {editingPackage ? 'Edit Package' : 'Create Package'}
             </Text>
-            <TouchableOpacity onPress={handleSavePackage}>
-              <Text style={styles.saveButton}>Save</Text>
+            <TouchableOpacity onPress={handleSavePackage} disabled={saving}>
+              <Text style={[styles.saveButton, saving && styles.saveButtonDisabled]}>
+                {saving ? 'Saving...' : 'Save'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -613,24 +688,28 @@ const SubscriptionPackageScreen = ({ navigation }) => {
             <View style={styles.dateRow}>
               <View style={styles.dateInput}>
                 <Text style={styles.label}>Promo Start Date</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.promoStartDate}
-                  onChangeText={(text) => setFormData({ ...formData, promoStartDate: text })}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#9CA3AF"
-                />
+                <TouchableOpacity 
+                  style={styles.dateButton} 
+                  onPress={() => openDatePicker('start')}
+                >
+                  <Text style={styles.dateButtonText}>
+                    {formData.promoStartDate || 'Select start date'}
+                  </Text>
+                  <Ionicons name="calendar" size={20} color="#6B7280" />
+                </TouchableOpacity>
               </View>
               
               <View style={styles.dateInput}>
                 <Text style={styles.label}>Promo End Date</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.promoEndDate}
-                  onChangeText={(text) => setFormData({ ...formData, promoEndDate: text })}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#9CA3AF"
-                />
+                <TouchableOpacity 
+                  style={styles.dateButton} 
+                  onPress={() => openDatePicker('end')}
+                >
+                  <Text style={styles.dateButtonText}>
+                    {formData.promoEndDate || 'Select end date'}
+                  </Text>
+                  <Ionicons name="calendar" size={20} color="#6B7280" />
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -649,6 +728,25 @@ const SubscriptionPackageScreen = ({ navigation }) => {
           </ScrollView>
           </KeyboardAvoidingView>
         </View>
+        
+        <DateTimePickerModal
+          isVisible={isDatePickerVisible}
+          mode="date"
+          onConfirm={handleDateConfirm}
+          onCancel={handleDateCancel}
+          textColor="#000000"
+          accentColor="#7C3AED"
+        />
+        
+        {/* Saving Overlay */}
+        {saving && (
+          <View style={styles.savingOverlay}>
+            <View style={styles.savingContainer}>
+              <ActivityIndicator size="large" color="#7C3AED" />
+              <Text style={styles.savingText}>Saving package...</Text>
+            </View>
+          </View>
+        )}
       </Modal>
     </View>
   );
@@ -891,6 +989,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#7C3AED',
   },
+  saveButtonDisabled: {
+    color: '#9CA3AF',
+  },
   modalContent: {
     flex: 1,
     padding: 20,
@@ -1042,6 +1143,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     backgroundColor: 'white',
+    minHeight: 48,
   },
   dateButtonText: {
     fontSize: 16,
@@ -1290,6 +1392,82 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     fontStyle: 'italic',
+  },
+  savingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  savingContainer: {
+    backgroundColor: 'white',
+    padding: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    minWidth: 150,
+  },
+  savingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  datePickerContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  datePickerCancel: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  datePickerDone: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#7C3AED',
+  },
+  datePickerScroll: {
+    maxHeight: 300,
+  },
+  dateOption: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  selectedDateOption: {
+    backgroundColor: '#F5F3FF',
+  },
+  dateOptionText: {
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  selectedDateOptionText: {
+    color: '#7C3AED',
+    fontWeight: '600',
   },
 });
 
