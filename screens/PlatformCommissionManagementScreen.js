@@ -269,7 +269,7 @@ const PlatformCommissionManagementScreen = ({ navigation }) => {
           <Ionicons name="chevron-down" size={20} color="#666" />
         </TouchableOpacity>
         {showFilterDropdown && (
-          <View style={styles.dropdownList}>
+          <ScrollView style={styles.dropdownList} nestedScrollEnabled={true}>
             <TouchableOpacity
               style={styles.dropdownItem}
               onPress={() => {
@@ -291,7 +291,7 @@ const PlatformCommissionManagementScreen = ({ navigation }) => {
                 <Text style={styles.dropdownItemText}>{industry.name}</Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         )}
       </View>
 
@@ -374,7 +374,7 @@ const PlatformCommissionManagementScreen = ({ navigation }) => {
                       <Ionicons name="chevron-down" size={20} color="#666" />
                     </TouchableOpacity>
                     {showIndustryDropdown && (
-                      <View style={styles.dropdownList}>
+                      <ScrollView style={styles.dropdownList} nestedScrollEnabled={true}>
                         {industries.map((industry) => (
                           <TouchableOpacity
                             key={industry.id}
@@ -387,7 +387,7 @@ const PlatformCommissionManagementScreen = ({ navigation }) => {
                             <Text style={styles.dropdownItemText}>{industry.name}</Text>
                           </TouchableOpacity>
                         ))}
-                      </View>
+                      </ScrollView>
                     )}
                   </View>
 
@@ -404,7 +404,7 @@ const PlatformCommissionManagementScreen = ({ navigation }) => {
                       <Ionicons name="chevron-down" size={20} color="#666" />
                     </TouchableOpacity>
                     {showCategoryDropdown && formData.industryId && (
-                      <View style={styles.dropdownList}>
+                      <ScrollView style={styles.dropdownList} nestedScrollEnabled={true}>
                         {categories.map((category) => (
                           <TouchableOpacity
                             key={category.id}
@@ -417,7 +417,7 @@ const PlatformCommissionManagementScreen = ({ navigation }) => {
                             <Text style={styles.dropdownItemText}>{category.name}</Text>
                           </TouchableOpacity>
                         ))}
-                      </View>
+                      </ScrollView>
                     )}
                   </View>
                 </>
@@ -561,6 +561,8 @@ const styles = StyleSheet.create({
   dropdownItemText: {
     fontSize: 16,
     color: '#333',
+    flexWrap: 'wrap',
+    flex: 1,
   },
   statsContainer: {
     backgroundColor: '#fff',
