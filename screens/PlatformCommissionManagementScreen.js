@@ -129,6 +129,16 @@ const PlatformCommissionManagementScreen = ({ navigation }) => {
         setModalVisible(false);
         resetForm();
         fetchCommissions();
+      } else {
+        const errorMessage = response.message === 'Commission already exists for this category' 
+          ? 'Commission already exists for this category. Please create a new industry and then create a category for the industry'
+          : response.message || 'Operation failed';
+        Alert.alert(
+          'Error',
+          errorMessage,
+          [{ text: 'OK', style: 'default' }],
+          { cancelable: true }
+        );
       }
     } catch (error) {
       const message = error.response?.data?.message || 'Operation failed';
@@ -445,7 +455,7 @@ const PlatformCommissionManagementScreen = ({ navigation }) => {
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.submitButton]}
+                  style={[styles.modalButton, styles.submitButton, submitting && styles.disabledSubmitButton]}
                   onPress={handleCreateOrUpdate}
                   disabled={submitting}
                 >
@@ -740,6 +750,10 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     backgroundColor: '#7B2CBF',
+  },
+  disabledSubmitButton: {
+    backgroundColor: '#ccc',
+    opacity: 0.6,
   },
   submitButtonText: {
     color: '#fff',
