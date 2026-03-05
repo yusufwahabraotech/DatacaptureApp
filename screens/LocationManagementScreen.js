@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
 
-const LocationManagementScreen = ({ navigation }) => {
+const LocationManagementScreen = ({ navigation, route }) => {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -23,6 +23,12 @@ const LocationManagementScreen = ({ navigation }) => {
   useEffect(() => {
     fetchLocations();
   }, [currentPage]);
+
+  useEffect(() => {
+    if (route.params?.refresh) {
+      fetchLocations();
+    }
+  }, [route.params?.refresh]);
 
   const fetchLocations = async () => {
     try {
@@ -173,12 +179,20 @@ const LocationManagementScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Location Management</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate('CreateLocation')}
-        >
-          <Ionicons name="add" size={24} color="#7C3AED" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={handleRefresh}
+          >
+            <Ionicons name="refresh" size={20} color="#7C3AED" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => navigation.navigate('CreateLocation')}
+          >
+            <Ionicons name="add" size={24} color="#7C3AED" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -243,6 +257,14 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     flex: 1,
     marginLeft: 16,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  refreshButton: {
+    padding: 8,
   },
   addButton: {
     padding: 8,

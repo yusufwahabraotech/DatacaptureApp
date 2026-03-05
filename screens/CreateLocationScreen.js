@@ -260,7 +260,9 @@ const CreateLocationScreen = ({ navigation, route }) => {
           [
             {
               text: 'OK',
-              onPress: () => navigation.goBack(),
+              onPress: () => {
+                navigation.navigate('LocationManagement', { refresh: true });
+              },
             },
           ]
         );
