@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
@@ -56,6 +58,8 @@ const PickupCenterManagementScreen = ({ navigation }) => {
   };
 
   const handleCreateOrUpdate = async () => {
+    if (submitting) return; // Prevent duplicate submissions
+    
     if (!formData.centerName.trim() || !formData.amount || !formData.address.trim() || 
         !formData.contactNumber.trim() || !formData.operatingDays.trim() || !formData.operatingHours.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
@@ -86,6 +90,8 @@ const PickupCenterManagementScreen = ({ navigation }) => {
         setModalVisible(false);
         resetForm();
         fetchPickupCenters();
+      } else {
+        Alert.alert('Error', response.message || 'Operation failed');
       }
     } catch (error) {
       const message = error.response?.data?.message || 'Operation failed';
@@ -283,7 +289,11 @@ const PickupCenterManagementScreen = ({ navigation }) => {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+          <KeyboardAvoidingView 
+            style={styles.keyboardAvoidingView}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {editingCenter ? 'Edit Pickup Center' : 'Create Pickup Center'}
@@ -296,7 +306,11 @@ const PickupCenterManagementScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalContent}>
+            <ScrollView 
+              style={styles.modalContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Center Name *</Text>
                 <TextInput
@@ -376,7 +390,7 @@ const PickupCenterManagementScreen = ({ navigation }) => {
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.submitButton]}
+                  style={[styles.modalButton, styles.submitButton, submitting && styles.disabledButton]}
                   onPress={handleCreateOrUpdate}
                   disabled={submitting}
                 >
@@ -391,6 +405,7 @@ const PickupCenterManagementScreen = ({ navigation }) => {
               </View>
             </ScrollView>
           </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </View>
@@ -628,6 +643,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  keyboardAvoidingView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
   modalContainer: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -699,6 +720,10 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     backgroundColor: '#7B2CBF',
+  },
+  disabledButton: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.6,
   },
   submitButtonText: {
     color: '#fff',
