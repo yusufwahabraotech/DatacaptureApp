@@ -17,13 +17,23 @@ const PaidSubscriptionsScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
   useEffect(() => {
     fetchSubscriptions();
-  }, [currentPage, searchQuery]);
+  }, [currentPage, debouncedSearchQuery]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const fetchSubscriptions = async () => {
     try {
@@ -34,8 +44,11 @@ const PaidSubscriptionsScreen = ({ navigation }) => {
         sortOrder: 'desc',
       };
 
-      if (searchQuery.trim()) {
-        params.search = searchQuery.trim();
+      if (debouncedSearchQuery.trim()) {
+        params.search = debouncedSearchQuery.trim();
+        params.searchName = debouncedSearchQuery.trim();
+        params.searchEmail = debouncedSearchQuery.trim();
+        params.searchPackage = debouncedSearchQuery.trim();
       }
 
       console.log('🚨 FETCHING SUBSCRIPTIONS DEBUG 🚨');
@@ -77,7 +90,6 @@ const PaidSubscriptionsScreen = ({ navigation }) => {
 
   const handleSearch = (text) => {
     setSearchQuery(text);
-    setCurrentPage(1);
   };
 
   const formatDate = (dateString) => {
