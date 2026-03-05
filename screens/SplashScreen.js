@@ -111,7 +111,7 @@ const SplashScreen = ({ navigation }) => {
           }
         ]}
       >
-        <Image source={require('../assets/WhiteLogo.png')} style={styles.logoImage} />
+        <Text style={styles.logoText}>VC</Text>
       </Animated.View>
       
       <Animated.View style={[styles.textContainer, { opacity: textFadeAnim }]}>
@@ -134,10 +134,11 @@ const styles = StyleSheet.create({
     zIndex: 10,
     marginBottom: 40,
   },
-  logoImage: {
-    width: 120,
-    height: 120,
-    resizeMode: 'contain',
+  logoText: {
+    fontSize: 72,
+    color: 'white',
+    fontWeight: 'bold',
+    letterSpacing: -3,
   },
   textContainer: {
     alignItems: 'center',

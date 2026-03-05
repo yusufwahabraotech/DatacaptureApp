@@ -142,7 +142,7 @@ const SignUpScreen = ({ navigation, route }) => {
             <View style={styles.bgCircle2} />
             {/* Logo */}
             <View style={styles.logoContainer}>
-              <Image source={require('../assets/PurpleLogo.png')} style={styles.logoImage} />
+              <Text style={styles.logoText}>VC</Text>
               <TouchableOpacity 
                 style={styles.roleToggleButton}
                 onPress={() => navigation.navigate('RoleSelection')}
@@ -413,10 +413,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  logoImage: {
-    width: 60,
-    height: 60,
-    resizeMode: 'contain',
+  logoText: {
+    fontSize: 48,
+    color: '#7C3AED',
+    fontWeight: 'bold',
+    letterSpacing: -2,
   },
   headerContainer: {
     alignItems: 'flex-start',

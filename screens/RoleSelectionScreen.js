@@ -26,7 +26,7 @@ const RoleSelectionScreen = ({ navigation }) => {
       >
         {/* Logo */}
         <View style={styles.logoContainer}>
-          <Image source={require('../assets/PurpleLogo.png')} style={styles.logoImage} />
+          <Text style={styles.logoText}>VC</Text>
         </View>
 
         {/* Header */}
@@ -102,10 +102,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: height < 700 ? 20 : 40,
   },
-  logoImage: {
-    width: height < 700 ? 60 : 80,
-    height: height < 700 ? 60 : 80,
-    resizeMode: 'contain',
+  logoText: {
+    fontSize: height < 700 ? 48 : 64,
+    color: '#7C3AED',
+    fontWeight: 'bold',
+    letterSpacing: -2,
   },
   headerContainer: {
     alignItems: 'center',
