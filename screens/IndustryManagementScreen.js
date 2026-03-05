@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   infoContainer: {
-    backgroundColor: '#e8f4fd',
+    backgroundColor: '#f3e8ff',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: '#1976d2',
+    color: '#7B2CBF',
     textAlign: 'center',
     fontWeight: '500',
   },

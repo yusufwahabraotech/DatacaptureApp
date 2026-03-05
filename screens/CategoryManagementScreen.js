@@ -198,6 +198,12 @@ const CategoryManagementScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
+      <View style={styles.infoContainer}>
+        <Text style={styles.infoText}>
+          Categories are arranged in alphabetical order. Please refresh after creating a category.
+        </Text>
+      </View>
+
       <View style={styles.filterContainer}>
         <Text style={styles.filterLabel}>Filter by Industry:</Text>
         <TouchableOpacity
@@ -210,7 +216,7 @@ const CategoryManagementScreen = ({ navigation }) => {
           <Ionicons name="chevron-down" size={20} color="#666" />
         </TouchableOpacity>
         {showFilterDropdown && (
-          <View style={styles.dropdownList}>
+          <ScrollView style={styles.dropdownList} nestedScrollEnabled={true}>
             <TouchableOpacity
               style={styles.dropdownItem}
               onPress={() => {
@@ -232,7 +238,7 @@ const CategoryManagementScreen = ({ navigation }) => {
                 <Text style={styles.dropdownItemText}>{industry.name}</Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         )}
       </View>
 
@@ -307,7 +313,7 @@ const CategoryManagementScreen = ({ navigation }) => {
                     <Ionicons name="chevron-down" size={20} color="#666" />
                   </TouchableOpacity>
                   {showIndustryDropdown && (
-                    <View style={styles.dropdownList}>
+                    <ScrollView style={styles.dropdownList} nestedScrollEnabled={true}>
                       {industries.map((industry) => (
                         <TouchableOpacity
                           key={industry.id}
@@ -320,7 +326,7 @@ const CategoryManagementScreen = ({ navigation }) => {
                           <Text style={styles.dropdownItemText}>{industry.name}</Text>
                         </TouchableOpacity>
                       ))}
-                    </View>
+                    </ScrollView>
                   )}
                 </View>
               )}
@@ -409,6 +415,19 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  infoContainer: {
+    backgroundColor: '#f3e8ff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#7B2CBF',
+    textAlign: 'center',
+    fontWeight: '500',
   },
   filterContainer: {
     backgroundColor: '#fff',
