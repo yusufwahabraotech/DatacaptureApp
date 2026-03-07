@@ -423,13 +423,14 @@ const SubscriptionPackageScreen = ({ navigation }) => {
                   {['monthly', 'quarterly', 'yearly'].map(duration => {
                     let total = 0;
                     pkg.services?.forEach(service => {
-                      const serviceInfo = services.find(s => s._id === service.serviceId);
-                      if (serviceInfo) {
-                        total += serviceInfo[`${duration}Price`] || 0;
+                      if (service.duration === duration) {
+                        total += service.price || 0;
                       }
                     });
                     const discountAmount = (total * (pkg.discountPercentage || 0)) / 100;
                     const finalPrice = total - discountAmount;
+                    
+                    if (total === 0) return null; // Don't render if no price for this duration
                     
                     return (
                       <View key={duration} style={styles.durationPricing}>
@@ -437,7 +438,7 @@ const SubscriptionPackageScreen = ({ navigation }) => {
                         <Text style={styles.durationPrice}>{formatPrice(finalPrice)}</Text>
                       </View>
                     );
-                  })}
+                  }).filter(Boolean)}}}
                 </View>
               </View>
 

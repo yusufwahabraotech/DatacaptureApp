@@ -202,6 +202,10 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
         phone: userProfile.phone || userProfile.phoneNumber,
         totalAmount: locationData ? paymentSummary.totalAmount : packagePrice,
         promoCode: promoValidation.isValid ? promoCode : undefined,
+        services: selectedPackage.services.map(service => ({
+          ...service,
+          duration: selectedDuration // Override with selected duration
+        })), // Add services data with correct duration
       };
 
       // Add location verification data if needed
@@ -369,9 +373,9 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
             <Text style={styles.summaryLabel}>Package Subscription</Text>
             {promoValidation.isValid && promoValidation.discount > 0 ? (
               <View style={styles.discountPricing}>
-                <Text style={styles.originalPrice}>{formatPrice(getPackagePrice(false))}</Text>
+                <Text style={styles.originalPrice}>{formatPrice(calculatedPrice)}</Text>
                 <Text style={styles.discountLabel}>-{promoValidation.discount}%</Text>
-                <Text style={styles.summaryValue}>{formatPrice(getPackagePrice(true))}</Text>
+                <Text style={styles.summaryValue}>{formatPrice(calculatedPrice * (1 - promoValidation.discount / 100))}</Text>
               </View>
             ) : (
               <Text style={styles.summaryValue}>{calculatedPrice !== null ? formatPrice(calculatedPrice) : 'Calculating...'}</Text>
@@ -393,7 +397,7 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
           
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total Amount</Text>
-            <Text style={styles.totalAmount}>{calculatedPrice !== null ? formatPrice(calculatedPrice) : 'Calculating...'}</Text>
+            <Text style={styles.totalAmount}>{locationData ? formatPrice((calculatedPrice || 0) + paymentSummary.locationVerificationPrice) : (calculatedPrice !== null ? formatPrice(calculatedPrice) : 'Calculating...')}</Text>
           </View>
         </View>
 

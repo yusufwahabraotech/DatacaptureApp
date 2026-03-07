@@ -16,23 +16,67 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
   const [validatingPromo, setValidatingPromo] = useState(false);
   const [locationVerificationPrice, setLocationVerificationPrice] = useState(0);
   const [loadingPrice, setLoadingPrice] = useState(true);
+  const [calculatedPrice, setCalculatedPrice] = useState(null);
+  const [calculating, setCalculating] = useState(false);
+
+  const calculatePackagePrice = async () => {
+    if (!selectedPackage?.services) return;
+    
+    setCalculating(true);
+    try {
+      const price = await getPackagePrice(false);
+      setCalculatedPrice(price);
+    } catch (error) {
+      console.log('Error calculating price:', error);
+      setCalculatedPrice(0);
+    } finally {
+      setCalculating(false);
+    }
+  };
 
   // Calculate package price based on selected duration and services (same as Step 3)
-  const getPackagePrice = (applyPromoDiscount = true) => {
+  const getPackagePrice = async (applyPromoDiscount = true) => {
     if (!selectedPackage?.services) return 0;
     
-    // Calculate base price for the selected duration
-    let basePrice = selectedPackage.services
-      .filter(service => service.duration === selectedDuration)
-      .reduce((total, service) => total + service.price, 0);
+    let total = 0;
+    
+    // Get unique service IDs from package
+    const serviceIds = [...new Set(selectedPackage.services.map(s => s.serviceId))];
+    
+    // Fetch each service's full pricing
+    for (const serviceId of serviceIds) {
+      try {
+        const response = await ApiService.getServiceById(serviceId);
+        if (response.success) {
+          const service = response.data.service;
+          
+          // Use service's price for requested duration
+          if (selectedDuration === 'monthly') {
+            total += service.monthlyPrice || 0;
+          } else if (selectedDuration === 'quarterly') {
+            total += service.quarterlyPrice || 0;
+          } else if (selectedDuration === 'yearly') {
+            total += service.yearlyPrice || 0;
+          }
+        }
+      } catch (error) {
+        console.log('Error fetching service:', serviceId, error);
+      }
+    }
+    
+    // Apply package discount if exists
+    if (selectedPackage.discountPercentage && selectedPackage.discountPercentage > 0) {
+      const packageDiscount = (total * selectedPackage.discountPercentage) / 100;
+      total = total - packageDiscount;
+    }
     
     // Apply promo discount if valid and requested
     if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {
-      const discountAmount = (basePrice * promoValidation.discount) / 100;
-      return basePrice - discountAmount;
+      const discountAmount = (total * promoValidation.discount) / 100;
+      total = total - discountAmount;
     }
     
-    return basePrice;
+    return total;
   };
   
   const totalAmount = getPackagePrice(true) + locationVerificationPrice;
@@ -45,6 +89,9 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
     if (promoCode && selectedPackage) {
       validatePromoCode(promoCode, selectedPackage._id);
     }
+    
+    // Calculate package price
+    calculatePackagePrice();
   }, []);
 
   const fetchLocationPricing = async () => {
@@ -110,6 +157,7 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
   };
 
   const handleNext = () => {
+    const packagePrice = calculatedPrice || 0;
     navigation.navigate('SubscriptionWizardStep5', {
       selectedPackage,
       selectedDuration,
@@ -118,9 +166,9 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
       profileData,
       locationData,
       paymentSummary: {
-        packagePrice: getPackagePrice(true),
+        packagePrice,
         locationVerificationPrice,
-        totalAmount: getPackagePrice(true) + locationVerificationPrice,
+        totalAmount: packagePrice + locationVerificationPrice,
       },
     });
   };
@@ -215,12 +263,12 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
             <View style={styles.packagePriceContainer}>
               {promoValidation.isValid && promoValidation.discount > 0 ? (
                 <View style={styles.discountPricing}>
-                  <Text style={styles.originalPrice}>{formatPrice(getPackagePrice(false))}</Text>
+                  <Text style={styles.originalPrice}>{formatPrice(calculatedPrice)}</Text>
                   <Text style={styles.discountLabel}>-{promoValidation.discount}%</Text>
-                  <Text style={styles.packagePrice}>{formatPrice(getPackagePrice(true))}</Text>
+                  <Text style={styles.packagePrice}>{formatPrice(calculatedPrice * (1 - promoValidation.discount / 100))}</Text>
                 </View>
               ) : (
-                <Text style={styles.packagePrice}>{formatPrice(getPackagePrice(false))}</Text>
+                <Text style={styles.packagePrice}>{calculatedPrice !== null ? formatPrice(calculatedPrice) : 'Calculating...'}</Text>
               )}
               <Text style={styles.packagePriceLabel}>Package amount</Text>
             </View>
@@ -263,7 +311,7 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
           
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Package Subscription:</Text>
-            <Text style={styles.totalValue}>{formatPrice(getPackagePrice(true))}</Text>
+            <Text style={styles.totalValue}>{calculatedPrice !== null ? formatPrice(calculatedPrice) : 'Calculating...'}</Text>
           </View>
           <Text style={styles.totalSubLabel}>{selectedPackage.title} - monthly</Text>
           
@@ -280,7 +328,7 @@ const SubscriptionWizardStep4Screen = ({ navigation, route }) => {
               <Text style={styles.finalTotalLabel}>Total Amount:</Text>
               <Text style={styles.combinedPaymentLabel}>Combined Payment</Text>
             </View>
-            <Text style={styles.finalTotalAmount}>{formatPrice(getPackagePrice(true) + locationVerificationPrice)}</Text>
+            <Text style={styles.finalTotalAmount}>{calculatedPrice !== null ? formatPrice(calculatedPrice + locationVerificationPrice) : 'Calculating...'}</Text>
           </View>
         </View>
       </ScrollView>

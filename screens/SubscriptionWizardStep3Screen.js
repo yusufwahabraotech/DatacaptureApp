@@ -7,6 +7,8 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Country, State, City } from 'country-state-city';
@@ -18,23 +20,67 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
   
   const [promoValidation, setPromoValidation] = useState({ isValid: false, discount: 0, message: '' });
   const [validatingPromo, setValidatingPromo] = useState(false);
+  const [calculatedPrice, setCalculatedPrice] = useState(null);
+  const [calculating, setCalculating] = useState(false);
   
+  const calculatePackagePrice = async () => {
+    if (!selectedPackage?.services) return;
+    
+    setCalculating(true);
+    try {
+      const price = await getPackagePrice(false);
+      setCalculatedPrice(price);
+    } catch (error) {
+      console.log('Error calculating price:', error);
+      setCalculatedPrice(0);
+    } finally {
+      setCalculating(false);
+    }
+  };
+
   // Calculate package price based on selected duration and promo code
-  const getPackagePrice = (applyPromoDiscount = true) => {
+  const getPackagePrice = async (applyPromoDiscount = true) => {
     if (!selectedPackage?.services) return 0;
     
-    // Calculate base price for the selected duration
-    let basePrice = selectedPackage.services
-      .filter(service => service.duration === selectedDuration)
-      .reduce((total, service) => total + service.price, 0);
+    let total = 0;
+    
+    // Get unique service IDs from package
+    const serviceIds = [...new Set(selectedPackage.services.map(s => s.serviceId))];
+    
+    // Fetch each service's full pricing
+    for (const serviceId of serviceIds) {
+      try {
+        const response = await ApiService.getServiceById(serviceId);
+        if (response.success) {
+          const service = response.data.service;
+          
+          // Use service's price for requested duration
+          if (selectedDuration === 'monthly') {
+            total += service.monthlyPrice || 0;
+          } else if (selectedDuration === 'quarterly') {
+            total += service.quarterlyPrice || 0;
+          } else if (selectedDuration === 'yearly') {
+            total += service.yearlyPrice || 0;
+          }
+        }
+      } catch (error) {
+        console.log('Error fetching service:', serviceId, error);
+      }
+    }
+    
+    // Apply package discount if exists
+    if (selectedPackage.discountPercentage && selectedPackage.discountPercentage > 0) {
+      const packageDiscount = (total * selectedPackage.discountPercentage) / 100;
+      total = total - packageDiscount;
+    }
     
     // Apply promo discount if valid and requested
     if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {
-      const discountAmount = (basePrice * promoValidation.discount) / 100;
-      return basePrice - discountAmount;
+      const discountAmount = (total * promoValidation.discount) / 100;
+      total = total - discountAmount;
     }
     
-    return basePrice;
+    return total;
   };
   const [locationType, setLocationType] = useState('headquarters');
   const [brandName, setBrandName] = useState('');
@@ -82,6 +128,9 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
     if (promoCode && selectedPackage) {
       validatePromoCode(promoCode, selectedPackage._id);
     }
+    
+    // Calculate package price
+    calculatePackagePrice();
   }, []);
 
   useEffect(() => {
@@ -270,9 +319,10 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
     const finalCountry = customCountry || getDisplayValue(selectedCountry, '', countries, 'name');
     const finalState = customState || getDisplayValue(selectedState, '', states, 'name');
     const finalCity = customCity || getDisplayValue(selectedCity, '', cities, 'name');
+    const finalCityRegion = customCityRegion || getDisplayValue(selectedCityRegion, '', cityRegions, 'name');
     
-    if (!finalCountry || !finalState || !finalCity) {
-      Alert.alert('Error', 'Please fill in all required fields');
+    if (!finalCountry || !finalState || !finalCity || !finalCityRegion) {
+      Alert.alert('Error', 'Please fill in all required fields including city region');
       return;
     }
 
@@ -361,7 +411,16 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
 
       {renderProgressSteps()}
 
-      <ScrollView style={styles.content}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
+        <ScrollView 
+          style={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <Text style={styles.title}>Add Locations</Text>
 
         <View style={styles.packageInfoBox}>
@@ -389,12 +448,12 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
           <View style={styles.packagePriceContainer}>
             {promoValidation.isValid && promoValidation.discount > 0 ? (
               <View style={styles.discountPricing}>
-                <Text style={styles.originalPrice}>{formatPrice(getPackagePrice(false))}</Text>
+                <Text style={styles.originalPrice}>{formatPrice(calculatedPrice)}</Text>
                 <Text style={styles.discountLabel}>-{promoValidation.discount}%</Text>
-                <Text style={styles.packagePrice}>{formatPrice(getPackagePrice(true))}</Text>
+                <Text style={styles.packagePrice}>{formatPrice(calculatedPrice * (1 - promoValidation.discount / 100))}</Text>
               </View>
             ) : (
-              <Text style={styles.packagePrice}>{formatPrice(getPackagePrice(false))}</Text>
+              <Text style={styles.packagePrice}>{calculatedPrice !== null ? formatPrice(calculatedPrice) : 'Calculating...'}</Text>
             )}
             <Text style={styles.packagePriceLabel}>Package amount</Text>
           </View>
@@ -463,7 +522,11 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>City Region with Fee - Optional:</Text>
+            <Text style={styles.inputLabel}>City Region* (required):</Text>
+            <View style={styles.infoBox}>
+              <Ionicons name="information-circle" size={16} color="#3B82F6" />
+              <Text style={styles.infoText}>City regions are specific areas within a city that have different verification fees based on location accessibility and logistics.</Text>
+            </View>
             {renderDropdown(
               getDisplayValue(selectedCityRegion, customCityRegion, cityRegions, 'name'),
               (selectedCity || customCity) ? 'Select city region...' : 'Please select a city first',
@@ -551,6 +614,7 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Modals */}
       <SearchableDropdown
@@ -989,6 +1053,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748B',
     textAlign: 'center',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#EBF8FF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#3B82F6',
+  },
+  infoText: {
+    fontSize: 12,
+    color: '#1E40AF',
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 16,
   },
 });
 
