@@ -122,7 +122,7 @@ const LoginScreen = ({ navigation, route }) => {
           <View style={styles.bgCircle2} />
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>VC</Text>
+            <Text style={styles.logoText}>VD</Text>
             <TouchableOpacity 
               style={styles.roleToggleButton}
               onPress={() => navigation.navigate('RoleSelection')}

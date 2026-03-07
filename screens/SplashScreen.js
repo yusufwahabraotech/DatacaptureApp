@@ -111,7 +111,7 @@ const SplashScreen = ({ navigation }) => {
           }
         ]}
       >
-        <Text style={styles.logoText}>VC</Text>
+        <Text style={styles.logoText}>VD</Text>
       </Animated.View>
       
       <Animated.View style={[styles.textContainer, { opacity: textFadeAnim }]}>

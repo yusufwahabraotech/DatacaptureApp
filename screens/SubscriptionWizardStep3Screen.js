@@ -321,8 +321,21 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
     const finalCity = customCity || getDisplayValue(selectedCity, '', cities, 'name');
     const finalCityRegion = customCityRegion || getDisplayValue(selectedCityRegion, '', cityRegions, 'name');
     
-    if (!finalCountry || !finalState || !finalCity || !finalCityRegion) {
-      Alert.alert('Error', 'Please fill in all required fields including city region');
+    // Check all required fields
+    const missingFields = [];
+    if (!finalCountry) missingFields.push('Country');
+    if (!finalState) missingFields.push('State');
+    if (!finalCity) missingFields.push('City');
+    if (!finalCityRegion) missingFields.push('City Region');
+    if (!houseNumber.trim()) missingFields.push('House Number');
+    if (!street.trim()) missingFields.push('Street');
+    
+    if (missingFields.length > 0) {
+      Alert.alert(
+        'Required Fields Missing', 
+        `Please fill in the following required fields:\n\n• ${missingFields.join('\n• ')}`,
+        [{ text: 'OK' }]
+      );
       return;
     }
 
