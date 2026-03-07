@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
@@ -18,9 +19,28 @@ const SubscriptionWizardStep2Screen = ({ navigation, route }) => {
   const [verificationStatus, setVerificationStatus] = useState('verified');
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const scrollViewRef = useRef(null);
+  const blinkAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     fetchUserProfile();
+    
+    // Start blinking animation
+    const blink = () => {
+      Animated.sequence([
+        Animated.timing(blinkAnim, {
+          toValue: 0.3,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(blinkAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]).start(() => blink());
+    };
+    blink();
   }, []);
 
   const fetchUserProfile = async () => {
@@ -173,17 +193,8 @@ const SubscriptionWizardStep2Screen = ({ navigation, route }) => {
 
       {renderProgressSteps()}
 
-      <ScrollView style={styles.content}>
+      <ScrollView ref={scrollViewRef} style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Organization Profile Setup</Text>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Business Registration Status:</Text>
-          <Text style={styles.sectionDescription}>
-            Select your business registration status to help us provide appropriate services and compliance requirements.
-          </Text>
-          {renderRadioOption('registered', businessRegistrationStatus, setBusinessRegistrationStatus, 'Registered')}
-          {renderRadioOption('unregistered', businessRegistrationStatus, setBusinessRegistrationStatus, 'Unregistered')}
-        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Make Your Organization Profile Available to the Public?</Text>
@@ -214,7 +225,25 @@ const SubscriptionWizardStep2Screen = ({ navigation, route }) => {
             {renderRadioOption('unverified', verificationStatus, setVerificationStatus, 'No, skip verification')}
           </View>
         )}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Business Registration Status:</Text>
+          <Text style={styles.sectionDescription}>
+            Select your business registration status to help us provide appropriate services and compliance requirements.
+          </Text>
+          {renderRadioOption('registered', businessRegistrationStatus, setBusinessRegistrationStatus, 'Registered')}
+          {renderRadioOption('unregistered', businessRegistrationStatus, setBusinessRegistrationStatus, 'Unregistered')}
+        </View>
       </ScrollView>
+
+      <Animated.View style={[styles.floatingScrollButton, { opacity: blinkAnim }]}>
+        <TouchableOpacity 
+          style={styles.scrollButton}
+          onPress={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        >
+          <Ionicons name="chevron-down" size={24} color="white" />
+        </TouchableOpacity>
+      </Animated.View>
 
       <View style={styles.footer}>
         <TouchableOpacity 
@@ -396,6 +425,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginRight: 8,
+  },
+  scrollIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    marginVertical: 20,
+  },
+  scrollText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginLeft: 4,
+  },
+  floatingScrollButton: {
+    position: 'absolute',
+    right: 20,
+    top: '50%',
+    zIndex: 1000,
+  },
+  scrollButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#7C3AED',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });
 
