@@ -183,13 +183,13 @@ const UserDashboardScreen = ({ navigation }) => {
             {hasDataVerificationRole && (
               <TouchableOpacity 
                 style={styles.actionCard}
-                onPress={() => navigation.navigate('FieldAgentVerification')}
+                onPress={() => navigation.navigate('PendingVerificationAssignments')}
               >
                 <View style={styles.actionIcon}>
                   <Ionicons name="shield-checkmark" size={24} color="#10B981" />
                 </View>
-                <Text style={styles.actionTitle}>Data Verification</Text>
-                <Text style={styles.actionSubtitle}>Field verification tasks</Text>
+                <Text style={styles.actionTitle}>Pending Tasks</Text>
+                <Text style={styles.actionSubtitle}>Active verification assignments</Text>
               </TouchableOpacity>
             )}
             

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-const BASE_URL = 'https://datacapture-backend.onrender.com/api';
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -1954,6 +1954,10 @@ class ApiService {
     });
   }
 
+  static async getDataVerificationOrganizations() {
+    return this.apiCall('/super-admin/data-verification/organizations');
+  }
+
   static async getDataVerificationAllUsers() {
     return this.apiCall('/super-admin/data-verification/users');
   }
@@ -1991,6 +1995,48 @@ class ApiService {
 
   static async getSuperAdminVerificationDetails(verificationId) {
     return this.apiCall(`/super-admin/data-verification/verifications/${verificationId}`);
+  }
+
+  // NEW DATA VERIFICATION ORGANIZATION ASSIGNMENT SYSTEM
+  static async assignOrganizationToUser(userId, organizationId) {
+    return this.apiCall('/super-admin/data-verification/assign-organization', {
+      method: 'POST',
+      body: JSON.stringify({ userId, organizationId }),
+    });
+  }
+
+  static async getAllVerificationAssignments() {
+    return this.apiCall('/super-admin/data-verification/assignments');
+  }
+
+  static async getUserVerificationAssignments(userId) {
+    return this.apiCall(`/super-admin/data-verification/assignments/user/${userId}`);
+  }
+
+  static async deleteVerificationAssignment(assignmentId) {
+    return this.apiCall(`/super-admin/data-verification/assignments/${assignmentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // USER DATA VERIFICATION ENDPOINTS
+  static async getMyVerificationAssignments() {
+    return this.apiCall('/data-verification/assignments/my');
+  }
+
+  static async getPendingVerificationAssignments() {
+    return this.apiCall('/data-verification/assignments/pending');
+  }
+
+  static async getVerificationAssignmentDetails(assignmentId) {
+    return this.apiCall(`/data-verification/assignments/${assignmentId}`);
+  }
+
+  static async createVerificationFromAssignment(verificationData) {
+    return this.apiCall('/data-verification', {
+      method: 'POST',
+      body: JSON.stringify(verificationData),
+    });
   }
 
   // ORGANIZATION PROFILE MANAGEMENT

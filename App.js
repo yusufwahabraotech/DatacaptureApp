@@ -105,6 +105,12 @@ import BankDetailsScreen from './screens/BankDetailsScreen';
 import ConfirmedDeliveriesScreen from './screens/ConfirmedDeliveriesScreen';
 import ProcessRemittanceScreen from './screens/ProcessRemittanceScreen';
 import SettlementsScreen from './screens/SettlementsScreen';
+import VerificationAssignmentsScreen from './screens/VerificationAssignmentsScreen';
+import AssignmentDetailsScreen from './screens/AssignmentDetailsScreen';
+import MyVerificationAssignmentsScreen from './screens/MyVerificationAssignmentsScreen';
+import AssignmentLocationDetailsScreen from './screens/AssignmentLocationDetailsScreen';
+import CreateVerificationFromAssignmentScreen from './screens/CreateVerificationFromAssignmentScreen';
+import PendingVerificationAssignmentsScreen from './screens/PendingVerificationAssignmentsScreen';
 import MySubscriptionScreen from './screens/MySubscriptionScreen';
 
 const Stack = createStackNavigator();
@@ -181,6 +187,12 @@ export default function App() {
         <Stack.Screen name="SuperAdminOrganizationAdmins" component={SuperAdminOrganizationAdminsScreen} />
         <Stack.Screen name="DataVerificationManagement" component={DataVerificationManagementScreen} />
         <Stack.Screen name="DataVerificationUsers" component={DataVerificationUsersScreen} />
+        <Stack.Screen name="VerificationAssignments" component={VerificationAssignmentsScreen} />
+        <Stack.Screen name="AssignmentDetails" component={AssignmentDetailsScreen} />
+        <Stack.Screen name="MyVerificationAssignments" component={MyVerificationAssignmentsScreen} />
+        <Stack.Screen name="PendingVerificationAssignments" component={PendingVerificationAssignmentsScreen} />
+        <Stack.Screen name="AssignmentLocationDetails" component={AssignmentLocationDetailsScreen} />
+        <Stack.Screen name="CreateVerificationFromAssignment" component={CreateVerificationFromAssignmentScreen} />
         <Stack.Screen name="FieldAgentVerification" component={FieldAgentVerificationScreen} />
         <Stack.Screen name="CreateDataVerificationRole" component={CreateDataVerificationRoleScreen} />
         <Stack.Screen name="CreateVerification" component={CreateVerificationScreen} />

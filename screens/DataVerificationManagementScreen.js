@@ -87,6 +87,9 @@ const DataVerificationManagementScreen = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.navigate('DataVerificationUsers')}>
             <Ionicons name="people" size={24} color="#7C3AED" />
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('VerificationAssignments')}>
+            <Ionicons name="business" size={24} color="#7C3AED" />
+          </TouchableOpacity>
         </View>
       </View>
 
