@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -24,7 +25,9 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
   // Form state
   const [deliveryMode, setDeliveryMode] = useState('pickup_center');
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [pickupCenterName, setPickupCenterName] = useState('');
+  const [selectedPickupCenter, setSelectedPickupCenter] = useState(null);
+  const [pickupCenters, setPickupCenters] = useState([]);
+  const [showPickupModal, setShowPickupModal] = useState(false);
   const [productImage, setProductImage] = useState(null);
   const [representativeImage, setRepresentativeImage] = useState(null);
   const [userImage, setUserImage] = useState(null);
@@ -39,7 +42,21 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     }
+    
+    // Load pickup centers
+    loadPickupCenters();
   }, []);
+
+  const loadPickupCenters = async () => {
+    try {
+      const response = await ApiService.getPickupCenters();
+      if (response.success) {
+        setPickupCenters(response.data.pickupCenters || []);
+      }
+    } catch (error) {
+      console.error('Failed to load pickup centers:', error);
+    }
+  };
 
   const getTemplate = async () => {
     setTemplateLoading(true);
@@ -141,8 +158,8 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
       return false;
     }
 
-    if (deliveryMode === 'pickup_center' && !pickupCenterName.trim()) {
-      Alert.alert('Required Field', 'Pickup center name is required for pickup mode');
+    if (deliveryMode === 'pickup_center' && !selectedPickupCenter) {
+      Alert.alert('Required Field', 'Please select a pickup center');
       return false;
     }
 
@@ -157,7 +174,7 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
       const confirmationData = {
         deliveryMode,
         ...(deliveryMode === 'shipping' && { deliveryAddress }),
-        ...(deliveryMode === 'pickup_center' && { pickupCenterName }),
+        ...(deliveryMode === 'pickup_center' && { pickupCenterId: selectedPickupCenter._id }),
         ...(productImage && { productImage }),
         ...(representativeImage && { representativeImage }),
         ...(userImage && { userImage }),
@@ -276,13 +293,26 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
 
         {deliveryMode === 'pickup_center' && (
           <View style={styles.section}>
-            <Text style={styles.inputLabel}>Pickup Center Name *</Text>
-            <TextInput
-              style={styles.textInput}
-              value={pickupCenterName}
-              onChangeText={setPickupCenterName}
-              placeholder="Enter pickup center name"
-            />
+            <Text style={styles.inputLabel}>Select Pickup Center *</Text>
+            <TouchableOpacity
+              style={styles.dropdownButton}
+              onPress={() => setShowPickupModal(true)}
+            >
+              <Text style={[styles.dropdownText, !selectedPickupCenter && styles.placeholderText]}>
+                {selectedPickupCenter ? selectedPickupCenter.centerName : 'Select pickup center'}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+            </TouchableOpacity>
+            {selectedPickupCenter && (
+              <View style={styles.pickupCenterInfo}>
+                <Text style={styles.pickupCenterAddress}>{selectedPickupCenter.address}</Text>
+                <Text style={styles.pickupCenterContact}>{selectedPickupCenter.contactNumber}</Text>
+                <Text style={styles.pickupCenterHours}>
+                  {selectedPickupCenter.operatingDays} • {selectedPickupCenter.operatingHours}
+                </Text>
+                <Text style={styles.pickupCenterAmount}>Fee: ₦{selectedPickupCenter.amount?.toLocaleString()}</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -356,6 +386,45 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Pickup Center Modal */}
+      <Modal
+        visible={showPickupModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPickupModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Pickup Center</Text>
+              <TouchableOpacity onPress={() => setShowPickupModal(false)}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {pickupCenters.map((center) => (
+                <TouchableOpacity
+                  key={center._id}
+                  style={styles.pickupCenterOption}
+                  onPress={() => {
+                    setSelectedPickupCenter(center);
+                    setShowPickupModal(false);
+                  }}
+                >
+                  <Text style={styles.centerName}>{center.centerName}</Text>
+                  <Text style={styles.centerAddress}>{center.address}</Text>
+                  <Text style={styles.centerContact}>{center.contactNumber}</Text>
+                  <Text style={styles.centerHours}>
+                    {center.operatingDays} • {center.operatingHours}
+                  </Text>
+                  <Text style={styles.centerAmount}>Fee: ₦{center.amount?.toLocaleString()}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -566,6 +635,107 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 44,
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  placeholderText: {
+    color: '#9CA3AF',
+  },
+  pickupCenterInfo: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  pickupCenterAddress: {
+    fontSize: 14,
+    color: '#374151',
+    marginBottom: 4,
+  },
+  pickupCenterContact: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  pickupCenterHours: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  pickupCenterAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7B2CBF',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  modalScroll: {
+    maxHeight: 400,
+  },
+  pickupCenterOption: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  centerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  centerAddress: {
+    fontSize: 14,
+    color: '#374151',
+    marginBottom: 2,
+  },
+  centerContact: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  centerHours: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  centerAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7B2CBF',
   },
 });
 

@@ -3093,6 +3093,11 @@ class ApiService {
     return this.apiCall(endpoint);
   }
 
+  // Get available pickup centers for delivery confirmation
+  static async getPickupCenters() {
+    return this.apiCall('/orders/user/pickup-centers');
+  }
+
   // REMITTANCE SYSTEM
   // Organization Bank Details
   static async registerBankDetails(bankData) {

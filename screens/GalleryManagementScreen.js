@@ -97,8 +97,10 @@ const GalleryManagementScreen = ({ navigation, route }) => {
           {item.description}
         </Text>
         <Text style={styles.itemCategory}>{item.category}</Text>
-        <Text style={styles.itemPrice}>${item.actualAmount?.toFixed(2) || '0.00'}</Text>
-        <Text style={styles.itemQuantity}>Qty: {item.totalAvailableQuantity}</Text>
+        <Text style={styles.itemPrice}>₦{item.actualAmount?.toFixed(2) || '0.00'}</Text>
+        {item.itemType !== 'service' && (
+          <Text style={styles.itemQuantity}>Qty: {item.totalAvailableQuantity}</Text>
+        )}
       </View>
       <View style={styles.itemActions}>
         <TouchableOpacity

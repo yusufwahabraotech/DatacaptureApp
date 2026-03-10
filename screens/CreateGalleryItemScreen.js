@@ -446,6 +446,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
         {/* Media Upload */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Media</Text>
+          <Text style={styles.mediaInfo}>Recommended: JPG/PNG, max 5MB per image</Text>
           
           {formData.locationIndex && (() => {
             const selectedLocation = locations.find(loc => loc.locationIndex.toString() === formData.locationIndex);
@@ -572,7 +573,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             </View>
           </Modal>
 
-          <Text style={styles.inputLabel}>SKU (Stock Keeping Unit Code)</Text>
+          <Text style={styles.inputLabel}>SKU (Stock Keeping Unit Code) *</Text>
           <TextInput
             style={styles.input}
             placeholder="Enter SKU"
@@ -580,7 +581,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             onChangeText={(text) => setFormData({...formData, sku: text})}
           />
 
-          <Text style={styles.inputLabel}>UPC (Universal Product Code)</Text>
+          <Text style={styles.inputLabel}>UPC (Universal Product Code) *</Text>
           <TextInput
             style={styles.input}
             placeholder="Enter UPC"
@@ -680,7 +681,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                       />
                       <TextInput
                         style={styles.input}
-                        placeholder="Price (₦)"
+                        placeholder="Price (₦) *"
                         value={subService.price?.toString() || ''}
                         onChangeText={(text) => {
                           const updatedSubServices = [...formData.subServices];
@@ -867,7 +868,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             This will be {formData.itemType || 'item'} #{platformCodePreview.orgProductNumber} in your organization and #{platformCodePreview.globalProductNumber} globally
           </Text>
 
-          <Text style={styles.inputLabel}>Price (₦)</Text>
+          <Text style={styles.inputLabel}>Price (₦) *</Text>
           <TextInput
             style={styles.input}
             placeholder="0.00"
@@ -1354,6 +1355,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#E65100',
     fontWeight: '500',
+    textAlign: 'center',
+  },
+  mediaInfo: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginBottom: 12,
     textAlign: 'center',
   },
   mediaUsage: {
