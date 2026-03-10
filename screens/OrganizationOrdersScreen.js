@@ -140,12 +140,32 @@ const [sendingReminder, setSendingReminder] = useState(false);
           </Text>
           <Text style={styles.customerName}>Customer: {item.customerName}</Text>
           <Text style={styles.orderDate}>{formatDate(item.createdAt)}</Text>
+          {item.serviceBooking && (
+            <View style={styles.bookingInfo}>
+              <Ionicons name="calendar" size={14} color="#7B2CBF" />
+              <Text style={styles.bookingText}>
+                {new Date(item.serviceBooking.bookingDate).toLocaleDateString()} at {item.serviceBooking.bookingTime}
+              </Text>
+            </View>
+          )}
         </View>
         
         <View style={styles.orderStatus}>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.orderStatus) }]}>
             <Text style={styles.statusText}>{getStatusText(item.orderStatus)}</Text>
           </View>
+          {item.serviceBooking && (
+            <View style={[styles.statusBadge, { 
+              backgroundColor: item.serviceBooking.bookingStatus === 'completed' ? '#4CAF50' :
+                              item.serviceBooking.bookingStatus === 'cancelled' ? '#F44336' :
+                              item.serviceBooking.bookingStatus === 'rescheduled' ? '#FF9800' : '#2196F3',
+              marginTop: 4 
+            }]}>
+              <Text style={styles.statusText}>
+                {item.serviceBooking.bookingStatus?.toUpperCase() || 'SCHEDULED'}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -246,6 +266,12 @@ const [sendingReminder, setSendingReminder] = useState(false);
         <TouchableOpacity onPress={() => fetchOrders(true)}>
           <Ionicons name="refresh" size={24} color="#7B2CBF" />
         </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.calendarButton}
+          onPress={() => navigation.navigate('ServiceBookingCalendar')}
+        >
+          <Ionicons name="calendar" size={20} color="white" />
+        </TouchableOpacity>
       </View>
 
       {/* Search and Filter */}
@@ -315,6 +341,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+  },
+  calendarButton: {
+    backgroundColor: '#7B2CBF',
+    borderRadius: 20,
+    padding: 8,
+    marginLeft: 8,
   },
   searchContainer: {
     padding: 16,
@@ -409,6 +441,17 @@ const styles = StyleSheet.create({
   orderDate: {
     fontSize: 12,
     color: '#666',
+  },
+  bookingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  bookingText: {
+    fontSize: 12,
+    color: '#7B2CBF',
+    fontWeight: '500',
   },
   orderStatus: {
     alignItems: 'flex-end',

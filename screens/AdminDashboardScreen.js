@@ -254,6 +254,13 @@ const AdminDashboardScreen = ({ navigation }) => {
       icon: 'wallet',
       moduleKey: ModuleAccessChecker.FREE_MODULES.PAYMENTS,
       onPress: () => navigation.navigate('Settlements')
+    },
+    {
+      title: 'Service Bookings',
+      subtitle: 'Manage service appointments',
+      icon: 'calendar',
+      moduleKey: ModuleAccessChecker.FREE_MODULES.ORDERS,
+      onPress: () => navigation.navigate('ServiceBookingCalendar')
     }
   ];
 

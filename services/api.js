@@ -3033,6 +3033,66 @@ class ApiService {
     return await response.json();
   }
 
+  // SERVICE BOOKING SYSTEM
+  // Admin/Organization Service Bookings
+  static async getServiceBookings(date = null) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/orders/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/orders/org-user';
+      } else {
+        return { success: false, message: 'Access denied' };
+      }
+      
+      const endpoint = date 
+        ? `${baseUrl}/service-bookings?date=${date}`
+        : `${baseUrl}/service-bookings`;
+      
+      return this.apiCall(endpoint);
+    }
+    return { success: false, message: 'Failed to get user profile' };
+  }
+
+  static async updateBookingStatus(orderId, status, rescheduleData = null) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      let baseUrl;
+      if (user.role === 'ORGANIZATION') {
+        baseUrl = '/orders/admin';
+      } else if (user.role === 'CUSTOMER' && user.organizationId) {
+        baseUrl = '/orders/org-user';
+      } else {
+        return { success: false, message: 'Access denied' };
+      }
+      
+      const requestBody = { status };
+      if (rescheduleData) {
+        requestBody.newDate = rescheduleData.newDate;
+        requestBody.newTime = rescheduleData.newTime;
+      }
+      
+      return this.apiCall(`${baseUrl}/${orderId}/booking-status`, {
+        method: 'PUT',
+        body: JSON.stringify(requestBody),
+      });
+    }
+    return { success: false, message: 'Failed to get user profile' };
+  }
+
+  // Super Admin Service Bookings
+  static async getSuperAdminServiceBookings(date = null) {
+    const endpoint = date 
+      ? `/orders/super-admin/service-bookings?date=${date}`
+      : '/orders/super-admin/service-bookings';
+    
+    return this.apiCall(endpoint);
+  }
+
   // REMITTANCE SYSTEM
   // Organization Bank Details
   static async registerBankDetails(bankData) {

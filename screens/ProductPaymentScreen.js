@@ -9,9 +9,11 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import ApiService from '../services/api';
 
 const ProductPaymentScreen = ({ navigation, route }) => {
@@ -25,6 +27,10 @@ const ProductPaymentScreen = ({ navigation, route }) => {
   });
   const [user, setUser] = useState(null);
   const [selectedSubServices, setSelectedSubServices] = useState([]);
+  const [bookingDate, setBookingDate] = useState('');
+  const [bookingTime, setBookingTime] = useState('');
+  const [isDatePickerVisible, setDatePickerVisible] = useState(false);
+  const [isTimePickerVisible, setIsTimePickerVisible] = useState(false);
 
   useEffect(() => {
     fetchUserProfile();
@@ -73,6 +79,18 @@ const ProductPaymentScreen = ({ navigation, route }) => {
       return;
     }
 
+    // Check if service requires booking details
+    if (product.itemType === 'service') {
+      if (!bookingDate) {
+        Alert.alert('Error', 'Please select a booking date for this service');
+        return;
+      }
+      if (!bookingTime) {
+        Alert.alert('Error', 'Please select a booking time for this service');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       // Debug product object
@@ -98,7 +116,12 @@ const ProductPaymentScreen = ({ navigation, route }) => {
         customerName: customerInfo.name,
         customerPhone: customerInfo.phone,
         paymentType: paymentType,
+        itemType: product.itemType,
         ...(selectedSubServices.length > 0 && { subServices: selectedSubServices }),
+        ...(product.itemType === 'service' && {
+          bookingDate: bookingDate,
+          bookingTime: bookingTime
+        }),
       };
 
       console.log('🚨 PAYMENT DATA 🚨');
@@ -115,6 +138,8 @@ const ProductPaymentScreen = ({ navigation, route }) => {
           product: product,
           paymentAmount: calculatePaymentAmount(),
           paymentType: paymentType,
+          bookingDate: bookingDate,
+          bookingTime: bookingTime,
         });
       } else {
         Alert.alert('Payment Error', response.message || 'Failed to initialize payment');
@@ -128,6 +153,57 @@ const ProductPaymentScreen = ({ navigation, route }) => {
 
   const paymentAmount = calculatePaymentAmount();
   const upfrontPercentage = product.pricing?.upfrontPaymentPercentage || 50;
+
+  const handleDateConfirm = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    if (selectedDate < today) {
+      Alert.alert('Error', 'Booking date cannot be in the past');
+      setDatePickerVisible(false);
+      return;
+    }
+    
+    // Check if date is within service availability
+    if (product.availability && product.availability.type !== 'unlimited' && product.availability.endDate) {
+      const endDate = new Date(product.availability.endDate);
+      endDate.setHours(23, 59, 59, 999);
+      if (selectedDate > endDate) {
+        Alert.alert('Error', `Service is only available until ${endDate.toLocaleDateString()}`);
+        setDatePickerVisible(false);
+        return;
+      }
+    }
+    
+    const dateStr = date.toISOString().split('T')[0];
+    setBookingDate(dateStr);
+    setDatePickerVisible(false);
+  };
+
+  const handleDateCancel = () => {
+    setDatePickerVisible(false);
+  };
+
+  const handleTimeSelect = (time) => {
+    setBookingTime(time);
+    setIsTimePickerVisible(false);
+  };
+
+  const handleTimeConfirm = (time) => {
+    const timeString = time.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+    setBookingTime(timeString);
+    setIsTimePickerVisible(false);
+  };
+
+  const handleTimeCancel = () => {
+    setIsTimePickerVisible(false);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -198,6 +274,48 @@ const ProductPaymentScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Service Booking Details */}
+        {product.itemType === 'service' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Booking Details</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Booking Date *</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setDatePickerVisible(true)}
+              >
+                <Text style={[styles.dateButtonText, !bookingDate && styles.placeholderText]}>
+                  {bookingDate ? new Date(bookingDate).toLocaleDateString() : 'Select booking date'}
+                </Text>
+                <Ionicons name="calendar" size={20} color="#7B2CBF" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Booking Time *</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setIsTimePickerVisible(true)}
+              >
+                <Text style={[styles.dateButtonText, !bookingTime && styles.placeholderText]}>
+                  {bookingTime || 'Select booking time'}
+                </Text>
+                <Ionicons name="time" size={20} color="#7B2CBF" />
+              </TouchableOpacity>
+            </View>
+
+            {product.availability && product.availability.type !== 'unlimited' && (
+              <View style={styles.availabilityInfo}>
+                <Ionicons name="information-circle" size={16} color="#FF9800" />
+                <Text style={styles.availabilityText}>
+                  Service available until {new Date(product.availability.endDate).toLocaleDateString()}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Sub-Services Selection */}
         {product.itemType === 'service' && product.subServices && product.subServices.length > 0 && (
@@ -329,6 +447,29 @@ const ProductPaymentScreen = ({ navigation, route }) => {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Native Date Picker */}
+      <DateTimePickerModal
+        isVisible={isDatePickerVisible}
+        mode="date"
+        onConfirm={handleDateConfirm}
+        onCancel={handleDateCancel}
+        textColor="#000000"
+        accentColor="#7B2CBF"
+        minimumDate={new Date()} // Only allow future dates
+        maximumDate={product.availability && product.availability.endDate ? new Date(product.availability.endDate) : undefined}
+      />
+
+      {/* Native Time Picker */}
+      <DateTimePickerModal
+        isVisible={isTimePickerVisible}
+        mode="time"
+        onConfirm={handleTimeConfirm}
+        onCancel={handleTimeCancel}
+        textColor="#000000"
+        accentColor="#7B2CBF"
+        is24Hour={false}
+      />
     </SafeAreaView>
   );
 };
@@ -572,6 +713,39 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  dateButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: 'white',
+    minHeight: 48,
+  },
+  dateButtonText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  placeholderText: {
+    color: '#999',
+  },
+  availabilityInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3CD',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 8,
+  },
+  availabilityText: {
+    fontSize: 14,
+    color: '#856404',
+    flex: 1,
   },
 });
 

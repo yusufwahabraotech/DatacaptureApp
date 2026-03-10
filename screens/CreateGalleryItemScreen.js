@@ -599,16 +599,6 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                 onChangeText={(text) => setFormData({...formData, totalAvailableQuantity: text})}
                 keyboardType="numeric"
               />
-
-              <Text style={styles.inputLabel}>Ingredients</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter ingredients"
-                value={formData.ingredients}
-                onChangeText={(text) => setFormData({...formData, ingredients: text})}
-                multiline
-                numberOfLines={2}
-              />
             </>
           )}
 

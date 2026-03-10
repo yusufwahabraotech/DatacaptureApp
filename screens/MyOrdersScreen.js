@@ -125,6 +125,14 @@ const MyOrdersScreen = ({ navigation }) => {
           </Text>
           <Text style={styles.organizationName}>{item.organizationName}</Text>
           <Text style={styles.orderDate}>{formatDate(item.createdAt)}</Text>
+          {item.serviceBooking && (
+            <View style={styles.bookingInfo}>
+              <Ionicons name="calendar" size={14} color="#7B2CBF" />
+              <Text style={styles.bookingText}>
+                {new Date(item.serviceBooking.bookingDate).toLocaleDateString()} at {item.serviceBooking.bookingTime}
+              </Text>
+            </View>
+          )}
         </View>
         
         <View style={styles.orderStatus}>
@@ -134,6 +142,18 @@ const MyOrdersScreen = ({ navigation }) => {
           {item.deliveryStatus === 'confirmed' && (
             <View style={[styles.statusBadge, { backgroundColor: '#10B981', marginTop: 4 }]}>
               <Text style={styles.statusText}>Delivery Confirmed</Text>
+            </View>
+          )}
+          {item.serviceBooking && (
+            <View style={[styles.statusBadge, { 
+              backgroundColor: item.serviceBooking.bookingStatus === 'completed' ? '#4CAF50' :
+                              item.serviceBooking.bookingStatus === 'cancelled' ? '#F44336' :
+                              item.serviceBooking.bookingStatus === 'rescheduled' ? '#FF9800' : '#2196F3',
+              marginTop: 4 
+            }]}>
+              <Text style={styles.statusText}>
+                {item.serviceBooking.bookingStatus?.toUpperCase() || 'SCHEDULED'}
+              </Text>
             </View>
           )}
         </View>
@@ -348,6 +368,17 @@ const styles = StyleSheet.create({
   orderDate: {
     fontSize: 12,
     color: '#666',
+  },
+  bookingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  bookingText: {
+    fontSize: 12,
+    color: '#7B2CBF',
+    fontWeight: '500',
   },
   orderStatus: {
     alignItems: 'flex-end',

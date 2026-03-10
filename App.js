@@ -111,6 +111,7 @@ import MyVerificationAssignmentsScreen from './screens/MyVerificationAssignments
 import AssignmentLocationDetailsScreen from './screens/AssignmentLocationDetailsScreen';
 import CreateVerificationFromAssignmentScreen from './screens/CreateVerificationFromAssignmentScreen';
 import PendingVerificationAssignmentsScreen from './screens/PendingVerificationAssignmentsScreen';
+import ServiceBookingCalendarScreen from './screens/ServiceBookingCalendarScreen';
 import MySubscriptionScreen from './screens/MySubscriptionScreen';
 
 const Stack = createStackNavigator();
@@ -193,6 +194,7 @@ export default function App() {
         <Stack.Screen name="PendingVerificationAssignments" component={PendingVerificationAssignmentsScreen} />
         <Stack.Screen name="AssignmentLocationDetails" component={AssignmentLocationDetailsScreen} />
         <Stack.Screen name="CreateVerificationFromAssignment" component={CreateVerificationFromAssignmentScreen} />
+        <Stack.Screen name="ServiceBookingCalendar" component={ServiceBookingCalendarScreen} />
         <Stack.Screen name="FieldAgentVerification" component={FieldAgentVerificationScreen} />
         <Stack.Screen name="CreateDataVerificationRole" component={CreateDataVerificationRoleScreen} />
         <Stack.Screen name="CreateVerification" component={CreateVerificationScreen} />
