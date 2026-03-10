@@ -2022,6 +2022,10 @@ class ApiService {
     return this.apiCall(`/super-admin/data-verification/verifications/${verificationId}`);
   }
 
+  static async getSuperAdminVerificationDetails(verificationId) {
+    return this.apiCall(`/super-admin/data-verification/verifications/${verificationId}`);
+  }
+
   // NEW DATA VERIFICATION ORGANIZATION ASSIGNMENT SYSTEM
   static async assignOrganizationToUser(userId, organizationId) {
     return this.apiCall('/super-admin/data-verification/assign-organization', {
@@ -2036,6 +2040,10 @@ class ApiService {
 
   static async getUserVerificationAssignments(userId) {
     return this.apiCall(`/super-admin/data-verification/assignments/user/${userId}`);
+  }
+
+  static async getSuperAdminAssignmentDetails(assignmentId) {
+    return this.apiCall(`/super-admin/data-verification/assignments/${assignmentId}`);
   }
 
   static async deleteVerificationAssignment(assignmentId) {
@@ -2054,6 +2062,20 @@ class ApiService {
   }
 
   static async getVerificationAssignmentDetails(assignmentId) {
+    const profileResponse = await this.getUserProfile();
+    if (profileResponse.success) {
+      const user = profileResponse.data.user;
+      
+      // Super Admin uses super-admin endpoints
+      if (user.role === 'ORGANIZATION') {
+        return this.apiCall(`/super-admin/data-verification/assignments`);
+      }
+      
+      // Field agents use data-verification endpoints
+      return this.apiCall(`/data-verification/assignments/${assignmentId}`);
+    }
+    
+    // Fallback to field agent endpoint
     return this.apiCall(`/data-verification/assignments/${assignmentId}`);
   }
 

@@ -8,29 +8,39 @@ import {
   TextInput,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import ApiService from '../services/api';
 
 const CreateVerificationScreen = ({ navigation }) => {
-  const [organizations, setOrganizations] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [assignedLocations, setAssignedLocations] = useState([]);
+  const [allLocations, setAllLocations] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
-    // Location
+    // Assignment data
+    assignmentId: '',
+    selectedLocationIndex: 0,
+    
+    // Location data (what field agent actually found)
     country: '',
     state: '',
     lga: '',
     city: '',
     cityRegion: '',
     
-    // Target
+    // Organization data (auto-filled)
     organizationId: '',
     organizationName: '',
     targetUserId: '',
     targetUserFirstName: '',
     targetUserLastName: '',
+    
+    // Organization claimed location (what organization says)
+    organizationClaimedLocation: {},
     
     // Organization Details
     headquartersAddress: '',
@@ -55,37 +65,41 @@ const CreateVerificationScreen = ({ navigation }) => {
   });
 
   const steps = [
-    { title: 'Location', icon: 'location' },
-    { title: 'Organization', icon: 'business' },
+    { title: 'Select Location', icon: 'location' },
     { title: 'Details', icon: 'document-text' },
+    { title: 'Organization Details', icon: 'business' },
     { title: 'Pictures', icon: 'camera' },
     { title: 'Transportation', icon: 'car' },
   ];
 
   useEffect(() => {
-    fetchOrganizations();
-    fetchUsers();
+    fetchAssignedLocations();
   }, []);
 
-  const fetchOrganizations = async () => {
+  const fetchAssignedLocations = async () => {
     try {
-      const response = await ApiService.getVerificationOrganizations();
+      const response = await ApiService.getMyVerificationAssignments();
       if (response.success) {
-        setOrganizations(response.data.organizations);
+        setAssignedLocations(response.data.assignments);
+        
+        // Flatten all locations from all assignments
+        const allLocs = [];
+        response.data.assignments.forEach(assignment => {
+          if (assignment.organizationLocationDetails && assignment.organizationLocationDetails.length > 0) {
+            assignment.organizationLocationDetails.forEach((location, index) => {
+              allLocs.push({
+                ...assignment,
+                selectedLocation: location,
+                locationIndex: index,
+                uniqueId: `${assignment._id}_${index}`
+              });
+            });
+          }
+        });
+        setAllLocations(allLocs);
       }
     } catch (error) {
-      console.log('Error fetching organizations:', error);
-    }
-  };
-
-  const fetchUsers = async () => {
-    try {
-      const response = await ApiService.getVerificationUsers();
-      if (response.success) {
-        setUsers(response.data.users);
-      }
-    } catch (error) {
-      console.log('Error fetching users:', error);
+      console.log('Error fetching assigned locations:', error);
     }
   };
 
@@ -95,6 +109,37 @@ const CreateVerificationScreen = ({ navigation }) => {
       transportationSteps: [...formData.transportationSteps, 
         { startPoint: '', time: '', nextDestination: '', fareSpent: 0, timeSpent: '' }
       ]
+    });
+  };
+
+  const selectLocation = (locationData) => {
+    const location = locationData.selectedLocation;
+    setSelectedLocation(locationData);
+    setFormData({
+      ...formData,
+      assignmentId: locationData._id,
+      selectedLocationIndex: locationData.locationIndex,
+      organizationId: locationData.organizationId,
+      organizationName: locationData.organizationName,
+      targetUserId: locationData.targetUserId,
+      targetUserFirstName: locationData.targetUserName?.split(' ')[0] || '',
+      targetUserLastName: locationData.targetUserName?.split(' ').slice(1).join(' ') || '',
+      // Set claimed location (what organization says)
+      organizationClaimedLocation: {
+        country: location?.country || '',
+        state: location?.state || '',
+        lga: location?.lga || '',
+        city: location?.city || '',
+        cityRegion: location?.cityRegion || '',
+        address: `${location?.houseNumber || ''} ${location?.street || ''}`.trim()
+      },
+      // Initialize actual found location with claimed location (field agent can modify)
+      country: location?.country || '',
+      state: location?.state || '',
+      lga: location?.lga || '',
+      city: location?.city || '',
+      cityRegion: location?.cityRegion || '',
+      headquartersAddress: `${location?.houseNumber || ''} ${location?.street || ''}, ${location?.cityRegion || ''}, ${location?.city || ''}`.trim(),
     });
   };
 
@@ -191,12 +236,14 @@ const CreateVerificationScreen = ({ navigation }) => {
   };
 
   const createVerification = async () => {
-    if (!formData.organizationId || !formData.targetUserId) {
-      Alert.alert('Error', 'Please select organization and target user');
+    if (!formData.assignmentId) {
+      Alert.alert('Error', 'Please select a location to verify');
       return;
     }
 
     const verificationData = {
+      assignmentId: formData.assignmentId,
+      
       country: formData.country,
       state: formData.state,
       lga: formData.lga,
@@ -208,6 +255,8 @@ const CreateVerificationScreen = ({ navigation }) => {
       targetUserId: formData.targetUserId,
       targetUserFirstName: formData.targetUserFirstName,
       targetUserLastName: formData.targetUserLastName,
+      
+      organizationClaimedLocation: formData.organizationClaimedLocation,
       
       organizationDetails: {
         name: formData.organizationName,
@@ -241,7 +290,7 @@ const CreateVerificationScreen = ({ navigation }) => {
     };
 
     try {
-      const response = await ApiService.createVerification(verificationData);
+      const response = await ApiService.createVerificationFromAssignment(verificationData);
       if (response.success) {
         Alert.alert('Success', 'Verification created successfully', [
           { text: 'OK', onPress: () => navigation.goBack() }
@@ -257,7 +306,135 @@ const CreateVerificationScreen = ({ navigation }) => {
       case 1:
         return (
           <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Location Details</Text>
+            <Text style={styles.stepTitle}>Select Location to Verify</Text>
+            <Text style={styles.infoText}>Choose from your assigned locations</Text>
+            {allLocations.map((locationData) => (
+              <TouchableOpacity
+                key={locationData.uniqueId}
+                style={[styles.locationCard, formData.assignmentId === locationData._id && formData.selectedLocationIndex === locationData.locationIndex && styles.selectedLocationCard]}
+                onPress={() => selectLocation(locationData)}
+              >
+                <View style={styles.locationHeader}>
+                  <Text style={styles.locationOrgName}>{locationData.organizationName}</Text>
+                  <View style={[styles.locationBadge, locationData.selectedLocation.locationType === 'headquarters' ? styles.headquartersBadge : styles.branchBadge]}>
+                    <Text style={styles.locationBadgeText}>{locationData.selectedLocation.locationType || 'Location'}</Text>
+                  </View>
+                </View>
+                <Text style={styles.locationTarget}>Target: {locationData.targetUserName}</Text>
+                <Text style={styles.locationBrand}>Brand: {locationData.selectedLocation.brandName}</Text>
+                <Text style={styles.locationAddress}>
+                  {locationData.selectedLocation.cityRegion}, {locationData.selectedLocation.city}
+                </Text>
+                <Text style={styles.locationFullAddress}>
+                  {locationData.selectedLocation.houseNumber} {locationData.selectedLocation.street}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        );
+      
+      case 2:
+        return (
+          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>Organization Details</Text>
+            <Text style={styles.infoText}>Complete organization information from selected location</Text>
+            {selectedLocation && (
+              <View style={styles.fullDetailsCard}>
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailSectionTitle}>Organization Information</Text>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Organization Name:</Text>
+                    <Text style={styles.detailValue}>{selectedLocation.organizationName}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Target User:</Text>
+                    <Text style={styles.detailValue}>{selectedLocation.targetUserName}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Assignment ID:</Text>
+                    <Text style={styles.detailValue}>{selectedLocation._id}</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailSectionTitle}>Location Details</Text>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Brand Name:</Text>
+                    <Text style={styles.detailValue}>{selectedLocation.selectedLocation.brandName}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Location Type:</Text>
+                    <Text style={styles.detailValue}>{selectedLocation.selectedLocation.locationType}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Country:</Text>
+                    <Text style={styles.detailValue}>{selectedLocation.selectedLocation.country}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>State:</Text>
+                    <Text style={styles.detailValue}>{selectedLocation.selectedLocation.state}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>LGA:</Text>
+                    <Text style={styles.detailValue}>{selectedLocation.selectedLocation.lga}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>City:</Text>
+                    <Text style={styles.detailValue}>{selectedLocation.selectedLocation.city}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>City Region:</Text>
+                    <Text style={styles.detailValue}>{selectedLocation.selectedLocation.cityRegion}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>House Number:</Text>
+                    <Text style={styles.detailValue}>{selectedLocation.selectedLocation.houseNumber}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Street:</Text>
+                    <Text style={styles.detailValue}>{selectedLocation.selectedLocation.street}</Text>
+                  </View>
+                  {selectedLocation.selectedLocation.landmark && (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Landmark:</Text>
+                      <Text style={styles.detailValue}>{selectedLocation.selectedLocation.landmark}</Text>
+                    </View>
+                  )}
+                </View>
+                
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailSectionTitle}>Full Address</Text>
+                  <Text style={styles.fullAddress}>{formData.headquartersAddress}</Text>
+                </View>
+              </View>
+            )}
+            {!selectedLocation && (
+              <View style={styles.noSelectionCard}>
+                <Ionicons name="information-circle" size={48} color="#9CA3AF" />
+                <Text style={styles.noSelectionText}>Please select a location first</Text>
+              </View>
+            )}
+          </View>
+        );
+      
+      case 3:
+        return (
+          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>Field Verification Details</Text>
+            <Text style={styles.infoText}>Enter what you actually found during verification</Text>
+            
+            <Text style={styles.subTitle}>Organization Claims vs Your Findings</Text>
+            {selectedLocation && (
+              <View style={styles.claimedLocationCard}>
+                <Text style={styles.claimedTitle}>Organization Claims:</Text>
+                <Text style={styles.claimedText}>
+                  {formData.organizationClaimedLocation.cityRegion}, {formData.organizationClaimedLocation.city}
+                </Text>
+                <Text style={styles.claimedAddress}>{formData.organizationClaimedLocation.address}</Text>
+              </View>
+            )}
+            
+            <Text style={styles.subTitle}>What You Actually Found:</Text>
             <TextInput
               style={styles.input}
               placeholder="Country"
@@ -288,66 +465,15 @@ const CreateVerificationScreen = ({ navigation }) => {
               value={formData.cityRegion}
               onChangeText={(text) => setFormData({...formData, cityRegion: text})}
             />
-          </View>
-        );
-      
-      case 2:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Select Organization</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectionScroll}>
-              {organizations.map((org) => (
-                <TouchableOpacity
-                  key={org.id}
-                  style={[styles.selectionCard, formData.organizationId === org.id && styles.selectedCard]}
-                  onPress={() => setFormData({
-                    ...formData,
-                    organizationId: org.id,
-                    organizationName: org.name
-                  })}
-                >
-                  <Text style={[styles.cardText, formData.organizationId === org.id && styles.selectedText]}>
-                    {org.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
             
-            <Text style={styles.stepTitle}>Select Target User</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectionScroll}>
-              {users.map((user) => (
-                <TouchableOpacity
-                  key={user.id}
-                  style={[styles.selectionCard, formData.targetUserId === user.id && styles.selectedCard]}
-                  onPress={() => setFormData({
-                    ...formData,
-                    targetUserId: user.id,
-                    targetUserFirstName: user.firstName,
-                    targetUserLastName: user.lastName
-                  })}
-                >
-                  <Text style={[styles.cardText, formData.targetUserId === user.id && styles.selectedText]}>
-                    {user.fullName}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        );
-      
-      case 3:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Organization Details</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Headquarters Address"
+              placeholder="Headquarters Address (What you found)"
               value={formData.headquartersAddress}
               onChangeText={(text) => setFormData({...formData, headquartersAddress: text})}
               multiline
               numberOfLines={3}
             />
-            <Text style={styles.noteText}>Note: Building pictures and attachments will be added later</Text>
           </View>
         );
       
@@ -493,7 +619,11 @@ const CreateVerificationScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
@@ -522,7 +652,12 @@ const CreateVerificationScreen = ({ navigation }) => {
         ))}
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 20 }}
+      >
         {renderStepContent()}
       </ScrollView>
 
@@ -550,7 +685,7 @@ const CreateVerificationScreen = ({ navigation }) => {
           </TouchableOpacity>
         )}
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -792,6 +927,174 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // New styles for location selection
+  infoText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 16,
+    fontStyle: 'italic',
+  },
+  orgInfoCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  orgName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#166534',
+  },
+  orgTarget: {
+    fontSize: 14,
+    color: '#16A34A',
+    marginTop: 2,
+  },
+  orgAddress: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  locationCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  selectedLocationCard: {
+    backgroundColor: '#F0F9FF',
+    borderColor: '#3B82F6',
+  },
+  locationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  locationOrgName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    flex: 1,
+  },
+  locationBadge: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  locationBadgeText: {
+    fontSize: 10,
+    color: 'white',
+    fontWeight: '500',
+    textTransform: 'uppercase',
+  },
+  locationTarget: {
+    fontSize: 14,
+    color: '#10B981',
+    marginBottom: 2,
+  },
+  locationAddress: {
+    fontSize: 14,
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  locationFullAddress: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  locationBrand: {
+    fontSize: 14,
+    color: '#7C3AED',
+    marginBottom: 2,
+    fontWeight: '500',
+  },
+  headquartersBadge: {
+    backgroundColor: '#10B981',
+  },
+  branchBadge: {
+    backgroundColor: '#3B82F6',
+  },
+  claimedLocationCard: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  claimedTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400E',
+    marginBottom: 4,
+  },
+  claimedText: {
+    fontSize: 14,
+    color: '#92400E',
+  },
+  claimedAddress: {
+    fontSize: 12,
+    color: '#A16207',
+    marginTop: 2,
+  },
+  fullDetailsCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  detailSection: {
+    marginBottom: 20,
+  },
+  detailSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingBottom: 4,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    alignItems: 'flex-start',
+  },
+  detailLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+    width: 120,
+    flexShrink: 0,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#1F2937',
+    flex: 1,
+    fontWeight: '400',
+  },
+  fullAddress: {
+    fontSize: 14,
+    color: '#1F2937',
+    lineHeight: 20,
+    fontStyle: 'italic',
+  },
+  noSelectionCard: {
+    alignItems: 'center',
+    padding: 40,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    marginTop: 20,
+  },
+  noSelectionText: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    marginTop: 12,
+    textAlign: 'center',
   },
 });
 
