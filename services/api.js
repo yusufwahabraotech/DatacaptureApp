@@ -3,10 +3,10 @@ import { Country, State, City } from 'country-state-city';
 
 // Multiple base URLs for different network configurations
 const BASE_URLS = [
-  'http://192.168.0.183:3000/api',  // Current
+  'https://datacapture-backend.onrender.com',  // Current
   'http://192.168.1.183:3000/api',  // Alternative 1
   'http://172.20.10.2:3000/api',    // Alternative 2
-  'https://datacapture.onrender.com/api'  // Production/Render URL
+  'http://192.168.0.183:3000/api'  // Production/Render URL
 ];
 
 let currentBaseUrlIndex = 0;
