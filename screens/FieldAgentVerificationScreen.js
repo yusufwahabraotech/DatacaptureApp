@@ -12,10 +12,15 @@ import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
 
 const FieldAgentVerificationScreen = ({ navigation }) => {
+  const [activeTab, setActiveTab] = useState('assignments');
+  const [assignments, setAssignments] = useState([]);
   const [verifications, setVerifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const statusColors = {
+    pending: '#F59E0B',
+    in_progress: '#3B82F6',
+    completed: '#10B981',
     draft: '#F59E0B',
     submitted: '#3B82F6',
     approved: '#10B981',
@@ -23,31 +28,28 @@ const FieldAgentVerificationScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    fetchVerifications();
-  }, []);
+    fetchData();
+  }, [activeTab]);
 
-  const fetchVerifications = async () => {
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const response = await ApiService.getMyVerifications();
-      if (response.success) {
-        setVerifications(response.data.verifications);
+      if (activeTab === 'assignments') {
+        const response = await ApiService.getMyVerificationAssignments();
+        if (response.success) {
+          setAssignments(response.data.assignments || []);
+        }
+      } else {
+        // Fetch actual verifications created by user
+        const response = await ApiService.getMyActualVerifications();
+        if (response.success) {
+          setVerifications(response.data.verifications || []);
+        }
       }
     } catch (error) {
-      console.log('Error fetching verifications:', error);
+      console.log('Error fetching data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const submitVerification = async (verificationId) => {
-    try {
-      const response = await ApiService.submitVerification(verificationId);
-      if (response.success) {
-        Alert.alert('Success', 'Verification submitted successfully');
-        fetchVerifications();
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to submit verification');
     }
   };
 
@@ -59,6 +61,100 @@ const FieldAgentVerificationScreen = ({ navigation }) => {
     });
   };
 
+  const renderTabButton = (tabKey, title) => (
+    <TouchableOpacity
+      style={[styles.tabButton, activeTab === tabKey && styles.activeTabButton]}
+      onPress={() => setActiveTab(tabKey)}
+    >
+      <Text style={[styles.tabButtonText, activeTab === tabKey && styles.activeTabButtonText]}>
+        {title}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const renderAssignments = () => (
+    assignments.length === 0 ? (
+      <View style={styles.emptyState}>
+        <Ionicons name="briefcase-outline" size={64} color="#9CA3AF" />
+        <Text style={styles.emptyStateText}>No assignments yet</Text>
+      </View>
+    ) : (
+      assignments.map((assignment) => (
+        <View key={assignment._id} style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.organizationName}>{assignment.organizationName}</Text>
+            <View style={[
+              styles.statusBadge,
+              { backgroundColor: statusColors[assignment.status] }
+            ]}>
+              <Text style={styles.statusBadgeText}>{assignment.status}</Text>
+            </View>
+          </View>
+          <Text style={styles.targetUser}>Target: {assignment.targetUserName}</Text>
+          <Text style={styles.date}>Assigned: {formatDate(assignment.assignedAt)}</Text>
+          <Text style={styles.locationCount}>
+            {assignment.organizationLocationDetails?.length || 0} locations to verify
+          </Text>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('VerificationDetails', { 
+                verificationId: assignment._id,
+                isAssignment: true 
+              })}
+            >
+              <Text style={styles.actionButtonText}>View Details</Text>
+            </TouchableOpacity>
+            {assignment.status === 'pending' && (
+              <TouchableOpacity 
+                style={[styles.actionButton, styles.startButton]}
+                onPress={() => navigation.navigate('CreateVerification', { assignment })}
+              >
+                <Text style={styles.startButtonText}>Start Verification</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      ))
+    )
+  );
+
+  const renderVerifications = () => (
+    verifications.length === 0 ? (
+      <View style={styles.emptyState}>
+        <Ionicons name="document-text-outline" size={64} color="#9CA3AF" />
+        <Text style={styles.emptyStateText}>No verifications yet</Text>
+      </View>
+    ) : (
+      verifications.map((verification) => (
+        <View key={verification._id} style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.verificationId}>{verification.verificationId}</Text>
+            <View style={[
+              styles.statusBadge,
+              { backgroundColor: statusColors[verification.status] }
+            ]}>
+              <Text style={styles.statusBadgeText}>{verification.status}</Text>
+            </View>
+          </View>
+          <Text style={styles.organizationName}>{verification.organizationName}</Text>
+          <Text style={styles.date}>Created: {formatDate(verification.createdAt)}</Text>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('VerificationDetails', { 
+                verificationId: verification._id,
+                isAssignment: false 
+              })}
+            >
+              <Text style={styles.actionButtonText}>View Details</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ))
+    )
+  );
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -66,70 +162,22 @@ const FieldAgentVerificationScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Verifications</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('CreateVerification')}>
-          <Ionicons name="add" size={24} color="#7C3AED" />
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Data Verification</Text>
+        <View style={{ width: 24 }} />
       </View>
 
-      {/* Verifications List */}
-      <ScrollView style={styles.verificationsList}>
+      {/* Tab Buttons */}
+      <View style={styles.tabContainer}>
+        {renderTabButton('assignments', 'My Assignments')}
+        {renderTabButton('verifications', 'My Verifications')}
+      </View>
+
+      {/* Content */}
+      <ScrollView style={styles.content}>
         {loading ? (
           <ActivityIndicator size="large" color="#7C3AED" style={styles.loader} />
-        ) : verifications.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="document-text-outline" size={64} color="#9CA3AF" />
-            <Text style={styles.emptyStateText}>No verifications yet</Text>
-            <TouchableOpacity 
-              style={styles.createButton}
-              onPress={() => navigation.navigate('CreateVerification')}
-            >
-              <Text style={styles.createButtonText}>Create First Verification</Text>
-            </TouchableOpacity>
-          </View>
         ) : (
-          verifications.map((verification) => (
-            <View key={verification._id} style={styles.verificationCard}>
-              <View style={styles.verificationHeader}>
-                <Text style={styles.verificationId}>{verification.verificationId}</Text>
-                <View style={[
-                  styles.statusBadge,
-                  { backgroundColor: statusColors[verification.status] }
-                ]}>
-                  <Text style={styles.statusBadgeText}>{verification.status}</Text>
-                </View>
-              </View>
-
-              <Text style={styles.organizationName}>{verification.organizationName}</Text>
-              <Text style={styles.date}>Created: {formatDate(verification.createdAt)}</Text>
-
-              <View style={styles.actionButtons}>
-                <TouchableOpacity 
-                  style={styles.actionButton}
-                  onPress={() => navigation.navigate('VerificationDetails', { verificationId: verification._id })}
-                >
-                  <Text style={styles.actionButtonText}>View Details</Text>
-                </TouchableOpacity>
-                
-                {verification.status === 'draft' && (
-                  <>
-                    <TouchableOpacity 
-                      style={[styles.actionButton, styles.editButton]}
-                      onPress={() => navigation.navigate('EditVerification', { verificationId: verification._id })}
-                    >
-                      <Text style={styles.editButtonText}>Edit</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={[styles.actionButton, styles.submitButton]}
-                      onPress={() => submitVerification(verification._id)}
-                    >
-                      <Text style={styles.submitButtonText}>Submit</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
-            </View>
-          ))
+          activeTab === 'assignments' ? renderAssignments() : renderVerifications()
         )}
       </ScrollView>
     </View>
@@ -155,7 +203,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1F2937',
   },
-  verificationsList: {
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTabButton: {
+    borderBottomColor: '#7C3AED',
+  },
+  tabButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  activeTabButtonText: {
+    color: '#7C3AED',
+  },
+  content: {
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -173,20 +245,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1F2937',
     marginTop: 16,
-    marginBottom: 24,
   },
-  createButton: {
-    backgroundColor: '#7C3AED',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  createButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  verificationCard: {
+  card: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
@@ -197,16 +257,38 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  verificationHeader: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
+  organizationName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    flex: 1,
+  },
   verificationId: {
     fontSize: 14,
     fontWeight: '600',
     color: '#7C3AED',
+    flex: 1,
+  },
+  targetUser: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  date: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginBottom: 8,
+  },
+  locationCount: {
+    fontSize: 12,
+    color: '#7C3AED',
+    marginBottom: 12,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -217,17 +299,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: 'white',
-  },
-  organizationName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  date: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginBottom: 12,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -247,19 +318,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
-  editButton: {
-    borderColor: '#F59E0B',
+  startButton: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
   },
-  editButtonText: {
-    color: '#F59E0B',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  submitButton: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
-  },
-  submitButtonText: {
+  startButtonText: {
     color: 'white',
     fontSize: 12,
     fontWeight: '500',

@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
 
 const VerificationDetailsScreen = ({ route, navigation }) => {
-  const { verificationId } = route.params;
+  const { verificationId, isAssignment = false } = route.params;
   const [verification, setVerification] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -25,12 +25,24 @@ const VerificationDetailsScreen = ({ route, navigation }) => {
   const fetchVerificationDetails = async () => {
     try {
       setLoading(true);
-      const response = await ApiService.getMyVerifications();
-      if (response.success) {
-        const foundVerification = response.data.verifications.find(
-          v => v._id === verificationId
-        );
-        setVerification(foundVerification);
+      if (isAssignment) {
+        // Fetch assignment details
+        const response = await ApiService.getMyVerifications();
+        if (response.success) {
+          const foundVerification = response.data.assignments?.find(
+            v => v._id === verificationId
+          );
+          setVerification(foundVerification);
+        }
+      } else {
+        // Fetch actual verification details
+        const response = await ApiService.getMyActualVerifications();
+        if (response.success) {
+          const foundVerification = response.data.verifications?.find(
+            v => v._id === verificationId
+          );
+          setVerification(foundVerification);
+        }
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to load verification details');
@@ -118,30 +130,64 @@ const VerificationDetailsScreen = ({ route, navigation }) => {
           </Text>
         </View>
 
-        {/* Location Information */}
+        {/* Organization Information */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Location Information</Text>
+          <Text style={styles.sectionTitle}>Organization Information</Text>
           <View style={styles.infoRow}>
-            <Text style={styles.label}>Country:</Text>
-            <Text style={styles.value}>{verification.location?.country}</Text>
+            <Text style={styles.label}>Name:</Text>
+            <Text style={styles.value}>{verification.organizationName}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.label}>State:</Text>
-            <Text style={styles.value}>{verification.location?.state}</Text>
+            <Text style={styles.label}>Target User:</Text>
+            <Text style={styles.value}>{verification.targetUserName}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.label}>LGA:</Text>
-            <Text style={styles.value}>{verification.location?.lga}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>City:</Text>
-            <Text style={styles.value}>{verification.location?.city}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Region:</Text>
-            <Text style={styles.value}>{verification.location?.cityRegion}</Text>
+            <Text style={styles.label}>Email:</Text>
+            <Text style={styles.value}>{verification.targetUserEmail}</Text>
           </View>
         </View>
+
+        {/* Organization Locations */}
+        {verification.organizationLocationDetails && verification.organizationLocationDetails.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Organization Locations</Text>
+            {verification.organizationLocationDetails.map((location, index) => (
+              <View key={location._id} style={styles.locationCard}>
+                <Text style={styles.locationTitle}>{location.brandName} ({location.locationType})</Text>
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Country:</Text>
+                  <Text style={styles.value}>{location.country}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>State:</Text>
+                  <Text style={styles.value}>{location.state}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>LGA:</Text>
+                  <Text style={styles.value}>{location.lga}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>City:</Text>
+                  <Text style={styles.value}>{location.city}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Region:</Text>
+                  <Text style={styles.value}>{location.cityRegion}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Address:</Text>
+                  <Text style={styles.value}>{location.houseNumber} {location.street}</Text>
+                </View>
+                {location.landmark && (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>Landmark:</Text>
+                    <Text style={styles.value}>{location.landmark}</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Organization Details */}
         {verification.organizationDetails && (
@@ -329,6 +375,20 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
     textAlign: 'center',
+  },
+  locationCard: {
+    backgroundColor: '#F8F9FA',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#7B2CBF',
+  },
+  locationTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7B2CBF',
+    marginBottom: 8,
   },
   comments: {
     fontSize: 14,

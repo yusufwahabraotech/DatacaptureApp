@@ -2039,6 +2039,14 @@ class ApiService {
     });
   }
 
+  static async getMyVerifications() {
+    return this.apiCall('/data-verification/assignments/my');
+  }
+
+  static async getMyActualVerifications() {
+    return this.apiCall('/data-verification/my-verifications');
+  }
+
   // ORGANIZATION PROFILE MANAGEMENT
   static async createOrganizationProfile(profileData) {
     return this.apiCall('/admin/organization-profile', {
