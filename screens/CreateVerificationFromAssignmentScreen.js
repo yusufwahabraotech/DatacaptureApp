@@ -8,6 +8,8 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
@@ -70,7 +72,11 @@ const CreateVerificationFromAssignmentScreen = ({ navigation, route }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -80,7 +86,11 @@ const CreateVerificationFromAssignmentScreen = ({ navigation, route }) => {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Assignment Info */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Assignment Details</Text>
@@ -160,7 +170,7 @@ const CreateVerificationFromAssignmentScreen = ({ navigation, route }) => {
           This will create a draft verification that you can complete later
         </Text>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 

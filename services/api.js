@@ -1,7 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-const BASE_URL = 'http://192.168.0.183:3000/api';
+// Multiple base URLs for different network configurations
+const BASE_URLS = [
+  'http://192.168.0.183:3000/api',  // Current
+  'http://192.168.1.183:3000/api',  // Alternative 1
+  'http://172.20.10.2:3000/api',    // Alternative 2
+  'https://datacapture.onrender.com/api'  // Production/Render URL
+];
+
+let currentBaseUrlIndex = 0;
+const BASE_URL = BASE_URLS[currentBaseUrlIndex];
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
 const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
@@ -20,63 +29,79 @@ class ApiService {
 
   static async apiCall(endpoint, options = {}) {
     const token = await this.getToken();
-    let url = `${BASE_URL}${endpoint}`;
     
-    const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
-    };
-
-    console.log('=== API CALL DEBUG ===');
-    console.log('URL:', url);
-    console.log('Method:', config.method || 'GET');
-    console.log('Has token:', !!token);
-
-    try {
-      const response = await fetch(url, config);
+    // Try each base URL until one works
+    for (let i = 0; i < BASE_URLS.length; i++) {
+      const baseUrl = BASE_URLS[(currentBaseUrlIndex + i) % BASE_URLS.length];
+      const url = `${baseUrl}${endpoint}`;
       
-      console.log('=== RESPONSE DEBUG ===');
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-      
-      if (!response.ok) {
-        console.log(`API Error - Status: ${response.status}, URL: ${url}`);
-        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.log('Error response:', JSON.stringify(error, null, 2));
-        return {
-          success: false,
-          message: error.message || `HTTP ${response.status}: ${response.statusText}`,
-          data: error
-        };
-      }
-      
-      const jsonResponse = await response.json();
-      console.log('=== SUCCESS RESPONSE ===');
-      console.log('Response data:', JSON.stringify(jsonResponse, null, 2));
-      
-      // Check for subscription requirement - but don't auto-redirect
-      if (jsonResponse.requiresSubscription) {
-        console.log('🚨 SUBSCRIPTION REQUIRED - but letting screens handle navigation');
-        // Let individual screens handle their own subscription checks and navigation
-      }
-      
-      return jsonResponse;
-    } catch (error) {
-      console.log('=== NETWORK ERROR DETAILS ===');
-      console.log('Error name:', error.name);
-      console.log('Error message:', error.message);
-      console.log('Full error:', error);
-      
-      return {
-        success: false,
-        message: `Network error: ${error.message}. Please check your connection.`,
-        data: { error: error.message, type: error.name }
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+          ...options.headers,
+        },
+        ...options,
       };
+
+      console.log(`=== API CALL DEBUG (Attempt ${i + 1}) ===`);
+      console.log('URL:', url);
+      console.log('Method:', config.method || 'GET');
+      console.log('Has token:', !!token);
+
+      try {
+        const response = await fetch(url, config);
+        
+        console.log('=== RESPONSE DEBUG ===');
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+        
+        if (!response.ok) {
+          console.log(`API Error - Status: ${response.status}, URL: ${url}`);
+          const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+          console.log('Error response:', JSON.stringify(error, null, 2));
+          
+          // If it's a network error, try next URL
+          if (response.status >= 500 || response.status === 0) {
+            console.log('Server error, trying next URL...');
+            continue;
+          }
+          
+          return {
+            success: false,
+            message: error.message || `HTTP ${response.status}: ${response.statusText}`,
+            data: error
+          };
+        }
+        
+        const jsonResponse = await response.json();
+        console.log('=== SUCCESS RESPONSE ===');
+        console.log('Response data:', JSON.stringify(jsonResponse, null, 2));
+        
+        // Update successful base URL index
+        currentBaseUrlIndex = (currentBaseUrlIndex + i) % BASE_URLS.length;
+        
+        if (jsonResponse.requiresSubscription) {
+          console.log('🚨 SUBSCRIPTION REQUIRED - but letting screens handle navigation');
+        }
+        
+        return jsonResponse;
+      } catch (error) {
+        console.log(`=== NETWORK ERROR (URL ${i + 1}) ===`);
+        console.log('Error:', error.message);
+        
+        // If this is the last URL to try, return the error
+        if (i === BASE_URLS.length - 1) {
+          return {
+            success: false,
+            message: `Network error: ${error.message}. Please check your connection.`,
+            data: { error: error.message, type: error.name }
+          };
+        }
+        
+        console.log('Trying next URL...');
+        continue;
+      }
     }
   }
 
