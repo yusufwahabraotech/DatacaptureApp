@@ -122,7 +122,11 @@ const LoginScreen = ({ navigation, route }) => {
           <View style={styles.bgCircle2} />
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>VD</Text>
+            <Image 
+              source={require('../assets/Vestradat_logo_new.png')} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
             <TouchableOpacity 
               style={styles.roleToggleButton}
               onPress={() => navigation.navigate('RoleSelection')}
@@ -267,11 +271,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  logoText: {
-    fontSize: 48,
-    color: '#7C3AED',
-    fontWeight: 'bold',
-    letterSpacing: -2,
+  logo: {
+    width: 120,
+    height: 60,
   },
   headerContainer: {
     alignItems: 'flex-start',

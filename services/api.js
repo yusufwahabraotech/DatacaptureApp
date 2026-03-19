@@ -3,10 +3,10 @@ import { Country, State, City } from 'country-state-city';
 
 // Multiple base URLs for different network configurations
 const BASE_URLS = [
-  'https://datacapture-backend.onrender.com/api',  // Current
-  'http://192.168.1.183:3000/api',  // Alternative 1
-  'http://172.20.10.2:3000/api',    // Alternative 2
-  'http://192.168.0.183:3000/api'  // Production/Render URL
+  'http://192.168.0.183:3000/api',  // Primary - Your IPv4 Address
+  'https://datacapture-backend.onrender.com/api',  // Alternative 1
+  'http://192.168.1.183:3000/api',  // Alternative 2
+  'http://172.20.10.2:3000/api'    // Alternative 3
 ];
 
 let currentBaseUrlIndex = 0;
@@ -2084,6 +2084,17 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(verificationData),
     });
+  }
+
+  static async submitVerification(verificationId) {
+    return this.apiCall(`/data-verification/${verificationId}/submit`, {
+      method: 'POST',
+    });
+  }
+
+  // NEW API METHOD FOR ASSIGNED LOCATIONS
+  static async getMyAssignedLocations() {
+    return this.apiCall('/data-verification/my-assigned-locations');
   }
 
   static async getMyVerifications() {

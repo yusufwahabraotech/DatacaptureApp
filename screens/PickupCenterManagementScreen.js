@@ -71,6 +71,17 @@ const PickupCenterManagementScreen = ({ navigation }) => {
       return;
     }
 
+    // Check for duplicate center names
+    const isDuplicate = pickupCenters.some(center => 
+      center.centerName.toLowerCase() === formData.centerName.toLowerCase().trim() && 
+      (!editingCenter || center.id !== editingCenter.id)
+    );
+    
+    if (isDuplicate) {
+      Alert.alert('Error', 'A pickup center with this name already exists');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -433,7 +444,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingTop: 60,
+    paddingBottom: 15,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',

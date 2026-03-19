@@ -217,16 +217,34 @@ const VerificationDetailsScreen = ({ route, navigation }) => {
         )}
 
         {/* Building Pictures */}
-        {verification.buildingPictures && verification.buildingPictures.length > 0 && (
+        {verification.buildingPictures && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Building Pictures</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {verification.buildingPictures.map((picture, index) => (
-                <View key={index} style={styles.pictureContainer}>
-                  <Image source={{ uri: picture.url }} style={styles.picture} />
-                  <Text style={styles.pictureLabel}>{picture.label}</Text>
-                </View>
-              ))}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.picturesScroll}>
+              {[
+                { key: 'frontView', label: 'Front View of Building' },
+                { key: 'streetPicture', label: 'Street Picture' },
+                { key: 'agentInFrontBuilding', label: 'Agent in Front of Building' },
+                { key: 'whatsappLocation', label: 'WhatsApp Location Screenshot' },
+                { key: 'insideOrganization', label: 'Inside Organization' },
+                { key: 'withStaffOrOwner', label: 'With Staff or Owner' },
+                { key: 'videoWithNeighbor', label: 'Video with Neighbor' },
+              ].map((pictureType) => {
+                const picture = verification.buildingPictures[pictureType.key];
+                if (!picture || !picture.fileUrl || picture.fileUrl === 'placeholder-url') return null;
+                
+                return (
+                  <View key={pictureType.key} style={styles.pictureContainer}>
+                    <Image source={{ uri: picture.fileUrl }} style={styles.picture} />
+                    <Text style={styles.pictureLabel}>{pictureType.label}</Text>
+                    {picture.caption && (
+                      <View style={styles.captionContainer}>
+                        <Text style={styles.captionText}>{picture.caption}</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </ScrollView>
           </View>
         )}
@@ -360,9 +378,13 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
   },
+  picturesScroll: {
+    paddingVertical: 8,
+  },
   pictureContainer: {
-    marginRight: 12,
+    marginRight: 16,
     alignItems: 'center',
+    width: 140,
   },
   picture: {
     width: 120,
@@ -373,8 +395,22 @@ const styles = StyleSheet.create({
   pictureLabel: {
     fontSize: 12,
     color: '#666',
-    marginTop: 4,
+    marginTop: 6,
     textAlign: 'center',
+    fontWeight: '500',
+  },
+  captionContainer: {
+    marginTop: 6,
+    backgroundColor: '#F8F9FA',
+    padding: 8,
+    borderRadius: 6,
+    width: '100%',
+  },
+  captionText: {
+    fontSize: 11,
+    color: '#374151',
+    textAlign: 'center',
+    lineHeight: 14,
   },
   locationCard: {
     backgroundColor: '#F8F9FA',

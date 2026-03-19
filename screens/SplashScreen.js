@@ -111,7 +111,11 @@ const SplashScreen = ({ navigation }) => {
           }
         ]}
       >
-        <Text style={styles.logoText}>VD</Text>
+        <Image 
+          source={require('../assets/Vestradat_logo_new.png')} 
+          style={styles.logo}
+          resizeMode="contain"
+        />
       </Animated.View>
       
       <Animated.View style={[styles.textContainer, { opacity: textFadeAnim }]}>
@@ -134,11 +138,10 @@ const styles = StyleSheet.create({
     zIndex: 10,
     marginBottom: 40,
   },
-  logoText: {
-    fontSize: 72,
-    color: 'white',
-    fontWeight: 'bold',
-    letterSpacing: -3,
+  logo: {
+    width: 180,
+    height: 90,
+    tintColor: 'white',
   },
   textContainer: {
     alignItems: 'center',

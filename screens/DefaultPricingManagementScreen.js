@@ -9,57 +9,12 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
 import SearchableDropdown from '../components/SearchableDropdown';
-
-const CustomDropdown = ({ placeholder, value, options, onSelect, disabled }) => {
-  const [showOptions, setShowOptions] = useState(false);
-  
-  return (
-    <View style={styles.dropdownContainer}>
-      <TouchableOpacity 
-        style={[styles.dropdownButton, disabled && styles.dropdownDisabled]}
-        onPress={() => !disabled && setShowOptions(true)}
-        disabled={disabled}
-      >
-        <Text style={[styles.dropdownText, !value && styles.placeholderText]}>
-          {value || placeholder}
-        </Text>
-        <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
-      </TouchableOpacity>
-      
-      <Modal visible={showOptions} transparent animationType="fade">
-        <TouchableOpacity 
-          style={styles.dropdownOverlay} 
-          onPress={() => setShowOptions(false)}
-        >
-          <View style={styles.dropdownModal}>
-            <FlatList
-              data={options}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.dropdownOption}
-                  onPress={() => {
-                    onSelect(item.value || item);
-                    setShowOptions(false);
-                  }}
-                >
-                  <Text style={styles.dropdownOptionText}>{item.label || item}</Text>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </View>
-  );
-};
 
 const DefaultPricingManagementScreen = ({ navigation }) => {
   const [pricingList, setPricingList] = useState([]);
@@ -69,10 +24,8 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [lgas, setLgas] = useState([]);
-  const [showCustomCountry, setShowCustomCountry] = useState(false);
-  const [showCustomState, setShowCustomState] = useState(false);
-  const [showCustomLGA, setShowCustomLGA] = useState(false);
-  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [cities, setCities] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(null);
   const [formData, setFormData] = useState({
     country: '',
     state: '',
@@ -134,45 +87,43 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
     }
   };
 
-  const onCountryChange = (country) => {
-    if (country === 'Others') {
-      setShowCustomCountry(true);
-      setFormData({...formData, country: '', state: '', lga: '', city: ''});
-      setStates([]);
-      setLgas([]);
-    } else {
-      setShowCustomCountry(false);
-      setFormData({...formData, country, state: '', lga: '', city: ''});
-      setStates([]);
-      setLgas([]);
-      if (country) {
-        loadStates(country);
+  const loadCities = async (countryName, stateName, lga) => {
+    try {
+      const response = await ApiService.getExternalCities(countryName, stateName, lga);
+      if (response.success) {
+        setCities(response.data.cities.map(city => ({ name: city, value: city })));
       }
+    } catch (error) {
+      console.error('Error loading cities:', error);
     }
   };
 
-  const onStateChange = (state) => {
-    if (state === 'Others') {
-      setShowCustomState(true);
-      setFormData({...formData, state: '', lga: '', city: ''});
-      setLgas([]);
-    } else {
-      setShowCustomState(false);
-      setFormData({...formData, state, lga: '', city: ''});
-      setLgas([]);
-      if (state && formData.country) {
-        loadLGAs(formData.country, state);
-      }
-    }
-  };
+  const handleDropdownSelect = async (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setShowDropdown(null);
 
-  const onLGAChange = (lga) => {
-    if (lga === 'Others') {
-      setShowCustomLGA(true);
-      setFormData({...formData, lga: '', city: ''});
-    } else {
-      setShowCustomLGA(false);
-      setFormData({...formData, lga, city: ''});
+    // Reset dependent fields and load next level data
+    if (field === 'country') {
+      setFormData(prev => ({ ...prev, state: '', lga: '', city: '' }));
+      setStates([]);
+      setLgas([]);
+      setCities([]);
+      if (value) {
+        await loadStates(value);
+      }
+    } else if (field === 'state') {
+      setFormData(prev => ({ ...prev, lga: '', city: '' }));
+      setLgas([]);
+      setCities([]);
+      if (value && formData.country) {
+        await loadLGAs(formData.country, value);
+      }
+    } else if (field === 'lga') {
+      setFormData(prev => ({ ...prev, city: '' }));
+      setCities([]);
+      if (value && formData.country && formData.state) {
+        await loadCities(formData.country, formData.state, value);
+      }
     }
   };
 
@@ -187,6 +138,47 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
       description: pricing.description || ''
     });
     setShowCreateModal(true);
+  };
+
+  const renderDropdown = (field, data, placeholder) => {
+    const isDisabled = 
+      (field === 'state' && !formData.country) ||
+      (field === 'lga' && !formData.state) ||
+      (field === 'city' && !formData.lga);
+
+    return (
+      <TouchableOpacity
+        style={[styles.dropdown, isDisabled && styles.disabledDropdown]}
+        onPress={() => !isDisabled && setShowDropdown(field)}
+        disabled={isDisabled}
+      >
+        <Text style={[styles.dropdownText, !formData[field] && styles.placeholderText]}>
+          {formData[field] || placeholder}
+        </Text>
+        <Ionicons name="chevron-down" size={20} color={isDisabled ? '#9CA3AF' : '#6B7280'} />
+      </TouchableOpacity>
+    );
+  };
+
+  const renderDropdownModal = () => {
+    if (!showDropdown) return null;
+
+    const currentData = showDropdown === 'country' ? countries :
+                       showDropdown === 'state' ? states :
+                       showDropdown === 'lga' ? lgas : cities;
+
+    return (
+      <SearchableDropdown
+        visible={true}
+        onClose={() => setShowDropdown(null)}
+        data={currentData.map(item => ({ label: item.name || item, value: item.name || item }))}
+        onSelect={(item) => handleDropdownSelect(showDropdown, item.value || item.label)}
+        title={`Select ${showDropdown.charAt(0).toUpperCase() + showDropdown.slice(1)}`}
+        searchPlaceholder={`Search ${showDropdown}...`}
+        showOthersOption={true}
+        onOthersSelect={(customValue) => handleDropdownSelect(showDropdown, customValue)}
+      />
+    );
   };
 
   const createDefaultPricing = async () => {
@@ -303,8 +295,11 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Default Pricing</Text>
-        <TouchableOpacity onPress={() => setShowCreateModal(true)}>
-          <Ionicons name="add" size={24} color="#7C3AED" />
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => setShowCreateModal(true)}
+        >
+          <Ionicons name="add" size={24} color="white" />
         </TouchableOpacity>
       </View>
 
@@ -366,87 +361,50 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
             >
                 <Text style={styles.modalTitle}>{editingPricing ? 'Edit' : 'Create'} Default Pricing</Text>
                 
-                <TouchableOpacity
-                  style={[styles.dropdownButton, styles.dropdownContainer]}
-                  onPress={() => setShowCountryDropdown(true)}
-                >
-                  <Text style={[styles.dropdownText, !formData.country && styles.placeholderText]}>
-                    {formData.country || 'Select Country *'}
-                  </Text>
-                  <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
-                </TouchableOpacity>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Country *</Text>
+                  {renderDropdown('country', countries, 'Select Country')}
+                </View>
                 
-                {showCustomCountry && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>State (Optional)</Text>
+                  {renderDropdown('state', states, 'Select State')}
+                </View>
+                
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>LGA (Optional)</Text>
+                  {renderDropdown('lga', lgas, 'Select LGA')}
+                </View>
+                
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>City (Optional)</Text>
+                  {renderDropdown('city', cities, 'Select City')}
+                </View>
+                
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Default Fee (₦) *</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter Custom Country *"
+                    placeholder="Default Fee (₦) *"
                     placeholderTextColor="#6B7280"
-                    value={formData.country}
-                    onChangeText={(country) => setFormData({...formData, country})}
+                    value={formData.defaultFee}
+                    onChangeText={(defaultFee) => setFormData({...formData, defaultFee})}
+                    keyboardType="numeric"
                   />
-                )}
+                </View>
                 
-                <CustomDropdown
-                  placeholder="Select State (Optional)"
-                  value={formData.state}
-                  options={[...states.map(s => ({ label: s.name, value: s.name })), { label: 'Others', value: 'Others' }]}
-                  onSelect={onStateChange}
-                />
-                
-                {showCustomState && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Description</Text>
                   <TextInput
-                    style={styles.input}
-                    placeholder="Enter Custom State"
+                    style={[styles.input, styles.textArea]}
+                    placeholder="Description"
                     placeholderTextColor="#6B7280"
-                    value={formData.state}
-                    onChangeText={(state) => setFormData({...formData, state})}
+                    value={formData.description}
+                    onChangeText={(description) => setFormData({...formData, description})}
+                    multiline
+                    numberOfLines={3}
                   />
-                )}
-                
-                <CustomDropdown
-                  placeholder="Select LGA (Optional)"
-                  value={formData.lga}
-                  options={[...lgas.map(lga => ({ label: lga, value: lga })), { label: 'Others', value: 'Others' }]}
-                  onSelect={onLGAChange}
-                  disabled={lgas.length === 0}
-                />
-                
-                {showCustomLGA && (
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter Custom LGA"
-                    placeholderTextColor="#6B7280"
-                    value={formData.lga}
-                    onChangeText={(lga) => setFormData({...formData, lga})}
-                  />
-                )}
-                
-                <TextInput
-                  style={styles.input}
-                  placeholder="Default Fee (₦) *"
-                  placeholderTextColor="#6B7280"
-                  value={formData.defaultFee}
-                  onChangeText={(defaultFee) => setFormData({...formData, defaultFee})}
-                  keyboardType="numeric"
-                />
-                
-                <TextInput
-                  style={styles.input}
-                  placeholder="City (Optional)"
-                  placeholderTextColor="#6B7280"
-                  value={formData.city}
-                  onChangeText={(city) => setFormData({...formData, city})}
-                />
-                
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="Description"
-                  placeholderTextColor="#6B7280"
-                  value={formData.description}
-                  onChangeText={(description) => setFormData({...formData, description})}
-                  multiline
-                  numberOfLines={3}
-                />
+                </View>
 
                 <View style={styles.modalButtons}>
                   <TouchableOpacity 
@@ -463,21 +421,8 @@ const DefaultPricingManagementScreen = ({ navigation }) => {
                   </TouchableOpacity>
                 </View>
 
-              {/* Country Dropdown Modal */}
-              {showCountryDropdown && (
-                <SearchableDropdown
-                  visible={showCountryDropdown}
-                  onClose={() => setShowCountryDropdown(false)}
-                  data={[...countries.map(c => ({ label: c.name, value: c.name })), { label: 'Others', value: 'Others' }]}
-                  onSelect={(item) => {
-                    onCountryChange(item.value || item.label);
-                    setShowCountryDropdown(false);
-                  }}
-                  title="Select Country"
-                  searchPlaceholder="Search countries..."
-                  showOthersOption={false}
-                />
-              )}
+              {/* Dropdown Modal */}
+              {renderDropdownModal()}
             </ScrollView>
           </View>
           </KeyboardAvoidingView>
@@ -501,7 +446,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -510,6 +457,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: '#1F2937',
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#7C3AED',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     flex: 1,
@@ -614,11 +569,40 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     fontSize: 16,
-    marginBottom: 12,
+    backgroundColor: 'white',
+    color: '#1F2937',
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  dropdown: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'white',
+  },
+  disabledDropdown: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: '#1F2937',
   },
   textArea: {
     height: 80,
@@ -654,57 +638,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  dropdownContainer: {
-    marginBottom: 12,
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-  },
-  dropdownDisabled: {
-    backgroundColor: '#F9FAFB',
-    opacity: 0.6,
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  placeholderText: {
-    color: '#9CA3AF',
-  },
-  dropdownOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dropdownModal: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    width: '80%',
-    maxHeight: 300,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  dropdownOption: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  dropdownOptionText: {
-    fontSize: 16,
-    color: '#1F2937',
   },
 });
 

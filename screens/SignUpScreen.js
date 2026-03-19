@@ -29,6 +29,7 @@ const SignUpScreen = ({ navigation, route }) => {
   const [organizationName, setOrganizationName] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('');
   const [showCountryModal, setShowCountryModal] = useState(false);
+  const [countrySearchText, setCountrySearchText] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordMismatch, setPasswordMismatch] = useState(false);
@@ -117,6 +118,10 @@ const SignUpScreen = ({ navigation, route }) => {
     }
   };
 
+  const filteredCountries = countries.filter(country => 
+    country.toLowerCase().includes(countrySearchText.toLowerCase())
+  );
+
   const renderCountryItem = ({ item }) => (
     <TouchableOpacity
       style={styles.countryItem}
@@ -142,7 +147,11 @@ const SignUpScreen = ({ navigation, route }) => {
             <View style={styles.bgCircle2} />
             {/* Logo */}
             <View style={styles.logoContainer}>
-              <Text style={styles.logoText}>VD</Text>
+              <Image 
+                source={require('../assets/Vestradat_logo_new.png')} 
+                style={styles.logo}
+                resizeMode="contain"
+              />
               <TouchableOpacity 
                 style={styles.roleToggleButton}
                 onPress={() => navigation.navigate('RoleSelection')}
@@ -346,12 +355,25 @@ const SignUpScreen = ({ navigation, route }) => {
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Country</Text>
-              <TouchableOpacity onPress={() => setShowCountryModal(false)}>
+              <TouchableOpacity onPress={() => {
+                setShowCountryModal(false);
+                setCountrySearchText('');
+              }}>
                 <Ionicons name="close" size={24} color="#1F2937" />
               </TouchableOpacity>
             </View>
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search countries..."
+                placeholderTextColor="#9CA3AF"
+                value={countrySearchText}
+                onChangeText={setCountrySearchText}
+              />
+            </View>
             <FlatList
-              data={countries}
+              data={filteredCountries}
               renderItem={renderCountryItem}
               keyExtractor={(item) => item}
               style={styles.countryList}
@@ -413,11 +435,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  logoText: {
-    fontSize: 48,
-    color: '#7C3AED',
-    fontWeight: 'bold',
-    letterSpacing: -2,
+  logo: {
+    width: 120,
+    height: 60,
   },
   headerContainer: {
     alignItems: 'flex-start',
@@ -553,6 +573,23 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1F2937',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1F2937',
+    paddingVertical: 8,
   },
   countryList: {
     flex: 1,

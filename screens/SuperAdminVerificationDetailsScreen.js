@@ -203,12 +203,32 @@ const SuperAdminVerificationDetailsScreen = ({ route, navigation }) => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Building Pictures</Text>
             <View style={styles.picturesGrid}>
-              {Object.entries(verification.buildingPictures).map(([key, url]) => (
-                <TouchableOpacity key={key} style={styles.pictureContainer} onPress={() => openFile(url)}>
-                  <Image source={{ uri: url }} style={styles.picture} />
-                  <Text style={styles.pictureLabel}>{key.replace(/([A-Z])/g, ' $1').toLowerCase()}</Text>
-                </TouchableOpacity>
-              ))}
+              {[
+                { key: 'frontView', label: 'Front View of Building' },
+                { key: 'streetPicture', label: 'Street Picture' },
+                { key: 'agentInFrontBuilding', label: 'Agent in Front of Building' },
+                { key: 'whatsappLocation', label: 'WhatsApp Location Screenshot' },
+                { key: 'insideOrganization', label: 'Inside Organization' },
+                { key: 'withStaffOrOwner', label: 'With Staff or Owner' },
+                { key: 'videoWithNeighbor', label: 'Video with Neighbor' },
+              ].map((pictureType) => {
+                const picture = verification.buildingPictures[pictureType.key];
+                if (!picture || !picture.fileUrl || picture.fileUrl === 'placeholder-url') return null;
+                
+                return (
+                  <View key={pictureType.key} style={styles.pictureContainer}>
+                    <TouchableOpacity onPress={() => openFile(picture.fileUrl)}>
+                      <Image source={{ uri: picture.fileUrl }} style={styles.picture} />
+                    </TouchableOpacity>
+                    <Text style={styles.pictureLabel}>{pictureType.label}</Text>
+                    {picture.caption && (
+                      <View style={styles.captionContainer}>
+                        <Text style={styles.captionText}>{picture.caption}</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
           </View>
         )}
@@ -449,9 +469,22 @@ const styles = StyleSheet.create({
   pictureLabel: {
     fontSize: 12,
     color: '#6B7280',
-    marginTop: 4,
+    marginTop: 6,
     textAlign: 'center',
-    textTransform: 'capitalize',
+    fontWeight: '500',
+  },
+  captionContainer: {
+    marginTop: 6,
+    backgroundColor: '#F8F9FA',
+    padding: 8,
+    borderRadius: 6,
+    width: '100%',
+  },
+  captionText: {
+    fontSize: 11,
+    color: '#374151',
+    textAlign: 'center',
+    lineHeight: 14,
   },
   transportSection: {
     marginBottom: 16,

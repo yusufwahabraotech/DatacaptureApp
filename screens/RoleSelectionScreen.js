@@ -26,7 +26,11 @@ const RoleSelectionScreen = ({ navigation }) => {
       >
         {/* Logo */}
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>VC</Text>
+          <Image 
+            source={require('../assets/Vestradat_logo_new.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Header */}
@@ -102,11 +106,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: height < 700 ? 20 : 40,
   },
-  logoText: {
-    fontSize: height < 700 ? 48 : 64,
-    color: '#7C3AED',
-    fontWeight: 'bold',
-    letterSpacing: -2,
+  logo: {
+    width: 150,
+    height: 75,
   },
   headerContainer: {
     alignItems: 'center',
