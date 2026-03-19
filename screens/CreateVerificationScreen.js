@@ -462,23 +462,43 @@ const CreateVerificationScreen = ({ navigation }) => {
     };
 
     try {
+      console.log('🔍 DEBUG: About to create verification');
+      console.log('Verification data:', JSON.stringify(verificationData, null, 2));
+      
       // Step 1: Create verification (saves as draft)
       const response = await ApiService.createVerificationFromAssignment(verificationData);
+      console.log('🔍 Create verification response:', JSON.stringify(response, null, 2));
+      
       if (response.success) {
+        const verificationId = response.data.verificationId || response.data.verification?._id || response.data._id;
+        console.log('🔍 Extracted verification ID:', verificationId);
+        
+        if (!verificationId) {
+          console.error('❌ No verification ID found in response');
+          Alert.alert('Error', 'Verification created but ID not found. Please try again.');
+          return;
+        }
+        
         // Step 2: Submit verification (changes status to submitted)
-        const submitResponse = await ApiService.submitVerification(response.data.verificationId);
+        console.log('🔍 About to submit verification with ID:', verificationId);
+        const submitResponse = await ApiService.submitVerification(verificationId);
+        console.log('🔍 Submit verification response:', JSON.stringify(submitResponse, null, 2));
+        
         if (submitResponse.success) {
           Alert.alert('Success', 'Verification submitted successfully', [
             { text: 'OK', onPress: () => navigation.goBack() }
           ]);
         } else {
-          Alert.alert('Warning', 'Verification created but failed to submit. You can submit it later.');
+          Alert.alert('Warning', 'Verification created but failed to submit. You can submit it later from your verifications list.');
+          navigation.goBack();
         }
       } else {
-        Alert.alert('Error', 'Failed to create verification');
+        console.error('❌ Failed to create verification:', response.message);
+        Alert.alert('Error', response.message || 'Failed to create verification');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to create verification');
+      console.error('❌ Exception in createVerification:', error);
+      Alert.alert('Error', 'Failed to create verification. Please try again.');
     }
   };
 
@@ -695,9 +715,9 @@ const CreateVerificationScreen = ({ navigation }) => {
               <View style={styles.claimedLocationCard}>
                 <Text style={styles.claimedTitle}>Organization Claims:</Text>
                 <Text style={styles.claimedText}>
-                  {formData.organizationClaimedLocation.cityRegion}, {formData.organizationClaimedLocation.city}
+                  {formData.organizationClaimedLocation.cityRegion || 'N/A'}, {formData.organizationClaimedLocation.city || 'N/A'}
                 </Text>
-                <Text style={styles.claimedAddress}>{formData.organizationClaimedLocation.address}</Text>
+                <Text style={styles.claimedAddress}>{formData.organizationClaimedLocation.address || 'Address not available'}</Text>
               </View>
             )}
             
@@ -855,7 +875,7 @@ const CreateVerificationScreen = ({ navigation }) => {
                   <TextInput
                     style={styles.input}
                     placeholder="e.g., Home, Office, Bus Stop"
-                    value={step.startPoint}
+                    value={step.startPoint || ''}
                     onChangeText={(text) => updateTransportationStep(index, 'startPoint', text)}
                   />
                 </View>
@@ -865,7 +885,7 @@ const CreateVerificationScreen = ({ navigation }) => {
                   <TextInput
                     style={styles.input}
                     placeholder="e.g., 08:00 AM"
-                    value={step.time}
+                    value={step.time || ''}
                     onChangeText={(text) => updateTransportationStep(index, 'time', text)}
                   />
                 </View>
@@ -875,7 +895,7 @@ const CreateVerificationScreen = ({ navigation }) => {
                   <TextInput
                     style={styles.input}
                     placeholder="e.g., Bus Terminal, Train Station"
-                    value={step.nextDestination}
+                    value={step.nextDestination || ''}
                     onChangeText={(text) => updateTransportationStep(index, 'nextDestination', text)}
                   />
                 </View>
@@ -885,7 +905,7 @@ const CreateVerificationScreen = ({ navigation }) => {
                   <TextInput
                     style={styles.input}
                     placeholder="e.g., 500"
-                    value={step.fareSpent.toString()}
+                    value={step.fareSpent ? step.fareSpent.toString() : ''}
                     onChangeText={(text) => updateTransportationStep(index, 'fareSpent', Number(text) || 0)}
                     keyboardType="numeric"
                   />
@@ -896,7 +916,7 @@ const CreateVerificationScreen = ({ navigation }) => {
                   <TextInput
                     style={styles.input}
                     placeholder="e.g., 30 minutes, 1 hour"
-                    value={step.timeSpent}
+                    value={step.timeSpent || ''}
                     onChangeText={(text) => updateTransportationStep(index, 'timeSpent', text)}
                   />
                 </View>
@@ -915,7 +935,7 @@ const CreateVerificationScreen = ({ navigation }) => {
               <TextInput
                 style={styles.input}
                 placeholder="e.g., Organization Office, Target Location"
-                value={formData.finalDestination}
+                value={formData.finalDestination || ''}
                 onChangeText={(text) => setFormData({...formData, finalDestination: text})}
               />
             </View>
@@ -925,7 +945,7 @@ const CreateVerificationScreen = ({ navigation }) => {
               <TextInput
                 style={styles.input}
                 placeholder="e.g., 200"
-                value={formData.finalFareSpent.toString()}
+                value={formData.finalFareSpent ? formData.finalFareSpent.toString() : ''}
                 onChangeText={(text) => setFormData({...formData, finalFareSpent: Number(text) || 0})}
                 keyboardType="numeric"
               />
@@ -936,7 +956,7 @@ const CreateVerificationScreen = ({ navigation }) => {
               <TextInput
                 style={styles.input}
                 placeholder="e.g., 09:15 AM"
-                value={formData.finalTime}
+                value={formData.finalTime || ''}
                 onChangeText={(text) => setFormData({...formData, finalTime: text})}
               />
             </View>
@@ -946,7 +966,7 @@ const CreateVerificationScreen = ({ navigation }) => {
               <TextInput
                 style={styles.input}
                 placeholder="e.g., 1 hour 15 minutes"
-                value={formData.totalJourneyTime}
+                value={formData.totalJourneyTime || ''}
                 onChangeText={(text) => setFormData({...formData, totalJourneyTime: text})}
               />
             </View>
@@ -958,7 +978,7 @@ const CreateVerificationScreen = ({ navigation }) => {
               <TextInput
                 style={styles.input}
                 placeholder="e.g., 1500"
-                value={formData.totalTransportationCost.toString()}
+                value={formData.totalTransportationCost ? formData.totalTransportationCost.toString() : ''}
                 onChangeText={(text) => setFormData({...formData, totalTransportationCost: Number(text) || 0})}
                 keyboardType="numeric"
               />
@@ -969,7 +989,7 @@ const CreateVerificationScreen = ({ navigation }) => {
               <TextInput
                 style={styles.input}
                 placeholder="e.g., 300 (food, calls, etc.)"
-                value={formData.otherExpensesCost.toString()}
+                value={formData.otherExpensesCost ? formData.otherExpensesCost.toString() : ''}
                 onChangeText={(text) => setFormData({...formData, otherExpensesCost: Number(text) || 0})}
                 keyboardType="numeric"
               />
