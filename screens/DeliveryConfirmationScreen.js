@@ -153,14 +153,17 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
       return false;
     }
 
-    if (deliveryMode === 'shipping' && !deliveryAddress.trim()) {
-      Alert.alert('Required Field', 'Delivery address is required for shipping mode');
-      return false;
-    }
+    // Skip delivery mode validation for services
+    if (order.itemType !== 'service') {
+      if (deliveryMode === 'shipping' && !deliveryAddress.trim()) {
+        Alert.alert('Required Field', 'Delivery address is required for shipping mode');
+        return false;
+      }
 
-    if (deliveryMode === 'pickup_center' && !selectedPickupCenter) {
-      Alert.alert('Required Field', 'Please select a pickup center');
-      return false;
+      if (deliveryMode === 'pickup_center' && !selectedPickupCenter) {
+        Alert.alert('Required Field', 'Please select a pickup center');
+        return false;
+      }
     }
 
     return true;
@@ -172,9 +175,10 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
     setLoading(true);
     try {
       const confirmationData = {
-        deliveryMode,
-        ...(deliveryMode === 'shipping' && { deliveryAddress }),
-        ...(deliveryMode === 'pickup_center' && { pickupCenterId: selectedPickupCenter._id }),
+        // Only include delivery mode for products
+        ...(order.itemType !== 'service' && { deliveryMode }),
+        ...(order.itemType !== 'service' && deliveryMode === 'shipping' && { deliveryAddress }),
+        ...(order.itemType !== 'service' && deliveryMode === 'pickup_center' && { pickupCenterId: selectedPickupCenter._id }),
         ...(productImage && { productImage }),
         ...(representativeImage && { representativeImage }),
         ...(userImage && { userImage }),
@@ -257,28 +261,30 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Delivery Mode */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Delivery Mode</Text>
-          {['pickup_center', 'shipping', 'organization_location'].map((mode) => (
-            <TouchableOpacity
-              key={mode}
-              style={[styles.radioOption, deliveryMode === mode && styles.radioOptionSelected]}
-              onPress={() => setDeliveryMode(mode)}
-            >
-              <View style={[styles.radioCircle, deliveryMode === mode && styles.radioCircleSelected]}>
-                {deliveryMode === mode && <View style={styles.radioInner} />}
-              </View>
-              <Text style={styles.radioText}>
-                {mode === 'pickup_center' ? 'Pickup Center' : 
-                 mode === 'shipping' ? 'Shipping to Address' : 'Organization Location'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* Delivery Mode - Only show for products, not services */}
+        {order.itemType !== 'service' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Delivery Mode</Text>
+            {['pickup_center', 'shipping', 'organization_location'].map((mode) => (
+              <TouchableOpacity
+                key={mode}
+                style={[styles.radioOption, deliveryMode === mode && styles.radioOptionSelected]}
+                onPress={() => setDeliveryMode(mode)}
+              >
+                <View style={[styles.radioCircle, deliveryMode === mode && styles.radioCircleSelected]}>
+                  {deliveryMode === mode && <View style={styles.radioInner} />}
+                </View>
+                <Text style={styles.radioText}>
+                  {mode === 'pickup_center' ? 'Pickup Center' : 
+                   mode === 'shipping' ? 'Shipping to Address' : 'Organization Location'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
-        {/* Conditional Fields */}
-        {deliveryMode === 'shipping' && (
+        {/* Conditional Fields - Only for products */}
+        {order.itemType !== 'service' && deliveryMode === 'shipping' && (
           <View style={styles.section}>
             <Text style={styles.inputLabel}>Delivery Address *</Text>
             <TextInput
@@ -291,7 +297,7 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
           </View>
         )}
 
-        {deliveryMode === 'pickup_center' && (
+        {order.itemType !== 'service' && deliveryMode === 'pickup_center' && (
           <View style={styles.section}>
             <Text style={styles.inputLabel}>Select Pickup Center *</Text>
             <TouchableOpacity

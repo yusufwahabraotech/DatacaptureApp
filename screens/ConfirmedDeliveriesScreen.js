@@ -185,17 +185,25 @@ const ConfirmedDeliveriesScreen = ({ navigation }) => {
         <TouchableOpacity
           style={[
             styles.processButton,
-            !item.organizationBankDetails && styles.processButtonDisabled
+            (!item.organizationBankDetails || orderData.remittanceStatus === 'processing' || orderData.remittanceStatus === 'processed') && styles.processButtonDisabled
           ]}
           onPress={() => handleProcessRemittance({
             ...orderData,
             organizationBankDetails: item.organizationBankDetails
           })}
-          disabled={!item.organizationBankDetails}
+          disabled={!item.organizationBankDetails || orderData.remittanceStatus === 'processing' || orderData.remittanceStatus === 'processed'}
         >
-          <Ionicons name="card" size={20} color="white" />
+          <Ionicons 
+            name={orderData.remittanceStatus === 'processed' ? 'checkmark-circle' : 
+                  orderData.remittanceStatus === 'processing' ? 'time' : 'card'} 
+            size={20} 
+            color="white" 
+          />
           <Text style={styles.processButtonText}>
-            {item.organizationBankDetails ? 'Process Remittance' : 'Bank Details Required'}
+            {!item.organizationBankDetails ? 'Bank Details Required' :
+             orderData.remittanceStatus === 'processed' ? 'Remittance Processed' :
+             orderData.remittanceStatus === 'processing' ? 'Remittance In Progress' :
+             'Process Remittance'}
           </Text>
         </TouchableOpacity>
       </View>

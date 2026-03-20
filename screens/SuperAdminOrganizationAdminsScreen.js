@@ -47,6 +47,36 @@ const SuperAdminOrganizationAdminsScreen = ({ navigation }) => {
     }
   };
 
+  const toggleAdminStatus = async (adminId, currentStatus) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const action = newStatus === 'active' ? 'activate' : 'deactivate';
+    
+    Alert.alert(
+      `${action.charAt(0).toUpperCase() + action.slice(1)} Admin`,
+      `Are you sure you want to ${action} this admin?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: action.charAt(0).toUpperCase() + action.slice(1),
+          style: newStatus === 'active' ? 'default' : 'destructive',
+          onPress: async () => {
+            try {
+              const response = await ApiService.updateSuperAdminAdminStatus(adminId, newStatus);
+              if (response.success) {
+                Alert.alert('Success', `Admin ${action}d successfully`);
+                fetchOrganizationAdmins(); // Refresh the list
+              } else {
+                Alert.alert('Error', response.message || `Failed to ${action} admin`);
+              }
+            } catch (error) {
+              Alert.alert('Error', `Failed to ${action} admin`);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const filteredAdmins = admins.filter(admin => 
     admin.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     admin.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -111,12 +141,15 @@ const SuperAdminOrganizationAdminsScreen = ({ navigation }) => {
                   </View>
                 </View>
                 <View style={styles.statusContainer}>
-                  <View style={[
-                    styles.statusBadge,
-                    { backgroundColor: admin.status === 'active' ? '#10B981' : '#EF4444' }
-                  ]}>
+                  <TouchableOpacity 
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: admin.status === 'active' ? '#10B981' : '#EF4444' }
+                    ]}
+                    onPress={() => toggleAdminStatus(admin.id, admin.status)}
+                  >
                     <Text style={styles.statusBadgeText}>{admin.status}</Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               </View>
 

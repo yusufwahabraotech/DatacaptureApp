@@ -39,6 +39,11 @@ const OrganizationManagementScreen = ({ navigation }) => {
   useEffect(() => {
     checkUserRole();
     fetchOrganizations();
+  }, []); // Remove selectedStatus dependency to prevent unnecessary refetches
+
+  // Separate effect for status changes to avoid API calls
+  useEffect(() => {
+    // Status filtering is now handled in filteredOrganizations computed value
   }, [selectedStatus]);
 
   const checkUserRole = async () => {
@@ -57,15 +62,34 @@ const OrganizationManagementScreen = ({ navigation }) => {
 
   const fetchOrganizations = async () => {
     try {
+      setLoading(true);
       const response = await ApiService.getSuperAdminOrganizationAdmins({ 
         page: 1, 
-        limit: 50
+        limit: 100 // Increase limit to get more results
       });
       if (response.success) {
-        setOrganizations(response.data.admins);
+        console.log('🚨 ORGANIZATION ADMINS RESPONSE 🚨');
+        console.log('Total admins found:', response.data.admins?.length || 0);
+        
+        // Debug: Show all organizationIds being returned
+        if (response.data.admins) {
+          console.log('🚨 ALL ORGANIZATION IDs FROM FRONTEND 🚨');
+          response.data.admins.forEach((admin, index) => {
+            console.log(`Admin ${index + 1}:`);
+            console.log('  - User ID:', admin.id);
+            console.log('  - Organization ID:', admin.organizationId);
+            console.log('  - Organization Name:', admin.organizationName);
+          });
+        }
+        
+        setOrganizations(response.data.admins || []);
+      } else {
+        console.log('❌ Failed to fetch organizations:', response.message);
+        setOrganizations([]);
       }
     } catch (error) {
-      console.log('Error fetching organizations:', error);
+      console.log('❌ Error fetching organizations:', error);
+      setOrganizations([]);
     } finally {
       setLoading(false);
     }
@@ -78,38 +102,61 @@ const OrganizationManagementScreen = ({ navigation }) => {
     }
 
     try {
+      setLoading(true);
       const response = await ApiService.createSuperAdminOrganization(newOrg);
       if (response.success) {
         Alert.alert('Success', `Organization created successfully!\nAccount Number: ${response.data.organization.accountNumber}`);
         setShowCreateModal(false);
         setNewOrg({ organizationName: '', email: '', phoneNumber: '', address: '', contactPerson: '' });
-        fetchOrganizations();
+        
+        // Add a small delay before refetching to ensure backend has processed the new organization
+        setTimeout(() => {
+          fetchOrganizations();
+        }, 1000);
       } else {
         Alert.alert('Error', response.message);
       }
     } catch (error) {
+      console.log('❌ Create organization error:', error);
       Alert.alert('Error', 'Failed to create organization');
+    } finally {
+      setLoading(false);
     }
   };
 
   const updateOrganizationStatus = async (orgId, newStatus) => {
     try {
+      setLoading(true);
       const response = await ApiService.updateSuperAdminOrganizationStatus(orgId, newStatus);
+      
       if (response.success) {
-        fetchOrganizations();
+        console.log('✅ Status updated successfully');
+        setTimeout(() => {
+          fetchOrganizations();
+        }, 500);
       } else {
+        console.log('❌ Status update failed:', response.message);
         Alert.alert('Error', response.message);
       }
     } catch (error) {
+      console.log('❌ Status update error:', error);
       Alert.alert('Error', 'Failed to update organization status');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const filteredOrganizations = organizations.filter(org => 
-    org.organizationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    org.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    org.accountNumber?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredOrganizations = organizations.filter(org => {
+    // Search filter
+    const matchesSearch = org.organizationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      org.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      org.accountNumber?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Status filter
+    const matchesStatus = selectedStatus === 'all' || org.status === selectedStatus;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -127,9 +174,18 @@ const OrganizationManagementScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Organizations</Text>
-        <TouchableOpacity onPress={() => setShowCreateModal(true)}>
-          <Ionicons name="add" size={24} color="#7C3AED" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={() => navigation.navigate('SuperAdminOrganizationAdmins')}
+          >
+            <Ionicons name="people" size={20} color="#10B981" />
+            <Text style={styles.headerButtonText}>All Admins</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowCreateModal(true)}>
+            <Ionicons name="add" size={24} color="#7C3AED" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search */}
@@ -168,9 +224,22 @@ const OrganizationManagementScreen = ({ navigation }) => {
       <ScrollView style={styles.orgsList}>
         {loading ? (
           <ActivityIndicator size="large" color="#7C3AED" style={styles.loader} />
+        ) : filteredOrganizations.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>
+              {searchQuery || selectedStatus !== 'all' 
+                ? 'No organizations match your filters' 
+                : 'No organizations found'}
+            </Text>
+            {selectedStatus !== 'all' && (
+              <Text style={styles.emptyStateSubtext}>
+                Try selecting "All" to see all organizations
+              </Text>
+            )}
+          </View>
         ) : (
           filteredOrganizations.map((org) => (
-            <View key={org.id} style={styles.orgCard}>
+            <View key={org.id || org._id} style={styles.orgCard}>
               <View style={styles.orgHeader}>
                 <View style={styles.orgInfo}>
                   <View style={styles.orgAvatar}>
@@ -216,24 +285,29 @@ const OrganizationManagementScreen = ({ navigation }) => {
                   <Text style={styles.actionButtonText}>View Details</Text>
                 </TouchableOpacity>
                 
-                <TouchableOpacity 
-                  style={[styles.actionButton, styles.adminsButton]}
-                  onPress={() => navigation.navigate('SuperAdminOrganizationAdmins')}
-                >
-                  <Text style={styles.adminsButtonText}>View All Admins</Text>
-                </TouchableOpacity>
-                
                 {org.status === 'active' ? (
                   <TouchableOpacity 
                     style={[styles.actionButton, styles.suspendButton]}
-                    onPress={() => updateOrganizationStatus(org.id, 'suspended')}
+                    onPress={() => {
+                      console.log('🚨 SUSPEND BUTTON DEBUG 🚨');
+                      console.log('org.id (user ID):', org.id);
+                      console.log('org.organizationId (org ID):', org.organizationId);
+                      console.log('Using org.id (admin user ID) for suspend');
+                      updateOrganizationStatus(org.id, 'suspended');
+                    }}
                   >
                     <Text style={styles.suspendButtonText}>Suspend</Text>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity 
                     style={[styles.actionButton, styles.activateButton]}
-                    onPress={() => updateOrganizationStatus(org.id, 'active')}
+                    onPress={() => {
+                      console.log('🚨 ACTIVATE BUTTON DEBUG 🚨');
+                      console.log('org.id (user ID):', org.id);
+                      console.log('org.organizationId (org ID):', org.organizationId);
+                      console.log('Using org.id (admin user ID) for activate');
+                      updateOrganizationStatus(org.id, 'active');
+                    }}
                   >
                     <Text style={styles.activateButtonText}>Activate</Text>
                   </TouchableOpacity>
@@ -439,6 +513,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 6,
+  },
+  headerButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#10B981',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -679,6 +772,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: 'white',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
   },
   detailsModalContainer: {
     backgroundColor: 'white',

@@ -199,7 +199,7 @@ const SuperAdminVerificationDetailsScreen = ({ route, navigation }) => {
         )}
 
         {/* Building Pictures */}
-        {verification.buildingPictures && (
+        {verification.buildingPictures ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Building Pictures</Text>
             <View style={styles.picturesGrid}>
@@ -213,22 +213,87 @@ const SuperAdminVerificationDetailsScreen = ({ route, navigation }) => {
                 { key: 'videoWithNeighbor', label: 'Video with Neighbor' },
               ].map((pictureType) => {
                 const picture = verification.buildingPictures[pictureType.key];
-                if (!picture || !picture.fileUrl || picture.fileUrl === 'placeholder-url') return null;
+                
+                // Debug logging
+                console.log(`🖼️ Checking picture ${pictureType.key}:`, picture);
+                
+                // Handle both old format (direct URL) and new format (object with fileUrl)
+                let imageUrl = null;
+                let caption = null;
+                
+                if (typeof picture === 'string') {
+                  // Old format: direct URL string
+                  imageUrl = picture;
+                } else if (picture && typeof picture === 'object') {
+                  // New format: object with fileUrl and caption
+                  imageUrl = picture.fileUrl;
+                  caption = picture.caption;
+                }
+                
+                // Skip if no valid image URL or if it's a placeholder
+                if (!imageUrl || imageUrl === 'placeholder-url' || imageUrl.trim() === '') {
+                  console.log(`⏭️ Skipping ${pictureType.key}: no valid URL`);
+                  return null;
+                }
+                
+                console.log(`✅ Displaying ${pictureType.key}:`, imageUrl);
                 
                 return (
                   <View key={pictureType.key} style={styles.pictureContainer}>
-                    <TouchableOpacity onPress={() => openFile(picture.fileUrl)}>
-                      <Image source={{ uri: picture.fileUrl }} style={styles.picture} />
+                    <TouchableOpacity onPress={() => openFile(imageUrl)}>
+                      <Image 
+                        source={{ uri: imageUrl }} 
+                        style={styles.picture}
+                        onError={(error) => {
+                          console.log(`❌ Image load error for ${pictureType.key}:`, error.nativeEvent.error);
+                        }}
+                        onLoad={() => {
+                          console.log(`✅ Image loaded successfully for ${pictureType.key}`);
+                        }}
+                      />
                     </TouchableOpacity>
                     <Text style={styles.pictureLabel}>{pictureType.label}</Text>
-                    {picture.caption && (
+                    {caption && (
                       <View style={styles.captionContainer}>
-                        <Text style={styles.captionText}>{picture.caption}</Text>
+                        <Text style={styles.captionText}>{caption}</Text>
                       </View>
                     )}
                   </View>
                 );
-              })}
+              }).filter(Boolean)}
+            </View>
+            
+            {/* Show message if no valid pictures found */}
+            {[
+              'frontView', 'streetPicture', 'agentInFrontBuilding', 'whatsappLocation',
+              'insideOrganization', 'withStaffOrOwner', 'videoWithNeighbor'
+            ].every(key => {
+              const picture = verification.buildingPictures[key];
+              const imageUrl = typeof picture === 'string' ? picture : picture?.fileUrl;
+              return !imageUrl || imageUrl === 'placeholder-url' || imageUrl.trim() === '';
+            }) && (
+              <View style={styles.noPicturesContainer}>
+                <Ionicons name="image-outline" size={48} color="#9CA3AF" />
+                <Text style={styles.noPicturesText}>No building pictures available</Text>
+                <Text style={styles.noPicturesSubText}>Pictures may still be uploading or were not provided</Text>
+              </View>
+            )}
+            
+            {/* Debug info */}
+            <View style={styles.debugSection}>
+              <Text style={styles.debugTitle}>Debug Info:</Text>
+              <Text style={styles.debugText}>
+                Building Pictures Object: {JSON.stringify(verification.buildingPictures, null, 2)}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Building Pictures</Text>
+            <View style={styles.noPicturesContainer}>
+              <Ionicons name="image-outline" size={48} color="#9CA3AF" />
+              <Text style={styles.noPicturesText}>No building pictures section found</Text>
+              <Text style={styles.noPicturesSubText}>Building pictures data is missing from verification</Text>
             </View>
           </View>
         )}
@@ -485,6 +550,48 @@ const styles = StyleSheet.create({
     color: '#374151',
     textAlign: 'center',
     lineHeight: 14,
+  },
+  debugSection: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  debugTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400E',
+    marginBottom: 8,
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#A16207',
+    fontFamily: 'monospace',
+  },
+  noPicturesContainer: {
+    alignItems: 'center',
+    padding: 32,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+  },
+  noPicturesText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  noPicturesSubText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginTop: 6,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   transportSection: {
     marginBottom: 16,

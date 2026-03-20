@@ -20,6 +20,8 @@ const CreateVerificationScreen = ({ navigation }) => {
   const [allLocations, setAllLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
   const [formData, setFormData] = useState({
     // Assignment data
     assignmentId: '',
@@ -386,86 +388,122 @@ const CreateVerificationScreen = ({ navigation }) => {
     }
   };
 
+  const uploadImageToCloudinary = async (imageUri) => {
+    try {
+      console.log('📤 Uploading image to Cloudinary:', imageUri);
+      const cloudinaryUrl = await ApiService.uploadToCloudinary(imageUri);
+      console.log('✅ Image uploaded successfully:', cloudinaryUrl);
+      return cloudinaryUrl;
+    } catch (error) {
+      console.log('❌ Cloudinary upload failed:', error);
+      throw error;
+    }
+  };
+
   const createVerification = async () => {
     if (!formData.assignmentId) {
       Alert.alert('Error', 'Please select a location to verify');
       return;
     }
 
-    const verificationData = {
-      assignmentId: formData.assignmentId,
-      
-      country: formData.country,
-      state: formData.state,
-      lga: formData.lga,
-      city: formData.city,
-      cityRegion: formData.cityRegion,
-      
-      organizationId: formData.organizationId,
-      organizationName: formData.organizationName,
-      targetUserId: formData.targetUserId,
-      targetUserFirstName: formData.targetUserFirstName,
-      targetUserLastName: formData.targetUserLastName,
-      
-      organizationClaimedLocation: formData.organizationClaimedLocation,
-      
-      organizationDetails: {
-        name: formData.organizationName,
-        attachments: [],
-        headquartersAddress: formData.headquartersAddress,
-        addressAttachments: []
-      },
-      
-      buildingPictures: {
-        frontView: {
-          fileUrl: formData.frontView.fileUrl || 'placeholder-url',
-          caption: formData.frontView.caption || ''
-        },
-        streetPicture: {
-          fileUrl: formData.streetPicture.fileUrl || 'placeholder-url',
-          caption: formData.streetPicture.caption || ''
-        },
-        agentInFrontBuilding: {
-          fileUrl: formData.agentInFrontBuilding.fileUrl || 'placeholder-url',
-          caption: formData.agentInFrontBuilding.caption || ''
-        },
-        whatsappLocation: {
-          fileUrl: formData.whatsappLocation.fileUrl || 'placeholder-url',
-          caption: formData.whatsappLocation.caption || ''
-        },
-        insideOrganization: {
-          fileUrl: formData.insideOrganization.fileUrl || 'placeholder-url',
-          caption: formData.insideOrganization.caption || ''
-        },
-        withStaffOrOwner: {
-          fileUrl: formData.withStaffOrOwner.fileUrl || 'placeholder-url',
-          caption: formData.withStaffOrOwner.caption || ''
-        },
-        videoWithNeighbor: {
-          fileUrl: formData.videoWithNeighbor.fileUrl || 'placeholder-url',
-          caption: formData.videoWithNeighbor.caption || ''
-        }
-      },
-      
-      transportationCost: {
-        going: formData.transportationSteps,
-        finalDestination: formData.finalDestination,
-        finalFareSpent: Number(formData.finalFareSpent),
-        finalTime: formData.finalTime,
-        totalJourneyTime: formData.totalJourneyTime,
-        comingBack: {
-          totalTransportationCost: Number(formData.totalTransportationCost),
-          otherExpensesCost: Number(formData.otherExpensesCost),
-          receiptUrl: ''
-        }
-      }
-    };
-
     try {
       console.log('🔍 DEBUG: About to create verification');
-      console.log('Verification data:', JSON.stringify(verificationData, null, 2));
       
-      // Step 1: Create verification (saves as draft)
+      // Step 1: Upload all images to Cloudinary first
+      console.log('📤 Uploading building pictures to Cloudinary...');
+      setIsUploading(true);
+      setUploadProgress('Uploading images...');
+      
+      const uploadedPictures = {};
+      
+      const pictureKeys = [
+        'frontView', 'streetPicture', 'agentInFrontBuilding', 
+        'whatsappLocation', 'insideOrganization', 'withStaffOrOwner', 'videoWithNeighbor'
+      ];
+      
+      let uploadCount = 0;
+      const totalUploads = pictureKeys.filter(key => {
+        const picture = formData[key];
+        return picture.fileUrl && picture.fileUrl !== '' && !picture.fileUrl.startsWith('http');
+      }).length;
+      
+      for (const key of pictureKeys) {
+        const picture = formData[key];
+        if (picture.fileUrl && picture.fileUrl !== '' && !picture.fileUrl.startsWith('http')) {
+          // This is a local file URI, upload to Cloudinary
+          try {
+            uploadCount++;
+            setUploadProgress(`Uploading image ${uploadCount} of ${totalUploads}...`);
+            console.log(`📤 Uploading ${key}... (${uploadCount}/${totalUploads})`);
+            const cloudinaryUrl = await uploadImageToCloudinary(picture.fileUrl);
+            uploadedPictures[key] = {
+              fileUrl: cloudinaryUrl,
+              caption: picture.caption || ''
+            };
+            console.log(`✅ ${key} uploaded successfully`);
+          } catch (error) {
+            console.log(`❌ Failed to upload ${key}:`, error);
+            // Use placeholder for failed uploads
+            uploadedPictures[key] = {
+              fileUrl: 'placeholder-url',
+              caption: picture.caption || ''
+            };
+          }
+        } else {
+          // No image selected or already a URL
+          uploadedPictures[key] = {
+            fileUrl: picture.fileUrl || 'placeholder-url',
+            caption: picture.caption || ''
+          };
+        }
+      }
+      
+      setUploadProgress('Creating verification...');
+      console.log('📤 All images processed. Building verification data...');
+
+      const verificationData = {
+        assignmentId: formData.assignmentId,
+        
+        country: formData.country,
+        state: formData.state,
+        lga: formData.lga,
+        city: formData.city,
+        cityRegion: formData.cityRegion,
+        
+        organizationId: formData.organizationId,
+        organizationName: formData.organizationName,
+        targetUserId: formData.targetUserId,
+        targetUserFirstName: formData.targetUserFirstName,
+        targetUserLastName: formData.targetUserLastName,
+        
+        organizationClaimedLocation: formData.organizationClaimedLocation,
+        
+        organizationDetails: {
+          name: formData.organizationName,
+          attachments: [],
+          headquartersAddress: formData.headquartersAddress,
+          addressAttachments: []
+        },
+        
+        buildingPictures: uploadedPictures,
+        
+        transportationCost: {
+          going: formData.transportationSteps,
+          finalDestination: formData.finalDestination,
+          finalFareSpent: Number(formData.finalFareSpent),
+          finalTime: formData.finalTime,
+          totalJourneyTime: formData.totalJourneyTime,
+          comingBack: {
+            totalTransportationCost: Number(formData.totalTransportationCost),
+            otherExpensesCost: Number(formData.otherExpensesCost),
+            receiptUrl: ''
+          }
+        }
+      };
+
+      console.log('🔍 Final verification data with uploaded images:', JSON.stringify(verificationData, null, 2));
+      
+      // Step 2: Create verification (saves as draft)
       const response = await ApiService.createVerificationFromAssignment(verificationData);
       console.log('🔍 Create verification response:', JSON.stringify(response, null, 2));
       
@@ -479,24 +517,33 @@ const CreateVerificationScreen = ({ navigation }) => {
           return;
         }
         
-        // Step 2: Submit verification (changes status to submitted)
+        // Step 3: Submit verification (changes status to submitted)
+        setUploadProgress('Submitting verification...');
         console.log('🔍 About to submit verification with ID:', verificationId);
         const submitResponse = await ApiService.submitVerification(verificationId);
         console.log('🔍 Submit verification response:', JSON.stringify(submitResponse, null, 2));
         
         if (submitResponse.success) {
+          setIsUploading(false);
+          setUploadProgress('');
           Alert.alert('Success', 'Verification submitted successfully', [
             { text: 'OK', onPress: () => navigation.goBack() }
           ]);
         } else {
+          setIsUploading(false);
+          setUploadProgress('');
           Alert.alert('Warning', 'Verification created but failed to submit. You can submit it later from your verifications list.');
           navigation.goBack();
         }
       } else {
+        setIsUploading(false);
+        setUploadProgress('');
         console.error('❌ Failed to create verification:', response.message);
         Alert.alert('Error', response.message || 'Failed to create verification');
       }
     } catch (error) {
+      setIsUploading(false);
+      setUploadProgress('');
       console.error('❌ Exception in createVerification:', error);
       Alert.alert('Error', 'Failed to create verification. Please try again.');
     }
@@ -1071,8 +1118,14 @@ const CreateVerificationScreen = ({ navigation }) => {
             <Text style={styles.nextButtonText}>Next</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={styles.createButton} onPress={createVerification}>
-            <Text style={styles.createButtonText}>Submit Verification</Text>
+          <TouchableOpacity 
+            style={[styles.createButton, isUploading && styles.disabledButton]} 
+            onPress={createVerification}
+            disabled={isUploading}
+          >
+            <Text style={styles.createButtonText}>
+              {isUploading ? uploadProgress : 'Submit Verification'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -1327,6 +1380,10 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  disabledButton: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.7,
   },
   // New styles for location selection
   infoText: {

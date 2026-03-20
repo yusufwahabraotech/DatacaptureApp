@@ -25,6 +25,8 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
   const [superAdminBankName, setSuperAdminBankName] = useState('');
   const [superAdminAccountNumber, setSuperAdminAccountNumber] = useState('');
   const [paymentEvidenceUrl, setPaymentEvidenceUrl] = useState('');
+  const [paymentEvidenceFile, setPaymentEvidenceFile] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const uploadPaymentEvidence = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -35,18 +37,33 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,
-      allowsEditing: true,
+      allowsEditing: false,
       quality: 0.8,
     });
 
-    if (!result.canceled) {
+    if (!result.canceled && result.assets[0]) {
+      const file = result.assets[0];
+      
+      // Get file extension and type
+      const fileName = file.uri.split('/').pop() || 'payment_evidence';
+      const fileExtension = fileName.split('.').pop()?.toLowerCase();
+      const fileSize = file.fileSize ? (file.fileSize / 1024 / 1024).toFixed(2) : 'Unknown';
+      
       try {
-        // Upload to Cloudinary (you can implement this based on your existing upload logic)
-        const uploadedUrl = await ApiService.uploadToCloudinary(result.assets[0].uri);
+        setLoading(true);
+        const uploadedUrl = await ApiService.uploadToCloudinary(file.uri);
         setPaymentEvidenceUrl(uploadedUrl);
+        setPaymentEvidenceFile({
+          name: fileName,
+          size: fileSize,
+          type: fileExtension.toUpperCase(),
+          url: uploadedUrl
+        });
         Alert.alert('Success', 'Payment evidence uploaded successfully');
       } catch (error) {
         Alert.alert('Error', 'Failed to upload payment evidence');
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -84,7 +101,14 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
       return;
     }
 
+    // Check if already processing or processed
+    if (order.remittanceStatus === 'processing' || order.remittanceStatus === 'processed') {
+      Alert.alert('Already Processed', 'This remittance has already been processed or is currently being processed.');
+      return;
+    }
+
     setLoading(true);
+    setIsProcessing(true);
     try {
       const remittanceData = {
         organizationBankName: order.organizationBankDetails.bankName,
@@ -95,6 +119,11 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
         superAdminBankName: superAdminBankName.trim(),
         superAdminAccountNumber: superAdminAccountNumber.trim(),
         paymentEvidenceUrl,
+        paymentEvidenceFile: paymentEvidenceFile ? {
+          name: paymentEvidenceFile.name,
+          size: paymentEvidenceFile.size,
+          type: paymentEvidenceFile.type
+        } : null,
       };
 
       const response = await ApiService.processRemittance(order._id, remittanceData);
@@ -107,9 +136,11 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
         );
       } else {
         Alert.alert('Error', response.message || 'Failed to process remittance');
+        setIsProcessing(false);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to process remittance');
+      setIsProcessing(false);
     } finally {
       setLoading(false);
     }
@@ -219,24 +250,75 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
             <TouchableOpacity style={styles.uploadButton} onPress={uploadPaymentEvidence}>
               <Ionicons name="cloud-upload" size={20} color="#7B2CBF" />
               <Text style={styles.uploadButtonText}>
-                {paymentEvidenceUrl ? 'Evidence Uploaded ✓' : 'Upload Payment Evidence'}
+                {paymentEvidenceFile ? 'Change Evidence File' : 'Upload Payment Evidence'}
               </Text>
             </TouchableOpacity>
+            
+            {/* File Details Display */}
+            {paymentEvidenceFile && (
+              <View style={styles.fileDetailsCard}>
+                <View style={styles.fileHeader}>
+                  <Ionicons 
+                    name={paymentEvidenceFile.type === 'PDF' ? 'document' : 'image'} 
+                    size={24} 
+                    color="#10B981" 
+                  />
+                  <View style={styles.fileInfo}>
+                    <Text style={styles.fileName}>{paymentEvidenceFile.name}</Text>
+                    <Text style={styles.fileDetails}>
+                      {paymentEvidenceFile.type} • {paymentEvidenceFile.size} MB
+                    </Text>
+                  </View>
+                  <View style={styles.fileStatus}>
+                    <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                    <Text style={styles.fileStatusText}>Uploaded</Text>
+                  </View>
+                </View>
+                
+                {/* Preview for images */}
+                {paymentEvidenceFile && (
+                  <TouchableOpacity 
+                    style={styles.previewButton}
+                    onPress={() => {
+                      Alert.alert('Preview', 'Image preview functionality can be added here');
+                    }}
+                  >
+                    <Text style={styles.previewButtonText}>Preview Image</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+            
+            <Text style={styles.uploadHint}>
+              Supported formats: Images (JPG, PNG)
+            </Text>
           </View>
         </View>
 
         {/* Process Button */}
         <TouchableOpacity
-          style={[styles.processButton, loading && styles.processButtonDisabled]}
+          style={[
+            styles.processButton, 
+            (loading || isProcessing || order.remittanceStatus === 'processing' || order.remittanceStatus === 'processed') && styles.processButtonDisabled
+          ]}
           onPress={handleProcessRemittance}
-          disabled={loading}
+          disabled={loading || isProcessing || order.remittanceStatus === 'processing' || order.remittanceStatus === 'processed'}
         >
           {loading ? (
             <ActivityIndicator color="white" />
           ) : (
             <>
-              <Ionicons name="checkmark-circle" size={20} color="white" />
-              <Text style={styles.processButtonText}>Process Remittance</Text>
+              <Ionicons 
+                name={order.remittanceStatus === 'processed' ? 'checkmark-circle' : 
+                      isProcessing || order.remittanceStatus === 'processing' ? 'time' : 'checkmark-circle'} 
+                size={20} 
+                color="white" 
+              />
+              <Text style={styles.processButtonText}>
+                {order.remittanceStatus === 'processed' ? 'Remittance Processed' :
+                 isProcessing || order.remittanceStatus === 'processing' ? 'Processing Remittance...' :
+                 'Process Remittance'}
+              </Text>
             </>
           )}
         </TouchableOpacity>
@@ -388,6 +470,61 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  fileDetailsCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  fileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  fileInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  fileName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  fileDetails: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  fileStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fileStatusText: {
+    fontSize: 12,
+    color: '#10B981',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  previewButton: {
+    backgroundColor: '#7B2CBF',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  previewButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  uploadHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });
 
