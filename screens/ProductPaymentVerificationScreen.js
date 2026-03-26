@@ -241,34 +241,18 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
       </View>
 
       {showWebView ? (
-        <>
-          <WebView
-            source={{ uri: paymentLink }}
-            style={styles.webView}
-            onNavigationStateChange={handleWebViewNavigationStateChange}
-            startInLoadingState={true}
-            renderLoading={() => (
-              <View style={styles.webViewLoading}>
-                <ActivityIndicator size="large" color="#7B2CBF" />
-                <Text style={styles.loadingText}>Loading payment page...</Text>
-              </View>
-            )}
-          />
-          
-          {/* Manual completion button overlay */}
-          <View style={styles.manualButtonOverlay}>
-            <TouchableOpacity
-              style={styles.manualCompleteButton}
-              onPress={() => {
-                setShowWebView(false);
-                handleVerifyPayment();
-              }}
-            >
-              <Ionicons name="checkmark-circle" size={20} color="white" />
-              <Text style={styles.manualCompleteText}>I've Completed Payment</Text>
-            </TouchableOpacity>
-          </View>
-        </>
+        <WebView
+          source={{ uri: paymentLink }}
+          style={styles.webView}
+          onNavigationStateChange={handleWebViewNavigationStateChange}
+          startInLoadingState={true}
+          renderLoading={() => (
+            <View style={styles.webViewLoading}>
+              <ActivityIndicator size="large" color="#7B2CBF" />
+              <Text style={styles.loadingText}>Loading payment page...</Text>
+            </View>
+          )}
+        />
       ) : (
         <View style={styles.verificationContainer}>
           <Ionicons name="card" size={80} color="#7B2CBF" />
@@ -412,32 +396,6 @@ const styles = StyleSheet.create({
     color: '#7B2CBF',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  manualButtonOverlay: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    alignItems: 'center',
-  },
-  manualCompleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#4CAF50',
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  manualCompleteText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginLeft: 8,
   },
   statusContainer: {
     flex: 1,

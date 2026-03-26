@@ -153,8 +153,9 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
       return false;
     }
 
-    // Skip delivery mode validation for services
-    if (order.itemType !== 'service') {
+    // Only validate delivery mode for PRODUCTS (physical items that need delivery)
+    // Services don't need delivery validation
+    if (order.itemType === 'product') {
       if (deliveryMode === 'shipping' && !deliveryAddress.trim()) {
         Alert.alert('Required Field', 'Delivery address is required for shipping mode');
         return false;
@@ -175,17 +176,35 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
     setLoading(true);
     try {
       const confirmationData = {
-        // Only include delivery mode for products
-        ...(order.itemType !== 'service' && { deliveryMode }),
-        ...(order.itemType !== 'service' && deliveryMode === 'shipping' && { deliveryAddress }),
-        ...(order.itemType !== 'service' && deliveryMode === 'pickup_center' && { pickupCenterId: selectedPickupCenter._id }),
+        satisfactionDeclaration,
         ...(productImage && { productImage }),
         ...(representativeImage && { representativeImage }),
         ...(userImage && { userImage }),
         ...(imageComment && { imageComment }),
         ...(videoUrl && { videoUrl }),
-        satisfactionDeclaration,
       };
+
+      // Add delivery-related fields for PRODUCTS (not services)
+      // Products need delivery confirmation, services don't
+      if (order.itemType === 'product') {
+        confirmationData.deliveryMode = deliveryMode;
+        
+        if (deliveryMode === 'shipping' && deliveryAddress) {
+          confirmationData.deliveryAddress = deliveryAddress;
+        }
+        
+        if (deliveryMode === 'pickup_center' && selectedPickupCenter) {
+          confirmationData.pickupCenterId = selectedPickupCenter._id;
+        }
+      }
+
+      console.log('🚨 DELIVERY CONFIRMATION DEBUG 🚨');
+      console.log('Order ID:', order._id);
+      console.log('Order itemType:', order.itemType);
+      console.log('Is product?', order.itemType === 'product');
+      console.log('Delivery mode:', deliveryMode);
+      console.log('Selected pickup center:', selectedPickupCenter?._id);
+      console.log('Final confirmation data:', JSON.stringify(confirmationData, null, 2));
 
       const response = await ApiService.confirmDelivery(order._id, confirmationData);
       
@@ -261,8 +280,8 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Delivery Mode - Only show for products, not services */}
-        {order.itemType !== 'service' && (
+        {/* Delivery Mode - Only show for PRODUCTS (physical items), not services */}
+        {order.itemType === 'product' && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Delivery Mode</Text>
             {['pickup_center', 'shipping', 'organization_location'].map((mode) => (
@@ -283,8 +302,8 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
           </View>
         )}
 
-        {/* Conditional Fields - Only for products */}
-        {order.itemType !== 'service' && deliveryMode === 'shipping' && (
+        {/* Conditional Fields - Only for PRODUCTS */}
+        {order.itemType === 'product' && deliveryMode === 'shipping' && (
           <View style={styles.section}>
             <Text style={styles.inputLabel}>Delivery Address *</Text>
             <TextInput
@@ -297,7 +316,7 @@ const DeliveryConfirmationScreen = ({ navigation, route }) => {
           </View>
         )}
 
-        {order.itemType !== 'service' && deliveryMode === 'pickup_center' && (
+        {order.itemType === 'product' && deliveryMode === 'pickup_center' && (
           <View style={styles.section}>
             <Text style={styles.inputLabel}>Select Pickup Center *</Text>
             <TouchableOpacity

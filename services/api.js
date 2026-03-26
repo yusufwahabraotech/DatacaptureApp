@@ -2965,13 +2965,25 @@ class ApiService {
     
     const formData = new FormData();
     
-    // Add text fields
-    formData.append('deliveryMode', confirmationData.deliveryMode);
-    if (confirmationData.deliveryAddress) formData.append('deliveryAddress', confirmationData.deliveryAddress);
-    if (confirmationData.pickupCenterName) formData.append('pickupCenterName', confirmationData.pickupCenterName);
-    if (confirmationData.imageComment) formData.append('imageComment', confirmationData.imageComment);
-    if (confirmationData.videoUrl) formData.append('videoUrl', confirmationData.videoUrl);
-    formData.append('satisfactionDeclaration', confirmationData.satisfactionDeclaration);
+    // Add text fields only if they exist
+    if (confirmationData.deliveryMode) {
+      formData.append('deliveryMode', confirmationData.deliveryMode);
+    }
+    if (confirmationData.deliveryAddress) {
+      formData.append('deliveryAddress', confirmationData.deliveryAddress);
+    }
+    if (confirmationData.pickupCenterId) {
+      formData.append('pickupCenterId', confirmationData.pickupCenterId);
+    }
+    if (confirmationData.imageComment) {
+      formData.append('imageComment', confirmationData.imageComment);
+    }
+    if (confirmationData.videoUrl) {
+      formData.append('videoUrl', confirmationData.videoUrl);
+    }
+    if (confirmationData.satisfactionDeclaration) {
+      formData.append('satisfactionDeclaration', confirmationData.satisfactionDeclaration);
+    }
     
     // Add image files (not base64)
     if (confirmationData.productImage) {
