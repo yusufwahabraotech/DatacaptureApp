@@ -28,8 +28,13 @@ const SignUpScreen = ({ navigation, route }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [organizationName, setOrganizationName] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedIndustry, setSelectedIndustry] = useState('');
+  const [selectedIndustryName, setSelectedIndustryName] = useState('');
+  const [industries, setIndustries] = useState([]);
   const [showCountryModal, setShowCountryModal] = useState(false);
+  const [showIndustryModal, setShowIndustryModal] = useState(false);
   const [countrySearchText, setCountrySearchText] = useState('');
+  const [industrySearchText, setIndustrySearchText] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordMismatch, setPasswordMismatch] = useState(false);
@@ -44,6 +49,25 @@ const SignUpScreen = ({ navigation, route }) => {
   const userRole = route?.params?.userRole || 'CUSTOMER';
   const isAdmin = userRole === 'ORGANIZATION';
 
+  // Fetch industries when component mounts and user is admin
+  React.useEffect(() => {
+    if (isAdmin) {
+      fetchIndustries();
+    }
+  }, [isAdmin]);
+
+  const fetchIndustries = async () => {
+    try {
+      const response = await ApiService.apiCall('/auth/industries');
+      if (response.success) {
+        setIndustries(response.data.industries);
+      }
+    } catch (error) {
+      console.error('Failed to fetch industries:', error);
+      Alert.alert('Error', 'Failed to load industries');
+    }
+  };
+
   const handleConfirmPasswordChange = (text) => {
     setConfirmPassword(text);
     setPasswordMismatch(password !== text && text.length > 0);
@@ -57,7 +81,7 @@ const SignUpScreen = ({ navigation, route }) => {
   const handleSignUp = async () => {
     const requiredFields = [fullName, email, phoneNumber, password, confirmPassword];
     if (isAdmin) {
-      requiredFields.push(organizationName, selectedCountry);
+      requiredFields.push(organizationName, selectedCountry, selectedIndustry);
     }
 
     if (requiredFields.some(field => !field)) {
@@ -84,6 +108,8 @@ const SignUpScreen = ({ navigation, route }) => {
       if (isAdmin) {
         requestBody.organizationName = organizationName;
         requestBody.country = selectedCountry;
+        requestBody.industryId = selectedIndustry;
+        requestBody.industryName = selectedIndustryName;
       }
 
       const response = await ApiService.register(requestBody);
@@ -122,6 +148,10 @@ const SignUpScreen = ({ navigation, route }) => {
     country.toLowerCase().includes(countrySearchText.toLowerCase())
   );
 
+  const filteredIndustries = industries.filter(industry => 
+    industry.name.toLowerCase().includes(industrySearchText.toLowerCase())
+  );
+
   const renderCountryItem = ({ item }) => (
     <TouchableOpacity
       style={styles.countryItem}
@@ -131,6 +161,22 @@ const SignUpScreen = ({ navigation, route }) => {
       }}
     >
       <Text style={styles.countryText}>{item}</Text>
+    </TouchableOpacity>
+  );
+
+  const renderIndustryItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.countryItem}
+      onPress={() => {
+        setSelectedIndustry(item.id);
+        setSelectedIndustryName(item.name);
+        setShowIndustryModal(false);
+      }}
+    >
+      <Text style={styles.countryText}>{item.name}</Text>
+      {item.description && (
+        <Text style={styles.industryDescription}>{item.description}</Text>
+      )}
     </TouchableOpacity>
   );
 
@@ -244,6 +290,21 @@ const SignUpScreen = ({ navigation, route }) => {
                       >
                         <Text style={[styles.countryText, !selectedCountry && styles.placeholderText]}>
                           {selectedCountry || 'Select your country'}
+                        </Text>
+                        <Ionicons name="chevron-down" size={20} color="#999" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.inputContainer}>
+                    <View style={styles.inputWrapper}>
+                      <Text style={styles.floatingLabel}>Industry</Text>
+                      <TouchableOpacity
+                        style={[styles.input, styles.countrySelector]}
+                        onPress={() => setShowIndustryModal(true)}
+                      >
+                        <Text style={[styles.countryText, !selectedIndustryName && styles.placeholderText]}>
+                          {selectedIndustryName || 'Select your industry'}
                         </Text>
                         <Ionicons name="chevron-down" size={20} color="#999" />
                       </TouchableOpacity>
@@ -376,6 +437,48 @@ const SignUpScreen = ({ navigation, route }) => {
               data={filteredCountries}
               renderItem={renderCountryItem}
               keyExtractor={(item) => item}
+              style={styles.countryList}
+              showsVerticalScrollIndicator={true}
+            />
+          </View>
+        </View>
+      </Modal>
+      {/* Industry Selection Modal */}
+      <Modal
+        visible={showIndustryModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowIndustryModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalOverlayTouch} 
+            onPress={() => setShowIndustryModal(false)} 
+          />
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Industry</Text>
+              <TouchableOpacity onPress={() => {
+                setShowIndustryModal(false);
+                setIndustrySearchText('');
+              }}>
+                <Ionicons name="close" size={24} color="#1F2937" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search industries..."
+                placeholderTextColor="#9CA3AF"
+                value={industrySearchText}
+                onChangeText={setIndustrySearchText}
+              />
+            </View>
+            <FlatList
+              data={filteredIndustries}
+              renderItem={renderIndustryItem}
+              keyExtractor={(item) => item.id}
               style={styles.countryList}
               showsVerticalScrollIndicator={true}
             />
@@ -602,6 +705,12 @@ const styles = StyleSheet.create({
   countryText: {
     fontSize: 16,
     color: '#1F2937',
+  },
+  industryDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });
 
