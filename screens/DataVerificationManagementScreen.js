@@ -19,7 +19,7 @@ const DataVerificationManagementScreen = ({ navigation }) => {
 
   const statusOptions = [
     { key: 'all', label: 'All', color: '#6B7280' },
-    { key: 'draft', label: 'Draft', color: '#F59E0B' },
+    // { key: 'draft', label: 'Draft', color: '#F59E0B' }, // Commented out for now
     { key: 'submitted', label: 'Submitted', color: '#3B82F6' },
     { key: 'approved', label: 'Approved', color: '#10B981' },
     { key: 'rejected', label: 'Rejected', color: '#EF4444' }
@@ -155,8 +155,8 @@ const DataVerificationManagementScreen = ({ navigation }) => {
             <Text style={styles.emptyStateText}>No verifications found</Text>
           </View>
         ) : (
-          verifications.map((verification) => (
-            <View key={verification._id} style={styles.verificationCard}>
+          verifications.map((verification, index) => (
+            <View key={`${verification._id}-${index}`} style={styles.verificationCard}>
               <View style={styles.verificationHeader}>
                 <Text style={styles.verificationId}>{verification.verificationId}</Text>
                 <View style={[

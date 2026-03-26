@@ -113,8 +113,8 @@ const VerificationAssignmentsScreen = ({ navigation }) => {
             </Text>
           </View>
         ) : (
-          assignments.map((assignment) => (
-            <View key={assignment._id} style={styles.assignmentCard}>
+          assignments.map((assignment, index) => (
+            <View key={`${assignment._id}-${index}`} style={styles.assignmentCard}>
               <View style={styles.assignmentHeader}>
                 <View style={styles.assignmentInfo}>
                   <Text style={styles.organizationName}>{assignment.organizationName}</Text>

@@ -73,8 +73,8 @@ const DataVerificationUsersScreen = ({ navigation }) => {
             <Text style={styles.emptyStateText}>No verification agents found</Text>
           </View>
         ) : (
-          users.map((user) => (
-            <View key={user.id} style={styles.userCard}>
+          users.map((user, index) => (
+            <View key={`${user.id}-${index}`} style={styles.userCard}>
               <View style={styles.userInfo}>
                 <View style={styles.userAvatar}>
                   <Text style={styles.userAvatarText}>

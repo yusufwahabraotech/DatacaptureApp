@@ -201,12 +201,12 @@ const CreateDataVerificationRoleScreen = ({ navigation }) => {
           {loading ? (
             <ActivityIndicator size="large" color="#7C3AED" style={styles.loader} />
           ) : (
-            filteredUsers.map((user) => {
+            filteredUsers.map((user, userIndex) => {
               const isSelected = selectedUsers.includes(user.id);
               const userAssignments = getUserAssignments(user.id);
               
               return (
-                <View key={user.id} style={styles.userCard}>
+                <View key={`${user.id}-${userIndex}`} style={styles.userCard}>
                   <TouchableOpacity
                     style={styles.userHeader}
                     onPress={() => toggleUserSelection(user.id)}
@@ -259,11 +259,11 @@ const CreateDataVerificationRoleScreen = ({ navigation }) => {
                               <Text style={styles.dropdownItemText}>No organizations found</Text>
                             </View>
                           ) : (
-                            organizations.filter(org => org.name && org.name.trim()).map((org) => {
+                            organizations.filter(org => org.name && org.name.trim()).map((org, orgIndex) => {
                               const isAssigned = userAssignments.some(a => a.organizationId === org.id);
                               return (
                                 <TouchableOpacity
-                                  key={org.id}
+                                  key={`${org.id}-${user.id}-${orgIndex}`}
                                   style={styles.dropdownItem}
                                   onPress={() => {
                                     if (isAssigned) {
@@ -291,8 +291,8 @@ const CreateDataVerificationRoleScreen = ({ navigation }) => {
                       {userAssignments.length > 0 && (
                         <View style={styles.selectedOrgsContainer}>
                           <Text style={styles.selectedOrgsTitle}>Selected Organizations:</Text>
-                          {userAssignments.map((assignment, index) => (
-                            <View key={assignment.organizationId} style={styles.selectedOrgItem}>
+                          {userAssignments.map((assignment, assignmentIndex) => (
+                            <View key={`${assignment.organizationId}-${user.id}-${assignmentIndex}`} style={styles.selectedOrgItem}>
                               <Text style={styles.selectedOrgText}>{assignment.organizationName}</Text>
                               <TouchableOpacity
                                 onPress={() => removeOrganizationAssignment(user.id, assignment.organizationId)}
@@ -318,13 +318,13 @@ const CreateDataVerificationRoleScreen = ({ navigation }) => {
             <Text style={styles.summaryText}>
               Total Assignments: {organizationAssignments.length}
             </Text>
-            {selectedUsers.map(userId => {
+            {selectedUsers.map((userId, summaryIndex) => {
               const user = users.find(u => u.id === userId);
               const userAssignments = getUserAssignments(userId);
               if (userAssignments.length === 0) return null;
               
               return (
-                <View key={userId} style={styles.summaryItem}>
+                <View key={`${userId}-summary-${summaryIndex}`} style={styles.summaryItem}>
                   <Text style={styles.summaryUserName}>{user?.fullName}</Text>
                   <Text style={styles.summaryOrgs}>
                     {userAssignments.map(a => a.organizationName).join(', ')}
