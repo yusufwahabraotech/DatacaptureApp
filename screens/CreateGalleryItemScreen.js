@@ -900,14 +900,6 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             </View>
           )}
 
-          <Text style={styles.inputLabel}>Payment Methods</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., Cash, Card, Bank Transfer"
-            value={formData.paymentMethods}
-            onChangeText={(text) => setFormData({...formData, paymentMethods: text})}
-          />
-
           <Text style={styles.inputLabel}>Platform Charge (%)</Text>
           <View style={styles.platformChargeContainer}>
             <TextInput
@@ -925,34 +917,6 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             <Text style={styles.calculatedPriceLabel}>Actual Amount:</Text>
             <Text style={styles.calculatedPriceValue}>₦{calculateActualAmount().toFixed(2)}</Text>
           </View>
-
-          <Text style={styles.inputLabel}>Start Date</Text>
-          <TouchableOpacity style={styles.input} onPress={() => setShowStartDatePicker(true)}>
-            <Text style={startDate ? styles.inputText : styles.placeholderText}>
-              {startDate ? startDate.toDateString() : 'Select Start Date'}
-            </Text>
-          </TouchableOpacity>
-
-          <Text style={styles.inputLabel}>Start Time</Text>
-          <TouchableOpacity style={styles.input} onPress={() => setShowStartTimePicker(true)}>
-            <Text style={startTime ? styles.inputText : styles.placeholderText}>
-              {startTime ? startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Select Start Time'}
-            </Text>
-          </TouchableOpacity>
-
-          <Text style={styles.inputLabel}>End Date</Text>
-          <TouchableOpacity style={styles.input} onPress={() => setShowEndDatePicker(true)}>
-            <Text style={endDate ? styles.inputText : styles.placeholderText}>
-              {endDate ? endDate.toDateString() : 'Select End Date'}
-            </Text>
-          </TouchableOpacity>
-
-          <Text style={styles.inputLabel}>End Time</Text>
-          <TouchableOpacity style={styles.input} onPress={() => setShowEndTimePicker(true)}>
-            <Text style={endTime ? styles.inputText : styles.placeholderText}>
-              {endTime ? endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Select End Time'}
-            </Text>
-          </TouchableOpacity>
 
           <Text style={styles.inputLabel}>Visibility to Public</Text>
           <Text style={styles.inputDescription}>Make this item visible on your public profile</Text>
