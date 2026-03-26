@@ -57,12 +57,36 @@ const PickupCenterManagementScreen = ({ navigation }) => {
     }
   };
 
+  const validateOperatingDays = (days) => {
+    // Check if format matches "Monday - Friday" or "Mon - Fri" or "Monday - Saturday" etc.
+    const daysPattern = /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s*-\s*(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/i;
+    return daysPattern.test(days.trim());
+  };
+
+  const validateOperatingHours = (hours) => {
+    // Check if format matches "X:XX AM - X:XX PM" or "XX:XX AM - XX:XX PM"
+    const timePattern = /^\d{1,2}:\d{2}\s+(AM|PM)\s+-\s+\d{1,2}:\d{2}\s+(AM|PM)$/i;
+    return timePattern.test(hours.trim());
+  };
+
   const handleCreateOrUpdate = async () => {
     if (submitting) return; // Prevent duplicate submissions
     
     if (!formData.centerName.trim() || !formData.amount || !formData.address.trim() || 
         !formData.contactNumber.trim() || !formData.operatingDays.trim() || !formData.operatingHours.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    // Validate operating days format
+    if (!validateOperatingDays(formData.operatingDays)) {
+      Alert.alert('Error', 'Operating days must be in format "Monday - Friday" or "Mon - Fri" (check spacing around dash)');
+      return;
+    }
+
+    // Validate operating hours format
+    if (!validateOperatingHours(formData.operatingHours)) {
+      Alert.alert('Error', 'Operating hours must be in format "9:00 AM - 5:00 PM" (check spacing around dash)');
       return;
     }
 
@@ -377,7 +401,7 @@ const PickupCenterManagementScreen = ({ navigation }) => {
                   style={styles.input}
                   value={formData.operatingDays}
                   onChangeText={(text) => setFormData({ ...formData, operatingDays: text })}
-                  placeholder="Monday - Saturday"
+                  placeholder="e.g., Monday - Friday"
                   placeholderTextColor="#999"
                 />
               </View>
@@ -388,7 +412,7 @@ const PickupCenterManagementScreen = ({ navigation }) => {
                   style={styles.input}
                   value={formData.operatingHours}
                   onChangeText={(text) => setFormData({ ...formData, operatingHours: text })}
-                  placeholder="9:00 AM - 7:00 PM"
+                  placeholder="e.g., 9:00 AM - 5:00 PM"
                   placeholderTextColor="#999"
                 />
               </View>
@@ -712,13 +736,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
-    marginTop: 10,
+    marginTop: 20,
+    marginBottom: 50,
+    paddingHorizontal: 0,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
+    minHeight: 48,
   },
   cancelButton: {
     backgroundColor: '#f8f9fa',

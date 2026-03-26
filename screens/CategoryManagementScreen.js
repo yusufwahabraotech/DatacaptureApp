@@ -77,6 +77,7 @@ const CategoryManagementScreen = ({ navigation }) => {
       if (editingCategory) {
         response = await ApiService.updateCategory(editingCategory.id, {
           name: formData.name,
+          industryId: formData.industryId,
           description: formData.description
         });
       } else {
@@ -300,36 +301,34 @@ const CategoryManagementScreen = ({ navigation }) => {
                 />
               </View>
 
-              {!editingCategory && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Industry *</Text>
-                  <TouchableOpacity
-                    style={styles.dropdownButton}
-                    onPress={() => setShowIndustryDropdown(!showIndustryDropdown)}
-                  >
-                    <Text style={[styles.dropdownText, !formData.industryId && styles.placeholderText]}>
-                      {formData.industryId ? getIndustryName(formData.industryId) : 'Select Industry'}
-                    </Text>
-                    <Ionicons name="chevron-down" size={20} color="#666" />
-                  </TouchableOpacity>
-                  {showIndustryDropdown && (
-                    <ScrollView style={styles.dropdownList} nestedScrollEnabled={true}>
-                      {industries.map((industry) => (
-                        <TouchableOpacity
-                          key={industry.id}
-                          style={styles.dropdownItem}
-                          onPress={() => {
-                            setFormData({ ...formData, industryId: industry.id });
-                            setShowIndustryDropdown(false);
-                          }}
-                        >
-                          <Text style={styles.dropdownItemText}>{industry.name}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  )}
-                </View>
-              )}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Industry *</Text>
+                <TouchableOpacity
+                  style={styles.dropdownButton}
+                  onPress={() => setShowIndustryDropdown(!showIndustryDropdown)}
+                >
+                  <Text style={[styles.dropdownText, !formData.industryId && styles.placeholderText]}>
+                    {formData.industryId ? getIndustryName(formData.industryId) : 'Select Industry'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color="#666" />
+                </TouchableOpacity>
+                {showIndustryDropdown && (
+                  <ScrollView style={styles.dropdownList} nestedScrollEnabled={true}>
+                    {industries.map((industry) => (
+                      <TouchableOpacity
+                        key={industry.id}
+                        style={styles.dropdownItem}
+                        onPress={() => {
+                          setFormData({ ...formData, industryId: industry.id });
+                          setShowIndustryDropdown(false);
+                        }}
+                      >
+                        <Text style={styles.dropdownItemText}>{industry.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Description *</Text>
