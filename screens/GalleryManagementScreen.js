@@ -49,9 +49,40 @@ const GalleryManagementScreen = ({ navigation, route }) => {
     try {
       const result = await ApiService.getGalleryItems(filters);
       if (result.success) {
+        console.log('🚨 GALLERY ITEMS BACKEND RESPONSE DEBUG 🚨');
+        console.log('Full API response:', JSON.stringify(result, null, 2));
+        
+        // Debug each item's image data
+        if (result.data && result.data.items) {
+          console.log('Total items:', result.data.items.length);
+          result.data.items.forEach((item, index) => {
+            console.log(`\n--- Item ${index + 1} Image Debug ---`);
+            console.log('Item ID:', item._id);
+            console.log('Item Name:', item.name);
+            console.log('imageUrl field:', item.imageUrl);
+            console.log('image field:', item.image);
+            console.log('images field:', item.images);
+            console.log('picture field:', item.picture);
+            console.log('photo field:', item.photo);
+            console.log('media field:', item.media);
+            console.log('All item keys:', Object.keys(item));
+            
+            // Check for any field that might contain image URL
+            Object.keys(item).forEach(key => {
+              const value = item[key];
+              if (typeof value === 'string' && (value.includes('cloudinary') || value.includes('http'))) {
+                console.log(`🔍 Potential image URL in '${key}':`, value);
+              }
+            });
+          });
+        }
+        
         setGalleryItems(result.data.items);
+      } else {
+        console.log('❌ API call failed:', result.message);
       }
     } catch (error) {
+      console.log('❌ API call error:', error);
       Alert.alert('Error', 'Failed to fetch gallery items');
     } finally {
       setLoading(false);
@@ -84,52 +115,80 @@ const GalleryManagementScreen = ({ navigation, route }) => {
     );
   };
 
-  const renderGalleryItem = ({ item }) => (
-    <View style={styles.itemCard}>
-      {item.imageUrl && (
-        <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
-      )}
-      <View style={styles.itemContent}>
-        <Text style={styles.itemName} numberOfLines={1}>
-          {item.name || 'Unnamed Item'}
-        </Text>
-        <Text style={styles.itemDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-        <Text style={styles.itemCategory}>{item.category}</Text>
-        <Text style={styles.itemPrice}>₦{item.actualAmount?.toFixed(2) || '0.00'}</Text>
-        {item.itemType !== 'service' && (
-          <Text style={styles.itemQuantity}>Qty: {item.totalAvailableQuantity}</Text>
+  const renderGalleryItem = ({ item }) => {
+    // Try multiple possible image field names
+    const imageUrl = item.imageUrl || item.image || item.picture || item.photo || 
+                     (item.images && item.images.main) || 
+                     (item.images && item.images[0]) ||
+                     (item.media && item.media.url) || null;
+    
+    console.log(`🖼️ Rendering item ${item.name}:`);
+    console.log('- imageUrl field:', item.imageUrl);
+    console.log('- Final imageUrl used:', imageUrl);
+    
+    return (
+      <View style={styles.itemCard}>
+        {imageUrl ? (
+          <Image 
+            source={{ uri: imageUrl }} 
+            style={styles.itemImage}
+            onError={(error) => {
+              console.log('❌ Image load error for:', item.name);
+              console.log('- Image URL:', imageUrl);
+              console.log('- Error:', error.nativeEvent.error);
+            }}
+            onLoad={() => {
+              console.log('✅ Image loaded successfully for:', item.name);
+            }}
+          />
+        ) : (
+          <View style={[styles.itemImage, { backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center' }]}>
+            <Ionicons name="image-outline" size={32} color="#ccc" />
+            <Text style={{ fontSize: 10, color: '#ccc', marginTop: 4 }}>No Image</Text>
+          </View>
         )}
-      </View>
-      <View style={styles.itemActions}>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => {
-            try {
-              console.log('Navigating to EditGalleryItem with itemId:', item._id);
-              if (!item._id) {
-                Alert.alert('Error', 'Invalid item ID');
-                return;
+        <View style={styles.itemContent}>
+          <Text style={styles.itemName} numberOfLines={1}>
+            {item.name || 'Unnamed Item'}
+          </Text>
+          <Text style={styles.itemDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+          <Text style={styles.itemCategory}>{item.category}</Text>
+          <Text style={styles.itemPrice}>₦{item.actualAmount?.toFixed(2) || '0.00'}</Text>
+          {item.itemType !== 'service' && (
+            <Text style={styles.itemQuantity}>Qty: {item.totalAvailableQuantity}</Text>
+          )}
+        </View>
+        <View style={styles.itemActions}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => {
+              try {
+                console.log('Navigating to EditGalleryItem with itemId:', item._id);
+                if (!item._id) {
+                  Alert.alert('Error', 'Invalid item ID');
+                  return;
+                }
+                navigation.navigate('EditGalleryItem', { itemId: item._id });
+              } catch (error) {
+                console.error('Navigation error:', error);
+                Alert.alert('Error', 'Failed to open edit screen');
               }
-              navigation.navigate('EditGalleryItem', { itemId: item._id });
-            } catch (error) {
-              console.error('Navigation error:', error);
-              Alert.alert('Error', 'Failed to open edit screen');
-            }
-          }}
-        >
-          <Ionicons name="pencil" size={20} color="#7B2CBF" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => deleteGalleryItem(item._id)}
-        >
-          <Ionicons name="trash" size={20} color="#FF4444" />
-        </TouchableOpacity>
+            }}
+          >
+            <Ionicons name="pencil" size={20} color="#7B2CBF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => deleteGalleryItem(item._id)}
+          >
+            <Ionicons name="trash" size={20} color="#FF4444" />
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
 
 

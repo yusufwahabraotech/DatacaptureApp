@@ -23,6 +23,8 @@ const PublicProductSearchScreen = ({ navigation }) => {
   const [filters, setFilters] = useState({
     itemType: '',
     categoryId: '',
+    sortBy: 'priceInDollars',
+    sortOrder: 'asc',
   });
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -30,23 +32,71 @@ const PublicProductSearchScreen = ({ navigation }) => {
   useEffect(() => {
     fetchProducts();
   }, []);
+  
+  useEffect(() => {
+    // Trigger search when filters change (but not on initial load)
+    if (products.length > 0 || searchQuery) {
+      console.log('🚨 FILTERS CHANGED - REFETCHING 🚨');
+      setLoading(true);
+      fetchProductsWithFilters(filters, true);
+    }
+  }, [filters.itemType, filters.sortBy, filters.sortOrder]);
 
   const fetchProducts = async (isRefresh = false) => {
+    return fetchProductsWithFilters(filters, isRefresh);
+  };
+  
+  const fetchProductsWithFilters = async (currentFilters, isRefresh = false) => {
     if (isRefresh) {
       setPage(1);
       setProducts([]);
     }
 
     try {
-      const response = await ApiService.searchPublicProducts({
+      console.log('🚨 FETCHING PRODUCTS WITH FILTERS 🚨');
+      console.log('Search query:', searchQuery);
+      console.log('Current filters being used:', currentFilters);
+      
+      const searchParams = {
         page: isRefresh ? 1 : page,
         limit: 20,
         search: searchQuery,
-        ...filters,
-      });
+        sortBy: currentFilters.sortBy,
+        sortOrder: currentFilters.sortOrder,
+      };
+      
+      // Only add itemType filter if it's selected
+      if (currentFilters.itemType) {
+        searchParams.itemType = currentFilters.itemType;
+        console.log('🔍 ITEMTYPE FILTER APPLIED:', currentFilters.itemType);
+      } else {
+        console.log('🔍 NO ITEMTYPE FILTER - SHOWING ALL ITEMS');
+      }
+      
+      // Only add categoryId filter if it's selected
+      if (currentFilters.categoryId) {
+        searchParams.categoryId = currentFilters.categoryId;
+      }
+      
+      console.log('Final search params:', searchParams);
+
+      const response = await ApiService.searchPublicProducts(searchParams);
+      console.log('API Response:', response.success ? 'Success' : 'Failed');
+      console.log('Items returned:', response.data?.items?.length || 0);
 
       if (response.success) {
         const newProducts = isRefresh ? response.data.items : [...products, ...response.data.items];
+        
+        // Debug the returned items
+        console.log('🔍 API RETURNED ITEMS DEBUG:');
+        console.log('Total items returned:', newProducts.length);
+        if (newProducts.length > 0) {
+          console.log('First 3 items itemType check:');
+          newProducts.slice(0, 3).forEach((item, index) => {
+            console.log(`Item ${index + 1}: ${item.name} - itemType: ${item.itemType}`);
+          });
+        }
+        
         setProducts(newProducts);
         setHasMore(response.data.pagination.page < response.data.pagination.totalPages);
         if (!isRefresh) setPage(page + 1);
@@ -61,7 +111,18 @@ const PublicProductSearchScreen = ({ navigation }) => {
 
   const handleSearch = () => {
     setLoading(true);
-    fetchProducts(true);
+    fetchProductsWithFilters(filters, true);
+  };
+  
+  const handleFilterChange = (newFilters) => {
+    console.log('🚨 FILTER CHANGED 🚨');
+    console.log('Previous filters:', filters);
+    console.log('New filters:', newFilters);
+    console.log('ItemType being set:', newFilters.itemType);
+    setFilters(newFilters);
+    setLoading(true);
+    // Pass the new filters directly to fetchProducts instead of relying on state
+    fetchProductsWithFilters(newFilters, true);
   };
 
   const loadMore = () => {
@@ -156,8 +217,19 @@ const PublicProductSearchScreen = ({ navigation }) => {
 
       <View style={styles.filterContainer}>
         <TouchableOpacity
+          style={[styles.filterChip, !filters.itemType && styles.activeFilter]}
+          onPress={() => handleFilterChange({...filters, itemType: ''})}
+        >
+          <Text style={[styles.filterText, !filters.itemType && styles.activeFilterText]}>
+            All Items
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.filterChip, filters.itemType === 'product' && styles.activeFilter]}
-          onPress={() => setFilters({...filters, itemType: filters.itemType === 'product' ? '' : 'product'})}
+          onPress={() => {
+            const newItemType = filters.itemType === 'product' ? '' : 'product';
+            handleFilterChange({...filters, itemType: newItemType});
+          }}
         >
           <Text style={[styles.filterText, filters.itemType === 'product' && styles.activeFilterText]}>
             Products
@@ -165,12 +237,22 @@ const PublicProductSearchScreen = ({ navigation }) => {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterChip, filters.itemType === 'service' && styles.activeFilter]}
-          onPress={() => setFilters({...filters, itemType: filters.itemType === 'service' ? '' : 'service'})}
+          onPress={() => {
+            const newItemType = filters.itemType === 'service' ? '' : 'service';
+            handleFilterChange({...filters, itemType: newItemType});
+          }}
         >
           <Text style={[styles.filterText, filters.itemType === 'service' && styles.activeFilterText]}>
             Services
           </Text>
         </TouchableOpacity>
+      </View>
+      
+      {/* Current Sort Indicator */}
+      <View style={styles.sortIndicator}>
+        <Text style={styles.resultCount}>
+          {products.length} {filters.itemType ? filters.itemType + 's' : 'items'} found
+        </Text>
       </View>
 
       {loading && products.length === 0 ? (
@@ -186,7 +268,7 @@ const PublicProductSearchScreen = ({ navigation }) => {
           numColumns={1}
           contentContainerStyle={styles.productList}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => fetchProducts(true)} />
+            <RefreshControl refreshing={refreshing} onRefresh={() => fetchProductsWithFilters(filters, true)} />
           }
           onEndReached={loadMore}
           onEndReachedThreshold={0.1}
@@ -288,6 +370,19 @@ const styles = StyleSheet.create({
   },
   activeFilterText: {
     color: 'white',
+  },
+  sortIndicator: {
+    backgroundColor: 'white',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    alignItems: 'flex-end',
+  },
+  resultCount: {
+    fontSize: 12,
+    color: '#7B2CBF',
+    fontWeight: '600',
   },
   productList: {
     padding: 16,

@@ -116,17 +116,17 @@ const AdminDashboardScreen = ({ navigation }) => {
   ];
 
   const quickActions = [
-    {
-      title: 'Manage Users',
-      subtitle: 'Add, edit, and manage users',
-      icon: 'people',
-      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.USER_MANAGEMENT,
-      onPress: () => ModuleAccessChecker.checkLimitAndNavigate(
-        ModuleAccessChecker.SUBSCRIPTION_MODULES.USER_MANAGEMENT,
-        'orgUsers',
-        () => navigation.navigate('UserManagement')
-      )
-    },
+    // {
+    //   title: 'Manage Users',
+    //   subtitle: 'Add, edit, and manage users',
+    //   icon: 'people',
+    //   moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.USER_MANAGEMENT,
+    //   onPress: () => ModuleAccessChecker.checkLimitAndNavigate(
+    //     ModuleAccessChecker.SUBSCRIPTION_MODULES.USER_MANAGEMENT,
+    //     'orgUsers',
+    //     () => navigation.navigate('UserManagement')
+    //   )
+    // },
     {
       title: 'Export Users',
       subtitle: 'Export users to CSV/PDF',

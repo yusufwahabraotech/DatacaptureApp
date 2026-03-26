@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/api';
+import ModuleAccessChecker from '../utils/ModuleAccessChecker';
 
 const UserManagementScreen = ({ navigation }) => {
   const [users, setUsers] = useState([]);
@@ -23,6 +24,13 @@ const UserManagementScreen = ({ navigation }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPrevPage, setHasPrevPage] = useState(false);
+  const itemsPerPage = 10;
   const [newUser, setNewUser] = useState({
     firstName: '',
     lastName: '',
@@ -47,9 +55,14 @@ const UserManagementScreen = ({ navigation }) => {
   // PUT: https://datacapture-backend.onrender.com/api/admin/users/${userId}/status
 
   useEffect(() => {
+    setCurrentPage(1); // Reset to first page when status changes
     fetchUsers();
     fetchRoles();
   }, [selectedStatus]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [currentPage]);
 
   const fetchRoles = async () => {
     try {
@@ -62,28 +75,74 @@ const UserManagementScreen = ({ navigation }) => {
     }
   };
 
-  // Implemented by VScode copilot
-  // Fixed fetchUsers to properly clear and filter by status
+  // Updated fetchUsers with proper pagination
   const fetchUsers = async () => {
     setStatusLoading(true);
-    setUsers([]); // Clear users immediately when status changes
+    if (currentPage === 1) {
+      setUsers([]); // Clear users only when fetching first page
+    }
+    
     try {
-      const response = await ApiService.getUsers();
+      console.log('🚨 FETCHING USERS DEBUG 🚨');
+      console.log('Current page:', currentPage);
+      console.log('Items per page:', itemsPerPage);
+      console.log('Selected status:', selectedStatus);
+      
+      const response = await ApiService.getUsers(currentPage, itemsPerPage);
+      console.log('API Response:', JSON.stringify(response, null, 2));
+      
       if (response.success) {
         const allUsers = response.data.users;
+        const pagination = response.data.pagination;
+        
+        console.log('Total users from API:', allUsers.length);
+        console.log('Pagination info:', pagination);
+        
         // Filter users by status only if not 'all'
         const filteredUsers = selectedStatus === 'all' 
           ? allUsers 
           : allUsers.filter(user => user.status === selectedStatus);
+        
         setUsers(filteredUsers);
+        
+        // Update pagination info
+        if (pagination) {
+          setTotalPages(pagination.totalPages || 1);
+          setTotalUsers(pagination.total || filteredUsers.length);
+          setHasNextPage(pagination.hasNextPage || false);
+          setHasPrevPage(pagination.hasPrevPage || false);
+        } else {
+          // Fallback pagination calculation
+          const total = filteredUsers.length;
+          const pages = Math.ceil(total / itemsPerPage);
+          setTotalPages(pages);
+          setTotalUsers(total);
+          setHasNextPage(currentPage < pages);
+          setHasPrevPage(currentPage > 1);
+        }
+        
         console.log(`Fetched ${filteredUsers.length} ${selectedStatus === 'all' ? 'total' : selectedStatus} users`);
+        console.log('Pagination state:', {
+          currentPage,
+          totalPages: pagination?.totalPages || Math.ceil(filteredUsers.length / itemsPerPage),
+          hasNextPage: pagination?.hasNextPage || false,
+          hasPrevPage: pagination?.hasPrevPage || false
+        });
       } else {
         console.log('Error from API:', response.message);
         setUsers([]);
+        setTotalPages(1);
+        setTotalUsers(0);
+        setHasNextPage(false);
+        setHasPrevPage(false);
       }
     } catch (error) {
       console.log('Error fetching users:', error);
       setUsers([]);
+      setTotalPages(1);
+      setTotalUsers(0);
+      setHasNextPage(false);
+      setHasPrevPage(false);
     } finally {
       setLoading(false);
       setStatusLoading(false);
@@ -134,6 +193,17 @@ const UserManagementScreen = ({ navigation }) => {
       return;
     }
 
+    // 🚨 CHECK USAGE LIMIT BEFORE CREATING USER
+    console.log('🚨 CHECKING USER CREATION LIMIT 🚨');
+    const canCreateUser = await ModuleAccessChecker.checkUsageLimit('orgUsers', true);
+    
+    if (!canCreateUser) {
+      console.log('❌ User creation limit exceeded');
+      return; // Stop execution if limit exceeded
+    }
+    
+    console.log('✅ User creation limit check passed');
+
     setCreateLoading(true);
     try {
       const token = await AsyncStorage.getItem('userToken');
@@ -150,6 +220,9 @@ const UserManagementScreen = ({ navigation }) => {
         setShowCreateModal(false);
         setNewUser({ firstName: '', lastName: '', email: '', phoneNumber: '', password: '', roleId: null });
         setShowRoleSection(false);
+        
+        // Reset to first page and refresh
+        setCurrentPage(1);
         fetchUsers();
       } else {
         Alert.alert('Error', response.message);
@@ -246,34 +319,103 @@ const UserManagementScreen = ({ navigation }) => {
               <Text style={styles.emptySubtext}>Try adjusting your search or filter</Text>
             </View>
           ) : (
-            filteredUsers.map((user) => (
-              <View key={user.id} style={styles.userCard}>
-                <View style={styles.userInfo}>
-                  <View style={styles.userAvatar}>
-                    <Text style={styles.userAvatarText}>
-                      {user.fullName.charAt(0).toUpperCase()}
+            <>
+              {/* Users List */}
+              {filteredUsers.map((user) => (
+                <View key={user.id} style={styles.userCard}>
+                  <View style={styles.userInfo}>
+                    <View style={styles.userAvatar}>
+                      <Text style={styles.userAvatarText}>
+                        {user.fullName.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.userDetails}>
+                      <Text style={styles.userName}>{user.fullName}</Text>
+                      <Text style={styles.userEmail}>{user.email}</Text>
+                      {user.phoneNumber && <Text style={styles.userPhone}>{user.phoneNumber}</Text>}
+                      <Text style={styles.userCustomId}>ID: {user.customUserId}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.userActions}>
+                    <View style={[styles.statusBadge, { backgroundColor: statusOptions.find(s => s.key === user.status)?.color }]}>
+                      <Text style={styles.statusBadgeText}>{user.status}</Text>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.actionButton}
+                      onPress={() => handleUserPress(user)}
+                    >
+                      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <View style={styles.paginationContainer}>
+                  <View style={styles.paginationInfo}>
+                    <Text style={styles.paginationText}>
+                      Page {currentPage} of {totalPages} ({totalUsers} total users)
                     </Text>
                   </View>
-                  <View style={styles.userDetails}>
-                    <Text style={styles.userName}>{user.fullName}</Text>
-                    <Text style={styles.userEmail}>{user.email}</Text>
-                    {user.phoneNumber && <Text style={styles.userPhone}>{user.phoneNumber}</Text>}
-                    <Text style={styles.userCustomId}>ID: {user.customUserId}</Text>
+                  <View style={styles.paginationControls}>
+                    <TouchableOpacity 
+                      style={[styles.paginationButton, !hasPrevPage && styles.paginationButtonDisabled]}
+                      onPress={() => {
+                        if (hasPrevPage && currentPage > 1) {
+                          setCurrentPage(currentPage - 1);
+                        }
+                      }}
+                      disabled={!hasPrevPage || statusLoading}
+                    >
+                      <Ionicons name="chevron-back" size={20} color={!hasPrevPage ? "#9CA3AF" : "#7C3AED"} />
+                      <Text style={[styles.paginationButtonText, !hasPrevPage && styles.paginationButtonTextDisabled]}>Previous</Text>
+                    </TouchableOpacity>
+                    
+                    <View style={styles.pageNumbers}>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <TouchableOpacity
+                            key={pageNum}
+                            style={[styles.pageNumberButton, currentPage === pageNum && styles.pageNumberButtonActive]}
+                            onPress={() => setCurrentPage(pageNum)}
+                            disabled={statusLoading}
+                          >
+                            <Text style={[styles.pageNumberText, currentPage === pageNum && styles.pageNumberTextActive]}>
+                              {pageNum}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    
+                    <TouchableOpacity 
+                      style={[styles.paginationButton, !hasNextPage && styles.paginationButtonDisabled]}
+                      onPress={() => {
+                        if (hasNextPage && currentPage < totalPages) {
+                          setCurrentPage(currentPage + 1);
+                        }
+                      }}
+                      disabled={!hasNextPage || statusLoading}
+                    >
+                      <Text style={[styles.paginationButtonText, !hasNextPage && styles.paginationButtonTextDisabled]}>Next</Text>
+                      <Ionicons name="chevron-forward" size={20} color={!hasNextPage ? "#9CA3AF" : "#7C3AED"} />
+                    </TouchableOpacity>
                   </View>
                 </View>
-                <View style={styles.userActions}>
-                  <View style={[styles.statusBadge, { backgroundColor: statusOptions.find(s => s.key === user.status)?.color }]}>
-                    <Text style={styles.statusBadgeText}>{user.status}</Text>
-                  </View>
-                  <TouchableOpacity 
-                    style={styles.actionButton}
-                    onPress={() => handleUserPress(user)}
-                  >
-                    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))
+              )}
+            </>
           )}
         </View>
       </ScrollView>
@@ -850,6 +992,77 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: 'white',
+  },
+  // Pagination Styles
+  paginationContainer: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  paginationInfo: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  paginationText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  paginationControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  paginationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#7C3AED',
+  },
+  paginationButtonDisabled: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+  },
+  paginationButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#7C3AED',
+    marginHorizontal: 4,
+  },
+  paginationButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
+  pageNumbers: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pageNumberButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  pageNumberButtonActive: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
+  },
+  pageNumberText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  pageNumberTextActive: {
+    color: '#FFFFFF',
   },
 });
 

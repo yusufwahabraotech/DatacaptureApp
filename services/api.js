@@ -1,22 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-// Single base URL configuration
-const BASE_URL = 'https://datacapture-backend.onrender.com/api';
+// Single base URL configuration - Updated to use local development server
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
-// FORCE COMPLETE RELOAD - BREAKING CACHE v8 - MEASUREMENT DETAILS FIX
-const FORCE_RELOAD_NOW = 'MEASUREMENT_DETAILS_FIX_' + Date.now();
-console.log('🚨 MEASUREMENT DETAILS FIX API SERVICE RELOAD v8 🚨', FORCE_RELOAD_NOW);
-console.log('🔥 IF YOU SEE THIS, THE NEW CODE IS LOADED 🔥');
-console.log('🌐 Using single base URL:', BASE_URL);
+// FORCE COMPLETE RELOAD - BREAKING CACHE v9 - LOCAL SERVER UPDATE
+const FORCE_RELOAD_NOW = 'LOCAL_SERVER_UPDATE_' + Date.now();
+console.log('🚨 LOCAL SERVER UPDATE API SERVICE RELOAD v9 🚨', FORCE_RELOAD_NOW);
+console.log('🔥 USING LOCAL DEVELOPMENT SERVER 🔥');
+console.log('🌐 Using local base URL:', BASE_URL);
 
-// CACHE BUST v2.1 - CLOUDINARY_UPLOAD_FIX
+// CACHE BUST v2.2 - LOCAL_SERVER_UPDATE
 class ApiService {
-  // FORCE RELOAD MARKER - PERMISSION FIX v7
-  static RELOAD_MARKER = 'PERMISSION_FIX_v7_' + Date.now();
+  // FORCE RELOAD MARKER - LOCAL SERVER v1
+  static RELOAD_MARKER = 'LOCAL_SERVER_v1_' + Date.now();
   
   static async getToken() {
-    console.log('🚨 PERMISSION FIX API SERVICE LOADED 🚨', this.RELOAD_MARKER);
+    console.log('🚨 LOCAL SERVER API SERVICE LOADED 🚨', this.RELOAD_MARKER);
     return await AsyncStorage.getItem('userToken');
   }
 

@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import ApiService from '../services/api';
+import ModuleAccessChecker from '../utils/ModuleAccessChecker';
 
 const CreateUserScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
@@ -88,6 +89,17 @@ const CreateUserScreen = ({ navigation }) => {
 
   const createUser = async () => {
     if (!validateForm()) return;
+
+    // 🚨 CHECK USAGE LIMIT BEFORE CREATING USER
+    console.log('🚨 CHECKING USER CREATION LIMIT 🚨');
+    const canCreateUser = await ModuleAccessChecker.checkUsageLimit('orgUsers', true);
+    
+    if (!canCreateUser) {
+      console.log('❌ User creation limit exceeded');
+      return; // Stop execution if limit exceeded
+    }
+    
+    console.log('✅ User creation limit check passed');
 
     setLoading(true);
     try {
