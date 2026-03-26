@@ -50,10 +50,63 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
     if (!result.canceled && result.assets[0]) {
       const file = result.assets[0];
       
-      // Get file extension and type
+      // Define file size limit (5MB)
+      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+      
+      // Check file size if available
+      if (file.fileSize && file.fileSize > MAX_FILE_SIZE) {
+        const fileSizeInMB = (file.fileSize / (1024 * 1024)).toFixed(2);
+        Alert.alert(
+          'File Too Large',
+          `The selected file is ${fileSizeInMB} MB. Please select a file smaller than 5 MB.`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      // Get file extension and calculate size
       const fileName = file.uri.split('/').pop() || 'payment_evidence';
       const fileExtension = fileName.split('.').pop()?.toLowerCase();
-      const fileSize = file.fileSize ? (file.fileSize / 1024 / 1024).toFixed(2) : 'Unknown';
+      
+      // Validate file type
+      const allowedTypes = ['jpg', 'jpeg', 'png', 'pdf'];
+      if (!allowedTypes.includes(fileExtension)) {
+        Alert.alert(
+          'Invalid File Type',
+          'Please select a valid file type: JPG, PNG, or PDF',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      // Calculate file size in MB from bytes
+      let fileSize = 'Unknown';
+      console.log('🚨 FILE SIZE DEBUG 🚨');
+      console.log('file.fileSize:', file.fileSize);
+      console.log('file.width:', file.width);
+      console.log('file.height:', file.height);
+      
+      if (file.fileSize) {
+        const sizeInMB = file.fileSize / (1024 * 1024);
+        fileSize = sizeInMB < 1 
+          ? `${(sizeInMB * 1024).toFixed(0)} KB` 
+          : `${sizeInMB.toFixed(2)} MB`;
+        console.log('Calculated size from fileSize:', fileSize);
+      } else if (file.width && file.height) {
+        // Estimate size for images if fileSize not available
+        const estimatedBytes = file.width * file.height * 3; // Rough estimate
+        const estimatedMB = estimatedBytes / (1024 * 1024);
+        fileSize = estimatedMB < 1 
+          ? `~${(estimatedMB * 1024).toFixed(0)} KB` 
+          : `~${estimatedMB.toFixed(2)} MB`;
+        console.log('Estimated size from dimensions:', fileSize);
+      } else {
+        // Fallback - try to get size from file system or use default
+        fileSize = '< 1 MB';
+        console.log('Using fallback size:', fileSize);
+      }
+      
+      console.log('Final fileSize value:', fileSize);
       
       try {
         setLoading(true);
@@ -288,7 +341,7 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
                   <View style={styles.fileInfo}>
                     <Text style={styles.fileName}>{paymentEvidenceFile.name}</Text>
                     <Text style={styles.fileDetails}>
-                      {paymentEvidenceFile.type} • {paymentEvidenceFile.size} MB
+                      {paymentEvidenceFile.type} • {paymentEvidenceFile.size}
                     </Text>
                   </View>
                   <View style={styles.fileStatus}>
@@ -311,7 +364,7 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
             )}
             
             <Text style={styles.uploadHint}>
-              Supported formats: Images (JPG, PNG)
+              Supported formats: Images (JPG, PNG), PDF • Max size: 5 MB
             </Text>
           </View>
         </View>
@@ -380,7 +433,7 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
             
             <View style={styles.modalFooter}>
               <Text style={styles.imageInfo}>
-                {paymentEvidenceFile?.name} • {paymentEvidenceFile?.type} • {paymentEvidenceFile?.size} MB
+                {paymentEvidenceFile?.name} • {paymentEvidenceFile?.type} • {paymentEvidenceFile?.size}
               </Text>
             </View>
           </View>
@@ -560,6 +613,7 @@ const styles = StyleSheet.create({
   fileDetails: {
     fontSize: 12,
     color: '#6B7280',
+    fontWeight: '500',
   },
   fileStatus: {
     flexDirection: 'row',
