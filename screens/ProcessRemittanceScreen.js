@@ -10,13 +10,18 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import ApiService from '../services/api';
 
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
 const ProcessRemittanceScreen = ({ navigation, route }) => {
-  const { order } = route.params;
+  const { order, onRemittanceProcessed } = route.params;
   const [loading, setLoading] = useState(false);
   
   // Form state
@@ -27,6 +32,7 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
   const [paymentEvidenceUrl, setPaymentEvidenceUrl] = useState('');
   const [paymentEvidenceFile, setPaymentEvidenceFile] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showImagePreview, setShowImagePreview] = useState(false);
 
   const uploadPaymentEvidence = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -126,13 +132,29 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
         } : null,
       };
 
+      console.log('💰 Processing remittance for order:', order._id);
+      console.log('Remittance data:', JSON.stringify(remittanceData, null, 2));
+      
       const response = await ApiService.processRemittance(order._id, remittanceData);
       
+      console.log('💰 Process remittance response:', JSON.stringify(response, null, 2));
+      
       if (response.success) {
+        console.log('✅ Remittance processed successfully - should update hasRemittance to true');
         Alert.alert(
           'Success',
           'Remittance processed successfully! The organization will be notified.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
+          [{ 
+            text: 'OK', 
+            onPress: () => {
+              console.log('🔄 Calling onRemittanceProcessed callback');
+              // Call the callback to refresh the parent screen
+              if (onRemittanceProcessed) {
+                onRemittanceProcessed();
+              }
+              navigation.goBack();
+            }
+          }]
         );
       } else {
         Alert.alert('Error', response.message || 'Failed to process remittance');
@@ -276,13 +298,12 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
                 </View>
                 
                 {/* Preview for images */}
-                {paymentEvidenceFile && (
+                {paymentEvidenceFile && paymentEvidenceUrl && (
                   <TouchableOpacity 
                     style={styles.previewButton}
-                    onPress={() => {
-                      Alert.alert('Preview', 'Image preview functionality can be added here');
-                    }}
+                    onPress={() => setShowImagePreview(true)}
                   >
+                    <Ionicons name="eye" size={16} color="white" />
                     <Text style={styles.previewButtonText}>Preview Image</Text>
                   </TouchableOpacity>
                 )}
@@ -323,6 +344,48 @@ const ProcessRemittanceScreen = ({ navigation, route }) => {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Image Preview Modal */}
+      <Modal
+        visible={showImagePreview}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImagePreview(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Payment Evidence Preview</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowImagePreview(false)}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              style={styles.imageScrollView}
+              contentContainerStyle={styles.imageScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {paymentEvidenceUrl && (
+                <Image
+                  source={{ uri: paymentEvidenceUrl }}
+                  style={styles.previewImage}
+                  resizeMode="contain"
+                />
+              )}
+            </ScrollView>
+            
+            <View style={styles.modalFooter}>
+              <Text style={styles.imageInfo}>
+                {paymentEvidenceFile?.name} • {paymentEvidenceFile?.type} • {paymentEvidenceFile?.size} MB
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -509,11 +572,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   previewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#7B2CBF',
     borderRadius: 6,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    alignItems: 'center',
+    gap: 4,
   },
   previewButtonText: {
     color: 'white',
@@ -525,6 +591,62 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     marginTop: 8,
     fontStyle: 'italic',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    width: screenWidth * 0.95,
+    height: screenHeight * 0.8,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  imageScrollView: {
+    flex: 1,
+  },
+  imageScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  previewImage: {
+    width: screenWidth * 0.85,
+    height: screenHeight * 0.6,
+    borderRadius: 8,
+  },
+  modalFooter: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  imageInfo: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
   },
 });
 

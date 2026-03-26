@@ -11,6 +11,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/api';
 
 const ConfirmedDeliveriesScreen = ({ navigation }) => {
@@ -22,6 +23,16 @@ const ConfirmedDeliveriesScreen = ({ navigation }) => {
     fetchConfirmedDeliveries();
   }, []);
 
+  // Refresh data when screen comes into focus (after returning from ProcessRemittance)
+  useFocusEffect(
+    React.useCallback(() => {
+      // Refresh when returning from ProcessRemittance screen
+      if (orders.length > 0) {
+        fetchConfirmedDeliveries(true);
+      }
+    }, [orders.length])
+  );
+
   const fetchConfirmedDeliveries = async (isRefresh = false) => {
     if (isRefresh) {
       setRefreshing(true);
@@ -30,13 +41,31 @@ const ConfirmedDeliveriesScreen = ({ navigation }) => {
     }
 
     try {
+      console.log('🔍 Fetching confirmed deliveries...');
       const response = await ApiService.getConfirmedDeliveries();
       if (response.success) {
-        setOrders(response.data.orders || []);
+        const orders = response.data.orders || [];
+        console.log('📊 Received orders:', orders.length);
+        
+        // Debug each order's remittance status
+        orders.forEach((order, index) => {
+          const orderData = order._doc || order;
+          console.log(`Order ${index + 1}: ${orderData.productName}`);
+          console.log(`  - hasRemittance: ${order.hasRemittance}`);
+          console.log(`  - remittanceStatus: ${order.remittanceStatus}`);
+          console.log(`  - Raw order data:`, JSON.stringify({
+            hasRemittance: order.hasRemittance,
+            remittanceStatus: order.remittanceStatus,
+            _id: orderData._id
+          }, null, 2));
+        });
+        
+        setOrders(orders);
       } else {
         Alert.alert('Error', response.message || 'Failed to fetch confirmed deliveries');
       }
     } catch (error) {
+      console.error('Error fetching confirmed deliveries:', error);
       Alert.alert('Error', 'Failed to fetch confirmed deliveries');
     } finally {
       setLoading(false);
@@ -53,13 +82,41 @@ const ConfirmedDeliveriesScreen = ({ navigation }) => {
   };
 
   const handleProcessRemittance = (order) => {
-    navigation.navigate('ProcessRemittance', { order });
+    console.log('🚀 Processing remittance for order:', order.productName);
+    console.log('Order ID:', order._id);
+    navigation.navigate('ProcessRemittance', { 
+      order,
+      onRemittanceProcessed: () => {
+        console.log('🔄 Remittance processed callback - refreshing data...');
+        // Add a delay to ensure backend has updated
+        setTimeout(() => {
+          fetchConfirmedDeliveries(true);
+        }, 1000);
+      }
+    });
   };
 
   const renderOrderItem = ({ item }) => {
     // Extract data from MongoDB document structure
     const orderData = item._doc || item;
     const deliveryConfirmation = orderData.deliveryConfirmation;
+    
+    // Use backend-provided remittance status fields from the root item level
+    const hasRemittance = item.hasRemittance || false;
+    const remittanceStatus = item.remittanceStatus || 'pending';
+    const noBankDetails = !item.organizationBankDetails;
+    
+    // Button should be disabled if remittance has been processed OR no bank details
+    const isButtonDisabled = hasRemittance || noBankDetails;
+    
+    // Debug button state for this specific order
+    console.log(`🔴 BUTTON STATE DEBUG for ${orderData.productName}:`);
+    console.log(`  - hasRemittance: ${hasRemittance} (type: ${typeof hasRemittance})`);
+    console.log(`  - remittanceStatus: ${remittanceStatus}`);
+    console.log(`  - noBankDetails: ${noBankDetails}`);
+    console.log(`  - isButtonDisabled: ${isButtonDisabled}`);
+    console.log(`  - item.hasRemittance:`, item.hasRemittance);
+    console.log(`  - item.remittanceStatus:`, item.remittanceStatus);
     
     return (
       <View style={styles.orderCard}>
@@ -181,28 +238,49 @@ const ConfirmedDeliveriesScreen = ({ navigation }) => {
           )}
         </View>
 
+        {/* Remittance Status Badge */}
+        {hasRemittance && (
+          <View style={[
+            styles.statusBadge,
+            remittanceStatus === 'confirmed' && styles.processedBadge,
+            remittanceStatus === 'pending' && styles.processingBadge
+          ]}>
+            <Ionicons 
+              name={remittanceStatus === 'confirmed' ? 'checkmark-circle' : 'time'} 
+              size={12} 
+              color="white" 
+            />
+            <Text style={styles.statusBadgeText}>
+              {remittanceStatus === 'confirmed' ? 'Remittance Confirmed' : 'Remittance Pending'}
+            </Text>
+          </View>
+        )}
+
         {/* Action Button */}
         <TouchableOpacity
           style={[
             styles.processButton,
-            (!item.organizationBankDetails || orderData.remittanceStatus === 'processing' || orderData.remittanceStatus === 'processed') && styles.processButtonDisabled
+            isButtonDisabled && styles.processButtonDisabled
           ]}
-          onPress={() => handleProcessRemittance({
-            ...orderData,
-            organizationBankDetails: item.organizationBankDetails
-          })}
-          disabled={!item.organizationBankDetails || orderData.remittanceStatus === 'processing' || orderData.remittanceStatus === 'processed'}
+          onPress={() => {
+            if (!isButtonDisabled) {
+              handleProcessRemittance({
+                ...orderData,
+                organizationBankDetails: item.organizationBankDetails
+              });
+            }
+          }}
+          disabled={isButtonDisabled}
         >
           <Ionicons 
-            name={orderData.remittanceStatus === 'processed' ? 'checkmark-circle' : 
-                  orderData.remittanceStatus === 'processing' ? 'time' : 'card'} 
+            name={hasRemittance ? 'checkmark-circle' : 
+                  noBankDetails ? 'warning' : 'card'} 
             size={20} 
             color="white" 
           />
           <Text style={styles.processButtonText}>
-            {!item.organizationBankDetails ? 'Bank Details Required' :
-             orderData.remittanceStatus === 'processed' ? 'Remittance Processed' :
-             orderData.remittanceStatus === 'processing' ? 'Remittance In Progress' :
+            {noBankDetails ? 'Bank Details Required' :
+             hasRemittance ? 'Remittance Processed' :
              'Process Remittance'}
           </Text>
         </TouchableOpacity>
@@ -490,6 +568,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#EF4444',
     fontStyle: 'italic',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+    gap: 4,
+  },
+  processedBadge: {
+    backgroundColor: '#10B981',
+  },
+  processingBadge: {
+    backgroundColor: '#F59E0B',
+  },
+  statusBadgeText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
 
