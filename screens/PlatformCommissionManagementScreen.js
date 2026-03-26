@@ -118,6 +118,8 @@ const PlatformCommissionManagementScreen = ({ navigation }) => {
         response = await ApiService.updatePlatformCommission(editingCommission.id, {
           commissionName: payload.commissionName,
           commissionRate: payload.commissionRate,
+          categoryId: payload.categoryId,
+          industryId: payload.industryId,
           description: payload.description,
         });
       } else {
@@ -370,8 +372,6 @@ const PlatformCommissionManagementScreen = ({ navigation }) => {
                 />
               </View>
 
-              {!editingCommission && (
-                <>
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Industry *</Text>
                     <TouchableOpacity
@@ -430,8 +430,6 @@ const PlatformCommissionManagementScreen = ({ navigation }) => {
                       </ScrollView>
                     )}
                   </View>
-                </>
-              )}
 
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Description</Text>
@@ -731,13 +729,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
-    marginTop: 10,
+    marginTop: 20,
+    marginBottom: 50,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
+    minHeight: 48,
   },
   cancelButton: {
     backgroundColor: '#f8f9fa',
