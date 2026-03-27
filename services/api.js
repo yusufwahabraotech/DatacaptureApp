@@ -1,22 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-// Single base URL configuration - Updated to use production server
-const BASE_URL = 'https://datacapture-backend.onrender.com/api';
+// Single base URL configuration - Updated to use local server
+const BASE_URL = 'http://192.168.1.183:3000/api';
 
-// FORCE COMPLETE RELOAD - BREAKING CACHE v12 - PRODUCTION SERVER UPDATE
-const FORCE_RELOAD_NOW = 'PRODUCTION_SERVER_UPDATE_' + Date.now();
-console.log('🚨 PRODUCTION SERVER UPDATE API SERVICE RELOAD v12 🚨', FORCE_RELOAD_NOW);
-console.log('🔥 USING PRODUCTION SERVER 🔥');
-console.log('🌐 Using production base URL:', BASE_URL);
+// FORCE COMPLETE RELOAD - BREAKING CACHE v14 - LOCAL SERVER UPDATE
+const FORCE_RELOAD_NOW = 'LOCAL_SERVER_UPDATE_' + Date.now();
+console.log('🚨 LOCAL SERVER UPDATE API SERVICE RELOAD v14 🚨', FORCE_RELOAD_NOW);
+console.log('🔥 USING LOCAL SERVER 🔥');
+console.log('🌐 Using local base URL:', BASE_URL);
 
-// CACHE BUST v2.2 - LOCAL_SERVER_UPDATE
+// CACHE BUST v2.4 - LOCAL_SERVER_UPDATE
 class ApiService {
-  // FORCE RELOAD MARKER - PRODUCTION SERVER v2
-  static RELOAD_MARKER = 'PRODUCTION_SERVER_v2_' + Date.now();
+  // FORCE RELOAD MARKER - LOCAL SERVER v4
+  static RELOAD_MARKER = 'LOCAL_SERVER_v4_' + Date.now();
   
   static async getToken() {
-    console.log('🚨 PRODUCTION SERVER API SERVICE LOADED 🚨', this.RELOAD_MARKER);
+    console.log('🚨 LOCAL SERVER API SERVICE LOADED 🚨', this.RELOAD_MARKER);
     return await AsyncStorage.getItem('userToken');
   }
 
@@ -1974,7 +1974,22 @@ class ApiService {
     
     const queryString = queryParams.toString();
     const endpoint = `/super-admin/data-verification/verifications${queryString ? '?' + queryString : ''}`;
-    return this.apiCall(endpoint);
+    
+    console.log('🚨 SUPER ADMIN VERIFICATIONS FETCH DEBUG 🚨');
+    console.log('Fetching from endpoint:', endpoint);
+    console.log('Query params:', params);
+    
+    const response = await this.apiCall(endpoint);
+    
+    console.log('SuperAdmin verifications response:', JSON.stringify(response, null, 2));
+    if (response.success && response.data) {
+      console.log('Total verifications found:', response.data.verifications?.length || 0);
+      if (response.data.verifications?.length > 0) {
+        console.log('Sample verification:', JSON.stringify(response.data.verifications[0], null, 2));
+      }
+    }
+    
+    return response;
   }
 
   static async reviewVerification(verificationId, status, comments) {
@@ -2054,6 +2069,10 @@ class ApiService {
   }
 
   static async createVerificationFromAssignment(verificationData) {
+    console.log('🚨 FIELD AGENT VERIFICATION SUBMISSION DEBUG 🚨');
+    console.log('Submitting to endpoint: /data-verification');
+    console.log('Verification data:', JSON.stringify(verificationData, null, 2));
+    
     return this.apiCall('/data-verification', {
       method: 'POST',
       body: JSON.stringify(verificationData),
@@ -2061,9 +2080,16 @@ class ApiService {
   }
 
   static async submitVerification(verificationId) {
-    return this.apiCall(`/data-verification/${verificationId}/submit`, {
+    console.log('🚨 FIELD AGENT VERIFICATION SUBMIT DEBUG 🚨');
+    console.log('Submitting verification ID:', verificationId);
+    console.log('Using endpoint:', `/data-verification/${verificationId}/submit`);
+    
+    const response = await this.apiCall(`/data-verification/${verificationId}/submit`, {
       method: 'POST',
     });
+    
+    console.log('Submit response:', JSON.stringify(response, null, 2));
+    return response;
   }
 
   // NEW API METHOD FOR ASSIGNED LOCATIONS

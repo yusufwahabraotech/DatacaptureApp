@@ -190,7 +190,7 @@ const LocationManagementScreen = ({ navigation, route }) => {
             style={styles.addButton}
             onPress={() => navigation.navigate('CreateLocation')}
           >
-            <Ionicons name="add" size={24} color="#7C3AED" />
+            <Ionicons name="add" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -267,7 +267,12 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   addButton: {
-    padding: 8,
+    backgroundColor: '#7C3AED',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tableContainer: {
     backgroundColor: 'white',

@@ -182,8 +182,11 @@ const OrganizationManagementScreen = ({ navigation }) => {
             <Ionicons name="people" size={20} color="#10B981" />
             <Text style={styles.headerButtonText}>All Admins</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowCreateModal(true)}>
-            <Ionicons name="add" size={24} color="#7C3AED" />
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => setShowCreateModal(true)}
+          >
+            <Ionicons name="add" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -532,6 +535,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#10B981',
+  },
+  addButton: {
+    backgroundColor: '#7C3AED',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   searchContainer: {
     flexDirection: 'row',

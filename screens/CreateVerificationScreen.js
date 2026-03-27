@@ -408,6 +408,10 @@ const CreateVerificationScreen = ({ navigation }) => {
 
     try {
       console.log('🔍 DEBUG: About to create verification');
+      console.log('🚨 FIELD AGENT SUBMISSION FLOW START 🚨');
+      console.log('Assignment ID:', formData.assignmentId);
+      console.log('Organization:', formData.organizationName);
+      console.log('Selected Location ID:', formData.selectedLocationId);
       
       // Step 1: Upload all images to Cloudinary first
       console.log('📤 Uploading building pictures to Cloudinary...');
@@ -504,6 +508,7 @@ const CreateVerificationScreen = ({ navigation }) => {
       console.log('🔍 Final verification data with uploaded images:', JSON.stringify(verificationData, null, 2));
       
       // Step 2: Create verification (saves as draft)
+      console.log('🚨 STEP 2: CREATING VERIFICATION 🚨');
       const response = await ApiService.createVerificationFromAssignment(verificationData);
       console.log('🔍 Create verification response:', JSON.stringify(response, null, 2));
       
@@ -519,6 +524,7 @@ const CreateVerificationScreen = ({ navigation }) => {
         
         // Step 3: Submit verification (changes status to submitted)
         setUploadProgress('Submitting verification...');
+        console.log('🚨 STEP 3: SUBMITTING VERIFICATION 🚨');
         console.log('🔍 About to submit verification with ID:', verificationId);
         const submitResponse = await ApiService.submitVerification(verificationId);
         console.log('🔍 Submit verification response:', JSON.stringify(submitResponse, null, 2));
@@ -526,12 +532,15 @@ const CreateVerificationScreen = ({ navigation }) => {
         if (submitResponse.success) {
           setIsUploading(false);
           setUploadProgress('');
+          console.log('✅ FIELD AGENT SUBMISSION COMPLETED SUCCESSFULLY');
+          console.log('Verification should now be visible to SuperAdmin with status: submitted');
           Alert.alert('Success', 'Verification submitted successfully', [
             { text: 'OK', onPress: () => navigation.goBack() }
           ]);
         } else {
           setIsUploading(false);
           setUploadProgress('');
+          console.log('⚠️ Verification created but submission failed:', submitResponse.message);
           Alert.alert('Warning', 'Verification created but failed to submit. You can submit it later from your verifications list.');
           navigation.goBack();
         }

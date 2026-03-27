@@ -31,16 +31,29 @@ const DataVerificationManagementScreen = ({ navigation }) => {
 
   const fetchData = async () => {
     try {
+      console.log('🚨 SUPER ADMIN FETCH DATA DEBUG 🚨');
+      console.log('Selected status filter:', selectedStatus);
+      
       const [verificationsRes, statsRes] = await Promise.all([
         ApiService.getSuperAdminVerifications(selectedStatus !== 'all' ? { status: selectedStatus } : {}),
         ApiService.getVerificationStats()
       ]);
 
+      console.log('Verifications API response:', JSON.stringify(verificationsRes, null, 2));
+      console.log('Stats API response:', JSON.stringify(statsRes, null, 2));
+
       if (verificationsRes.success) {
+        console.log('Setting verifications:', verificationsRes.data.verifications?.length || 0, 'items');
         setVerifications(verificationsRes.data.verifications);
+      } else {
+        console.log('Verifications API failed:', verificationsRes.message);
       }
+      
       if (statsRes.success) {
+        console.log('Setting stats:', JSON.stringify(statsRes.data.stats, null, 2));
         setStats(statsRes.data.stats);
+      } else {
+        console.log('Stats API failed:', statsRes.message);
       }
     } catch (error) {
       console.log('Error fetching data:', error);
