@@ -1,22 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-// Single base URL configuration - Updated to use local development server
-const BASE_URL = 'http://192.168.0.183:3000/api';
+// Single base URL configuration - Updated to use production server
+const BASE_URL = 'https://datacapture-backend.onrender.com/api';
 
-// FORCE COMPLETE RELOAD - BREAKING CACHE v11 - LOCAL SERVER UPDATE
-const FORCE_RELOAD_NOW = 'LOCAL_SERVER_UPDATE_' + Date.now();
-console.log('🚨 LOCAL SERVER UPDATE API SERVICE RELOAD v11 🚨', FORCE_RELOAD_NOW);
-console.log('🔥 USING LOCAL DEVELOPMENT SERVER 🔥');
-console.log('🌐 Using local base URL:', BASE_URL);
+// FORCE COMPLETE RELOAD - BREAKING CACHE v12 - PRODUCTION SERVER UPDATE
+const FORCE_RELOAD_NOW = 'PRODUCTION_SERVER_UPDATE_' + Date.now();
+console.log('🚨 PRODUCTION SERVER UPDATE API SERVICE RELOAD v12 🚨', FORCE_RELOAD_NOW);
+console.log('🔥 USING PRODUCTION SERVER 🔥');
+console.log('🌐 Using production base URL:', BASE_URL);
 
 // CACHE BUST v2.2 - LOCAL_SERVER_UPDATE
 class ApiService {
-  // FORCE RELOAD MARKER - LOCAL SERVER v2
-  static RELOAD_MARKER = 'LOCAL_SERVER_v2_' + Date.now();
+  // FORCE RELOAD MARKER - PRODUCTION SERVER v2
+  static RELOAD_MARKER = 'PRODUCTION_SERVER_v2_' + Date.now();
   
   static async getToken() {
-    console.log('🚨 LOCAL SERVER API SERVICE LOADED 🚨', this.RELOAD_MARKER);
+    console.log('🚨 PRODUCTION SERVER API SERVICE LOADED 🚨', this.RELOAD_MARKER);
     return await AsyncStorage.getItem('userToken');
   }
 
@@ -2291,16 +2291,11 @@ class ApiService {
     console.log('🚨 USAGE LIMIT CHECK 🚨');
     console.log('Checking limit for:', limitType);
     
-    // Map frontend limit types to backend limit types
-    const limitTypeMap = {
-      'orgUsers': 'orgUsersCreated',
-      'bodyMeasurements': 'bodyMeasurementsCreated'
-    };
+    // Send the limit type directly without mapping
+    // Backend expects: "orgUsers" or "bodyMeasurements"
+    console.log('Sending limit type to backend:', limitType);
     
-    const backendLimitType = limitTypeMap[limitType] || limitType;
-    console.log('Mapped to backend limit type:', backendLimitType);
-    
-    return this.apiCall(`/user-subscriptions/check-usage-limit/${backendLimitType}`);
+    return this.apiCall(`/user-subscriptions/check-usage-limit/${limitType}`);
   }
 
   // GET AVAILABLE MODULES
