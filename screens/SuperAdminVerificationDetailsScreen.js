@@ -26,11 +26,44 @@ const SuperAdminVerificationDetailsScreen = ({ route, navigation }) => {
   const fetchVerificationDetails = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Fetching verification details for ID:', verificationId);
+      
       const response = await ApiService.getSuperAdminVerificationDetails(verificationId);
+      console.log('📥 Raw API response:', JSON.stringify(response, null, 2));
+      
       if (response.success) {
-        setVerification(response.data.verification);
+        const verificationData = response.data.verification;
+        console.log('✅ Verification data received:', JSON.stringify(verificationData, null, 2));
+        
+        // Debug building pictures specifically
+        if (verificationData.buildingPictures) {
+          console.log('🖼️ Building pictures found:', JSON.stringify(verificationData.buildingPictures, null, 2));
+          
+          // Check each picture type
+          Object.keys(verificationData.buildingPictures).forEach(key => {
+            const picture = verificationData.buildingPictures[key];
+            console.log(`📸 ${key}:`, picture);
+            
+            if (typeof picture === 'object' && picture.fileUrl) {
+              console.log(`  - URL: ${picture.fileUrl}`);
+              console.log(`  - Caption: ${picture.caption || 'No caption'}`);
+            } else if (typeof picture === 'string') {
+              console.log(`  - Direct URL: ${picture}`);
+            } else {
+              console.log(`  - Invalid format:`, typeof picture, picture);
+            }
+          });
+        } else {
+          console.log('❌ No buildingPictures found in verification data');
+        }
+        
+        setVerification(verificationData);
+      } else {
+        console.log('❌ API response failed:', response.message);
+        Alert.alert('Error', response.message || 'Failed to load verification details');
       }
     } catch (error) {
+      console.log('💥 Exception in fetchVerificationDetails:', error);
       Alert.alert('Error', 'Failed to load verification details');
     } finally {
       setLoading(false);
@@ -202,6 +235,7 @@ const SuperAdminVerificationDetailsScreen = ({ route, navigation }) => {
         {verification.buildingPictures ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Building Pictures</Text>
+            
             <View style={styles.picturesGrid}>
               {[
                 { key: 'frontView', label: 'Front View of Building' },
@@ -214,43 +248,71 @@ const SuperAdminVerificationDetailsScreen = ({ route, navigation }) => {
               ].map((pictureType) => {
                 const picture = verification.buildingPictures[pictureType.key];
                 
-                // Debug logging
-                console.log(`🖼️ Checking picture ${pictureType.key}:`, picture);
-                
-                // Handle both old format (direct URL) and new format (object with fileUrl)
                 let imageUrl = null;
                 let caption = null;
                 
-                if (typeof picture === 'string') {
-                  // Old format: direct URL string
+                // Handle multiple possible formats from backend
+                if (typeof picture === 'string' && picture.trim() !== '') {
                   imageUrl = picture;
                 } else if (picture && typeof picture === 'object') {
-                  // New format: object with fileUrl and caption
-                  imageUrl = picture.fileUrl;
-                  caption = picture.caption;
+                  imageUrl = picture.fileUrl || picture.url || picture.imageUrl || picture.secure_url;
+                  caption = picture.caption || picture.comment;
                 }
                 
-                // Skip if no valid image URL or if it's a placeholder
-                if (!imageUrl || imageUrl === 'placeholder-url' || imageUrl.trim() === '') {
-                  console.log(`⏭️ Skipping ${pictureType.key}: no valid URL`);
-                  return null;
+                // Skip if no valid URL
+                if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'placeholder-url') {
+                  return (
+                    <View key={pictureType.key} style={styles.pictureContainer}>
+                      <View style={styles.placeholderContainer}>
+                        <Ionicons name="image-outline" size={48} color="#9CA3AF" />
+                        <Text style={styles.placeholderText}>No image uploaded</Text>
+                      </View>
+                      <Text style={styles.pictureLabel}>{pictureType.label}</Text>
+                    </View>
+                  );
                 }
                 
-                console.log(`✅ Displaying ${pictureType.key}:`, imageUrl);
+                // Ensure URL is properly formatted
+                if (!imageUrl.startsWith('http')) {
+                  return (
+                    <View key={pictureType.key} style={styles.pictureContainer}>
+                      <View style={styles.placeholderContainer}>
+                        <Ionicons name="warning" size={48} color="#F59E0B" />
+                        <Text style={styles.placeholderText}>Invalid URL</Text>
+                      </View>
+                      <Text style={styles.pictureLabel}>{pictureType.label}</Text>
+                    </View>
+                  );
+                }
                 
                 return (
                   <View key={pictureType.key} style={styles.pictureContainer}>
-                    <TouchableOpacity onPress={() => openFile(imageUrl)}>
-                      <Image 
-                        source={{ uri: imageUrl }} 
-                        style={styles.picture}
-                        onError={(error) => {
-                          console.log(`❌ Image load error for ${pictureType.key}:`, error.nativeEvent.error);
-                        }}
-                        onLoad={() => {
-                          console.log(`✅ Image loaded successfully for ${pictureType.key}`);
-                        }}
-                      />
+                    <TouchableOpacity onPress={() => openFile(imageUrl)} style={{ width: '100%' }}>
+                      <View style={{
+                        width: '100%',
+                        height: 140,
+                        borderRadius: 8,
+                        backgroundColor: '#F3F4F6',
+                        overflow: 'hidden',
+                      }}>
+                        <Image 
+                          source={{ uri: imageUrl }} 
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            borderRadius: 8,
+                          }}
+                          resizeMode="cover"
+                          onError={(error) => {
+                            console.log(`❌ Image failed to load: ${pictureType.key}`);
+                            console.log(`❌ URL: ${imageUrl}`);
+                            console.log(`❌ Error:`, error.nativeEvent);
+                          }}
+                          onLoad={() => {
+                            console.log(`✅ Image rendered successfully: ${pictureType.key}`);
+                          }}
+                        />
+                      </View>
                     </TouchableOpacity>
                     <Text style={styles.pictureLabel}>{pictureType.label}</Text>
                     {caption && (
@@ -269,8 +331,13 @@ const SuperAdminVerificationDetailsScreen = ({ route, navigation }) => {
               'insideOrganization', 'withStaffOrOwner', 'videoWithNeighbor'
             ].every(key => {
               const picture = verification.buildingPictures[key];
-              const imageUrl = typeof picture === 'string' ? picture : picture?.fileUrl;
-              return !imageUrl || imageUrl === 'placeholder-url' || imageUrl.trim() === '';
+              let imageUrl = null;
+              if (typeof picture === 'string' && picture.trim() !== '') {
+                imageUrl = picture;
+              } else if (picture && typeof picture === 'object') {
+                imageUrl = picture.fileUrl || picture.url || picture.imageUrl || picture.secure_url;
+              }
+              return !imageUrl || imageUrl.trim() === '' || imageUrl === 'placeholder-url' || !imageUrl.startsWith('http');
             }) && (
               <View style={styles.noPicturesContainer}>
                 <Ionicons name="image-outline" size={48} color="#9CA3AF" />
@@ -278,14 +345,6 @@ const SuperAdminVerificationDetailsScreen = ({ route, navigation }) => {
                 <Text style={styles.noPicturesSubText}>Pictures may still be uploading or were not provided</Text>
               </View>
             )}
-            
-            {/* Debug info */}
-            <View style={styles.debugSection}>
-              <Text style={styles.debugTitle}>Debug Info:</Text>
-              <Text style={styles.debugText}>
-                Building Pictures Object: {JSON.stringify(verification.buildingPictures, null, 2)}
-              </Text>
-            </View>
           </View>
         ) : (
           <View style={styles.section}>
@@ -519,15 +578,18 @@ const styles = StyleSheet.create({
   picturesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: 12,
   },
   pictureContainer: {
     width: '48%',
+    minWidth: 150,
     alignItems: 'center',
+    marginBottom: 16,
   },
   picture: {
     width: '100%',
-    height: 120,
+    height: 140,
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
   },
@@ -551,6 +613,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 14,
   },
+  placeholderContainer: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+  },
+  placeholderText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 8,
+    textAlign: 'center',
+  },
   debugSection: {
     marginTop: 16,
     padding: 12,
@@ -558,6 +637,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderLeftWidth: 4,
     borderLeftColor: '#F59E0B',
+    display: 'none', // Hide debug section in production
   },
   debugTitle: {
     fontSize: 14,

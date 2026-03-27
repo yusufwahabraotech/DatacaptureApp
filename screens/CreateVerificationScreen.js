@@ -388,17 +388,7 @@ const CreateVerificationScreen = ({ navigation }) => {
     }
   };
 
-  const uploadImageToCloudinary = async (imageUri) => {
-    try {
-      console.log('📤 Uploading image to Cloudinary:', imageUri);
-      const cloudinaryUrl = await ApiService.uploadToCloudinary(imageUri);
-      console.log('✅ Image uploaded successfully:', cloudinaryUrl);
-      return cloudinaryUrl;
-    } catch (error) {
-      console.log('❌ Cloudinary upload failed:', error);
-      throw error;
-    }
-  };
+
 
   const createVerification = async () => {
     if (!formData.assignmentId) {
@@ -413,58 +403,10 @@ const CreateVerificationScreen = ({ navigation }) => {
       console.log('Organization:', formData.organizationName);
       console.log('Selected Location ID:', formData.selectedLocationId);
       
-      // Step 1: Upload all images to Cloudinary first
-      console.log('📤 Uploading building pictures to Cloudinary...');
       setIsUploading(true);
-      setUploadProgress('Uploading images...');
+      setUploadProgress('Creating verification with images...');
       
-      const uploadedPictures = {};
-      
-      const pictureKeys = [
-        'frontView', 'streetPicture', 'agentInFrontBuilding', 
-        'whatsappLocation', 'insideOrganization', 'withStaffOrOwner', 'videoWithNeighbor'
-      ];
-      
-      let uploadCount = 0;
-      const totalUploads = pictureKeys.filter(key => {
-        const picture = formData[key];
-        return picture.fileUrl && picture.fileUrl !== '' && !picture.fileUrl.startsWith('http');
-      }).length;
-      
-      for (const key of pictureKeys) {
-        const picture = formData[key];
-        if (picture.fileUrl && picture.fileUrl !== '' && !picture.fileUrl.startsWith('http')) {
-          // This is a local file URI, upload to Cloudinary
-          try {
-            uploadCount++;
-            setUploadProgress(`Uploading image ${uploadCount} of ${totalUploads}...`);
-            console.log(`📤 Uploading ${key}... (${uploadCount}/${totalUploads})`);
-            const cloudinaryUrl = await uploadImageToCloudinary(picture.fileUrl);
-            uploadedPictures[key] = {
-              fileUrl: cloudinaryUrl,
-              caption: picture.caption || ''
-            };
-            console.log(`✅ ${key} uploaded successfully`);
-          } catch (error) {
-            console.log(`❌ Failed to upload ${key}:`, error);
-            // Use placeholder for failed uploads
-            uploadedPictures[key] = {
-              fileUrl: 'placeholder-url',
-              caption: picture.caption || ''
-            };
-          }
-        } else {
-          // No image selected or already a URL
-          uploadedPictures[key] = {
-            fileUrl: picture.fileUrl || 'placeholder-url',
-            caption: picture.caption || ''
-          };
-        }
-      }
-      
-      setUploadProgress('Creating verification...');
-      console.log('📤 All images processed. Building verification data...');
-
+      // Prepare verification data (without images)
       const verificationData = {
         assignmentId: formData.assignmentId,
         
@@ -489,7 +431,16 @@ const CreateVerificationScreen = ({ navigation }) => {
           addressAttachments: []
         },
         
-        buildingPictures: uploadedPictures,
+        // Building pictures captions (URLs will be handled by backend)
+        buildingPicturesCaptions: {
+          frontView: formData.frontView.caption || '',
+          streetPicture: formData.streetPicture.caption || '',
+          agentInFrontBuilding: formData.agentInFrontBuilding.caption || '',
+          whatsappLocation: formData.whatsappLocation.caption || '',
+          insideOrganization: formData.insideOrganization.caption || '',
+          withStaffOrOwner: formData.withStaffOrOwner.caption || '',
+          videoWithNeighbor: formData.videoWithNeighbor.caption || '',
+        },
         
         transportationCost: {
           going: formData.transportationSteps,
@@ -505,11 +456,34 @@ const CreateVerificationScreen = ({ navigation }) => {
         }
       };
 
-      console.log('🔍 Final verification data with uploaded images:', JSON.stringify(verificationData, null, 2));
+      console.log('🔍 Verification data prepared:', JSON.stringify(verificationData, null, 2));
       
-      // Step 2: Create verification (saves as draft)
-      console.log('🚨 STEP 2: CREATING VERIFICATION 🚨');
-      const response = await ApiService.createVerificationFromAssignment(verificationData);
+      // Collect image files for upload (in specific order matching backend)
+      const imageFiles = {};
+      const pictureKeys = [
+        'frontView', 'streetPicture', 'agentInFrontBuilding', 
+        'whatsappLocation', 'insideOrganization', 'withStaffOrOwner', 'videoWithNeighbor'
+      ];
+      
+      // Prepare images in the exact order backend expects
+      const orderedImageFiles = [];
+      pictureKeys.forEach(key => {
+        const picture = formData[key];
+        if (picture.fileUrl && picture.fileUrl !== '' && !picture.fileUrl.startsWith('http')) {
+          // This is a local file URI
+          orderedImageFiles.push({
+            uri: picture.fileUrl,
+            type: 'image/jpeg',
+            name: `${key}.jpg`
+          });
+          console.log(`📷 Image prepared for ${key}:`, picture.fileUrl);
+        }
+      });
+      
+      console.log('📷 Total images to upload:', orderedImageFiles.length);
+      
+      // Create verification with images using FormData (like Gallery)
+      const response = await ApiService.createVerificationWithImages(verificationData, { orderedImages: orderedImageFiles });
       console.log('🔍 Create verification response:', JSON.stringify(response, null, 2));
       
       if (response.success) {
@@ -522,9 +496,9 @@ const CreateVerificationScreen = ({ navigation }) => {
           return;
         }
         
-        // Step 3: Submit verification (changes status to submitted)
+        // Submit verification (changes status to submitted)
         setUploadProgress('Submitting verification...');
-        console.log('🚨 STEP 3: SUBMITTING VERIFICATION 🚨');
+        console.log('🚨 STEP 2: SUBMITTING VERIFICATION 🚨');
         console.log('🔍 About to submit verification with ID:', verificationId);
         const submitResponse = await ApiService.submitVerification(verificationId);
         console.log('🔍 Submit verification response:', JSON.stringify(submitResponse, null, 2));

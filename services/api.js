@@ -1394,12 +1394,17 @@ class ApiService {
     console.log('Image URI:', imageUri);
     
     try {
+      // Validate input
+      if (!imageUri) {
+        throw new Error('No image URI provided');
+      }
+      
       // Create FormData with proper file handling for React Native
       const formData = new FormData();
       
       // For React Native, we need to handle the file differently
       const fileExtension = imageUri.split('.').pop() || 'jpg';
-      const fileName = `measurement-${Date.now()}.${fileExtension}`;
+      const fileName = `verification-${Date.now()}.${fileExtension}`;
       
       formData.append('file', {
         uri: imageUri,
@@ -1408,8 +1413,10 @@ class ApiService {
       });
       
       formData.append('upload_preset', 'vestradat_preset');
+      formData.append('folder', 'verifications'); // Organize uploads
       
       console.log('FormData created with file:', fileName);
+      console.log('Upload preset: vestradat_preset');
       console.log('Uploading to Cloudinary...');
       
       const uploadResponse = await fetch('https://api.cloudinary.com/v1_1/disz21zwr/image/upload', {
@@ -1421,26 +1428,31 @@ class ApiService {
       });
       
       console.log('Cloudinary response status:', uploadResponse.status);
+      console.log('Cloudinary response ok:', uploadResponse.ok);
       
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
         console.log('❌ Cloudinary error response:', errorText);
-        throw new Error(`Cloudinary upload failed: ${uploadResponse.status}`);
+        throw new Error(`Cloudinary upload failed: ${uploadResponse.status} - ${errorText}`);
       }
       
       const result = await uploadResponse.json();
-      console.log('Cloudinary response:', JSON.stringify(result, null, 2));
+      console.log('Cloudinary response keys:', Object.keys(result));
+      console.log('Cloudinary public_id:', result.public_id);
+      console.log('Cloudinary secure_url:', result.secure_url);
       
       if (result.secure_url) {
         console.log('✅ Upload successful:', result.secure_url);
         return result.secure_url;
       } else {
         console.log('❌ No secure_url in response');
+        console.log('Full response:', JSON.stringify(result, null, 2));
         throw new Error('No secure_url in Cloudinary response');
       }
     } catch (error) {
       console.log('❌ Cloudinary upload error:', error);
       console.log('Error details:', error.message);
+      console.log('Original URI:', imageUri);
       throw error;
     }
   }
@@ -2068,8 +2080,70 @@ class ApiService {
     return this.apiCall(`/data-verification/assignments/${assignmentId}`);
   }
 
+  static async createVerificationWithImages(verificationData, imageData) {
+    console.log('🚨 CREATE VERIFICATION WITH IMAGES DEBUG 🚨');
+    console.log('Verification data:', JSON.stringify(verificationData, null, 2));
+    console.log('Image data:', imageData);
+    
+    const formData = new FormData();
+    
+    // Add all verification fields (matching backend expectations)
+    Object.keys(verificationData).forEach(key => {
+      if (verificationData[key] !== null && verificationData[key] !== undefined) {
+        if (typeof verificationData[key] === 'object') {
+          formData.append(key, JSON.stringify(verificationData[key]));
+        } else {
+          formData.append(key, verificationData[key].toString());
+        }
+      }
+    });
+    
+    // Add image files as array (matching backend expectation)
+    // Backend expects: formData.append('buildingPictures', file) for each file
+    if (imageData.orderedImages && imageData.orderedImages.length > 0) {
+      imageData.orderedImages.forEach((imageFile, index) => {
+        if (imageFile && imageFile.uri) {
+          console.log(`Adding image file ${index + 1}:`, imageFile.uri);
+          formData.append('buildingPictures', {
+            uri: imageFile.uri,
+            type: imageFile.type,
+            name: imageFile.name,
+          });
+        }
+      });
+    }
+
+    const token = await this.getToken();
+    const response = await fetch(`${BASE_URL}/data-verification/with-images`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // No Content-Type header - browser sets it automatically for FormData
+      },
+      body: formData,
+    });
+
+    console.log('🚨 VERIFICATION CREATION RESPONSE 🚨');
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.log('❌ VERIFICATION CREATION ERROR:', JSON.stringify(error, null, 2));
+      return {
+        success: false,
+        message: error.message || `HTTP ${response.status}: ${response.statusText}`,
+        data: error
+      };
+    }
+
+    const result = await response.json();
+    console.log('✅ VERIFICATION CREATION SUCCESS:', JSON.stringify(result, null, 2));
+    return result;
+  }
+
   static async createVerificationFromAssignment(verificationData) {
-    console.log('🚨 FIELD AGENT VERIFICATION SUBMISSION DEBUG 🚨');
+    console.log('🚨 FIELD AGENT VERIFICATION SUBMISSION DEBUG (FALLBACK) 🚨');
     console.log('Submitting to endpoint: /data-verification');
     console.log('Verification data:', JSON.stringify(verificationData, null, 2));
     

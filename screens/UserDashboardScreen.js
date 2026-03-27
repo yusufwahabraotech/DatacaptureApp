@@ -46,9 +46,27 @@ const UserDashboardScreen = ({ navigation }) => {
       const response = await ApiService.getUserProfile();
       if (response.success) {
         setUser(response.data.user);
-        // Check if user has data verification permission
-        const hasVerificationRole = response.data.user.permissions?.includes('data_verification');
-        setHasDataVerificationRole(hasVerificationRole);
+        
+        console.log('🚨 USER PROFILE DEBUG 🚨');
+        console.log('User data:', JSON.stringify(response.data.user, null, 2));
+        console.log('User permissions:', response.data.user.permissions);
+        console.log('User role:', response.data.user.role);
+        console.log('User hasDataVerificationRole:', response.data.user.hasDataVerificationRole);
+        
+        // Check multiple ways for data verification access
+        const hasVerificationPermission = response.data.user.permissions?.includes('data_verification');
+        const hasVerificationRole = response.data.user.hasDataVerificationRole === true;
+        const isFieldAgent = response.data.user.role === 'FIELD_AGENT';
+        
+        // User has data verification access if any of these are true
+        const hasDataVerificationAccess = hasVerificationPermission || hasVerificationRole || isFieldAgent;
+        
+        console.log('hasVerificationPermission:', hasVerificationPermission);
+        console.log('hasVerificationRole:', hasVerificationRole);
+        console.log('isFieldAgent:', isFieldAgent);
+        console.log('Final hasDataVerificationAccess:', hasDataVerificationAccess);
+        
+        setHasDataVerificationRole(hasDataVerificationAccess);
       }
     } catch (error) {
       console.log('Error fetching profile:', error);
@@ -144,6 +162,29 @@ const UserDashboardScreen = ({ navigation }) => {
           <Text style={styles.subtitle}>Here's your organization overview</Text>
         </View>
 
+        {/* Data Verification Section - Show prominently if user has the role */}
+        {hasDataVerificationRole && (
+          <View style={styles.verificationSection}>
+            <Text style={styles.sectionTitle}>Data Verification</Text>
+            <View style={styles.verificationCard}>
+              <View style={styles.verificationHeader}>
+                <Ionicons name="shield-checkmark" size={32} color="#10B981" />
+                <View style={styles.verificationInfo}>
+                  <Text style={styles.verificationTitle}>Field Agent</Text>
+                  <Text style={styles.verificationSubtitle}>You have been assigned data verification tasks</Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                style={styles.verificationButton}
+                onPress={() => navigation.navigate('FieldAgentVerification')}
+              >
+                <Text style={styles.verificationButtonText}>View Assignments</Text>
+                <Ionicons name="arrow-forward" size={16} color="white" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
           {statsCards.map((stat, index) => (
@@ -182,11 +223,24 @@ const UserDashboardScreen = ({ navigation }) => {
           <View style={styles.actionsGrid}>
             {hasDataVerificationRole && (
               <TouchableOpacity 
+                style={[styles.actionCard, styles.verificationActionCard]}
+                onPress={() => navigation.navigate('FieldAgentVerification')}
+              >
+                <View style={[styles.actionIcon, styles.verificationActionIcon]}>
+                  <Ionicons name="shield-checkmark" size={24} color="#10B981" />
+                </View>
+                <Text style={styles.actionTitle}>Data Verification</Text>
+                <Text style={styles.actionSubtitle}>View your verification assignments</Text>
+              </TouchableOpacity>
+            )}
+            
+            {hasDataVerificationRole && (
+              <TouchableOpacity 
                 style={styles.actionCard}
                 onPress={() => navigation.navigate('PendingVerificationAssignments')}
               >
                 <View style={styles.actionIcon}>
-                  <Ionicons name="shield-checkmark" size={24} color="#10B981" />
+                  <Ionicons name="time" size={24} color="#F59E0B" />
                 </View>
                 <Text style={styles.actionTitle}>Pending Tasks</Text>
                 <Text style={styles.actionSubtitle}>Active verification assignments</Text>
@@ -431,6 +485,55 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     lineHeight: 16,
+  },
+  verificationSection: {
+    paddingHorizontal: 20,
+    marginBottom: 32,
+  },
+  verificationCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10B981',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  verificationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  verificationInfo: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  verificationTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  verificationSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  verificationButton: {
+    backgroundColor: '#10B981',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  verificationButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
