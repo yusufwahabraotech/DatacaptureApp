@@ -1,22 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-// Single base URL configuration - Updated to use local server
+// Single base URL configuration - Updated to use local IP
 const BASE_URL = 'http://192.168.1.183:3000/api';
 
-// FORCE COMPLETE RELOAD - BREAKING CACHE v14 - LOCAL SERVER UPDATE
-const FORCE_RELOAD_NOW = 'LOCAL_SERVER_UPDATE_' + Date.now();
-console.log('🚨 LOCAL SERVER UPDATE API SERVICE RELOAD v14 🚨', FORCE_RELOAD_NOW);
-console.log('🔥 USING LOCAL SERVER 🔥');
-console.log('🌐 Using local base URL:', BASE_URL);
+// FORCE COMPLETE RELOAD - BREAKING CACHE v15 - RENDER DEPLOYMENT UPDATE
+const FORCE_RELOAD_NOW = 'RENDER_DEPLOYMENT_UPDATE_' + Date.now();
+console.log('🚨 RENDER DEPLOYMENT UPDATE API SERVICE RELOAD v15 🚨', FORCE_RELOAD_NOW);
+console.log('🔥 USING RENDER DEPLOYMENT 🔥');
+console.log('🌐 Using Render base URL:', BASE_URL);
 
-// CACHE BUST v2.4 - LOCAL_SERVER_UPDATE
+// CACHE BUST v2.5 - RENDER_DEPLOYMENT_UPDATE
 class ApiService {
-  // FORCE RELOAD MARKER - LOCAL SERVER v4
-  static RELOAD_MARKER = 'LOCAL_SERVER_v4_' + Date.now();
+  // FORCE RELOAD MARKER - RENDER DEPLOYMENT v5
+  static RELOAD_MARKER = 'RENDER_DEPLOYMENT_v5_' + Date.now();
   
   static async getToken() {
-    console.log('🚨 LOCAL SERVER API SERVICE LOADED 🚨', this.RELOAD_MARKER);
+    console.log('🚨 RENDER DEPLOYMENT API SERVICE LOADED 🚨', this.RELOAD_MARKER);
     return await AsyncStorage.getItem('userToken');
   }
 
@@ -3188,6 +3188,59 @@ class ApiService {
   // Get available pickup centers for delivery confirmation
   static async getPickupCenters() {
     return this.apiCall('/orders/user/pickup-centers');
+  }
+
+  // SERVICE BOOKING SYSTEM
+  // Get available time slots for a service
+  static async getAvailableTimeSlots(serviceId, date) {
+    const params = new URLSearchParams({ date });
+    return this.apiCall(`/public/services/${serviceId}/available-slots?${params}`);
+  }
+
+  // Book a service slot
+  static async bookServiceSlot(bookingData) {
+    console.log('🚨 SERVICE BOOKING DEBUG 🚨');
+    console.log('Booking data:', JSON.stringify(bookingData, null, 2));
+    
+    return this.apiCall('/orders/public/initiate', {
+      method: 'POST',
+      body: JSON.stringify(bookingData),
+    });
+  }
+
+  // Get service booking details
+  static async getServiceBookingDetails(serviceId) {
+    return this.apiCall(`/public/services/${serviceId}/booking-info`);
+  }
+
+  // Check booking availability
+  static async checkBookingAvailability(serviceId, date, timeSlot) {
+    return this.apiCall('/public/services/check-availability', {
+      method: 'POST',
+      body: JSON.stringify({ serviceId, date, timeSlot }),
+    });
+  }
+
+  // Get service categories for booking
+  static async getServiceCategories() {
+    return this.apiCall('/public/services/categories');
+  }
+
+  // Search services with booking availability
+  static async searchBookableServices(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.search) queryParams.append('search', params.search);
+    if (params.categoryId) queryParams.append('categoryId', params.categoryId);
+    if (params.location) queryParams.append('location', params.location);
+    if (params.date) queryParams.append('date', params.date);
+    if (params.minPrice) queryParams.append('minPrice', params.minPrice);
+    if (params.maxPrice) queryParams.append('maxPrice', params.maxPrice);
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/public/services/bookable${queryString ? '?' + queryString : ''}`;
+    return this.apiCall(endpoint);
   }
 
   // REMITTANCE SYSTEM

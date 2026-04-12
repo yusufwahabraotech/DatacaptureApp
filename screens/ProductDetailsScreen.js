@@ -271,6 +271,124 @@ const ProductDetailsScreen = ({ navigation, route }) => {
                 </View>
               )}
 
+              {/* Enhanced Booking Configuration */}
+              {product.bookingConfiguration && (
+                <View style={styles.bookingConfigSection}>
+                  <Text style={styles.sectionTitle}>Booking Information</Text>
+                  
+                  {/* Quick Info Summary */}
+                  {product.availabilityQuickInfo && (
+                    <View style={styles.quickInfoCard}>
+                      <View style={styles.quickInfoRow}>
+                        <View style={styles.quickInfoItem}>
+                          <Ionicons name="time-outline" size={20} color="#7B2CBF" />
+                          <Text style={styles.quickInfoLabel}>Duration</Text>
+                          <Text style={styles.quickInfoValue}>{product.availabilityQuickInfo.slotDuration}</Text>
+                        </View>
+                        <View style={styles.quickInfoItem}>
+                          <Ionicons name="people-outline" size={20} color="#7B2CBF" />
+                          <Text style={styles.quickInfoLabel}>Max Bookings</Text>
+                          <Text style={styles.quickInfoValue}>{product.availabilityQuickInfo.maxBookingsPerSlot}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.quickInfoRow}>
+                        <View style={styles.quickInfoItem}>
+                          <Ionicons name="globe-outline" size={20} color="#7B2CBF" />
+                          <Text style={styles.quickInfoLabel}>Timezone</Text>
+                          <Text style={styles.quickInfoValue}>{product.bookingConfiguration.timezone}</Text>
+                        </View>
+                        <View style={styles.quickInfoItem}>
+                          <Ionicons name="calendar-outline" size={20} color="#7B2CBF" />
+                          <Text style={styles.quickInfoLabel}>Total Days</Text>
+                          <Text style={styles.quickInfoValue}>{product.availabilityQuickInfo.totalAvailableDays}</Text>
+                        </View>
+                      </View>
+                      
+                      {/* Available Days Display */}
+                      {product.availabilityQuickInfo.availableDaysNames?.length > 0 && (
+                        <View style={styles.availableDaysSection}>
+                          <Text style={styles.availableDaysTitle}>Available Days:</Text>
+                          <View style={styles.availableDaysGrid}>
+                            {product.availabilityQuickInfo.availableDaysNames.map((day, index) => (
+                              <View key={index} style={styles.availableDayChip}>
+                                <Text style={styles.availableDayText}>{day}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+                      
+                      <View style={styles.timeRangeContainer}>
+                        <Text style={styles.timeRangeLabel}>Operating Hours:</Text>
+                        <Text style={styles.timeRangeValue}>
+                          {product.availabilityQuickInfo.earliestTime} - {product.availabilityQuickInfo.latestTime}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Booking Rules */}
+                  {product.bookingConfiguration.bookingRules && (
+                    <View style={styles.bookingRulesCard}>
+                      <Text style={styles.bookingRulesTitle}>How Booking Works</Text>
+                      <View style={styles.bookingRule}>
+                        <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                        <Text style={styles.bookingRuleText}>{product.bookingConfiguration.bookingRules.slotDuration}</Text>
+                      </View>
+                      <View style={styles.bookingRule}>
+                        <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                        <Text style={styles.bookingRuleText}>{product.bookingConfiguration.bookingRules.maxSimultaneousBookings}</Text>
+                      </View>
+                      <View style={styles.bookingRule}>
+                        <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                        <Text style={styles.bookingRuleText}>{product.bookingConfiguration.bookingRules.timezone}</Text>
+                      </View>
+                      <View style={styles.bookingRule}>
+                        <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                        <Text style={styles.bookingRuleText}>{product.bookingConfiguration.bookingRules.bookingWindow}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Weekly Schedule */}
+                  {product.bookingConfiguration.weeklySchedule && (
+                    <View style={styles.weeklyScheduleCard}>
+                      <Text style={styles.weeklyScheduleTitle}>Weekly Schedule</Text>
+                      {product.bookingConfiguration.weeklySchedule.map((day, index) => (
+                        <View key={index} style={styles.dayScheduleItem}>
+                          <View style={styles.dayHeader}>
+                            <Text style={styles.dayName}>{day.dayName}</Text>
+                            <View style={[
+                              styles.dayStatusBadge,
+                              day.isAvailable ? styles.dayAvailable : styles.dayUnavailable
+                            ]}>
+                              <Text style={[
+                                styles.dayStatusText,
+                                day.isAvailable ? styles.dayAvailableText : styles.dayUnavailableText
+                              ]}>
+                                {day.isAvailable ? 'Available' : 'Closed'}
+                              </Text>
+                            </View>
+                          </View>
+                          {day.isAvailable && day.timeWindows && (
+                            <View style={styles.timeWindowsList}>
+                              {day.timeWindows.map((window, windowIndex) => (
+                                <View key={windowIndex} style={styles.timeWindowItem}>
+                                  <View style={styles.timeWindowBadge}>
+                                    <Text style={styles.timeWindowText}>{window.displayTime}</Text>
+                                  </View>
+                                  <Text style={styles.timeWindowDuration}>({window.duration})</Text>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+
               {product.availability && (
                 <View style={styles.infoSection}>
                   <Text style={styles.sectionTitle}>Service Availability</Text>
@@ -447,21 +565,43 @@ const ProductDetailsScreen = ({ navigation, route }) => {
       </ScrollView>
 
       <View style={styles.bottomSection}>
-        <TouchableOpacity 
-          style={styles.orderButton}
-          onPress={() => navigation.navigate('ProductPayment', { product })}
-        >
-          <Ionicons name="card" size={20} color="#fff" />
-          <Text style={styles.orderButtonText}>Order Now</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.cartButton}
-          onPress={() => Alert.alert('Coming Soon', 'Feature coming soon')}
-        >
-          <Ionicons name="cart" size={20} color="#7B2CBF" />
-          <Text style={styles.cartButtonText}>Add to Cart</Text>
-        </TouchableOpacity>
+        {product.itemType === 'service' ? (
+          <>
+            <TouchableOpacity 
+              style={styles.bookServiceButton}
+              onPress={() => navigation.navigate('ServiceBookingDetails', { service: product })}
+            >
+              <Ionicons name="calendar" size={20} color="#fff" />
+              <Text style={styles.bookServiceButtonText}>Book Service</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.inquireButton}
+              onPress={() => Alert.alert('Contact Info', 'Feature coming soon - direct contact with service provider')}
+            >
+              <Ionicons name="chatbubble" size={20} color="#7B2CBF" />
+              <Text style={styles.inquireButtonText}>Inquire</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity 
+              style={styles.orderButton}
+              onPress={() => navigation.navigate('ProductPayment', { product })}
+            >
+              <Ionicons name="card" size={20} color="#fff" />
+              <Text style={styles.orderButtonText}>Order Now</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.cartButton}
+              onPress={() => Alert.alert('Coming Soon', 'Feature coming soon')}
+            >
+              <Ionicons name="cart" size={20} color="#7B2CBF" />
+              <Text style={styles.cartButtonText}>Add to Cart</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -734,6 +874,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  bookServiceButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  bookServiceButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -884,6 +1039,186 @@ const styles = StyleSheet.create({
     color: '#7B2CBF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  
+  // Enhanced Booking Configuration Styles
+  bookingConfigSection: {
+    marginBottom: 24,
+  },
+  quickInfoCard: {
+    backgroundColor: '#F0F8FF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E3F2FD',
+  },
+  quickInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  quickInfoItem: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 4,
+  },
+  quickInfoLabel: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  quickInfoValue: {
+    fontSize: 14,
+    color: '#7B2CBF',
+    fontWeight: 'bold',
+  },
+  timeRangeContainer: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  timeRangeLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  timeRangeValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  availableDaysSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E3F2FD',
+  },
+  availableDaysTitle: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  availableDaysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  availableDayChip: {
+    backgroundColor: '#7B2CBF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  availableDayText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bookingRulesCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  bookingRulesTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  bookingRule: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+    gap: 8,
+  },
+  bookingRuleText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    flex: 1,
+  },
+  weeklyScheduleCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  weeklyScheduleTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+  },
+  dayScheduleItem: {
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  dayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  dayName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  dayStatusBadge: {
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  dayAvailable: {
+    backgroundColor: '#E8F5E8',
+  },
+  dayUnavailable: {
+    backgroundColor: '#FFEBEE',
+  },
+  dayStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dayAvailableText: {
+    color: '#4CAF50',
+  },
+  dayUnavailableText: {
+    color: '#F44336',
+  },
+  timeWindowsList: {
+    gap: 8,
+  },
+  timeWindowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timeWindowBadge: {
+    backgroundColor: '#7B2CBF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  timeWindowText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  timeWindowDuration: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
   },
 });
 

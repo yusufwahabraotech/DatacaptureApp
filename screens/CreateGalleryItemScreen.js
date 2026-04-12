@@ -280,6 +280,17 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             endTime: formData.endTime
           };
         }
+
+        // 🎯 BOOKING AVAILABILITY INTEGRATION
+        if (formData.bookingAvailability) {
+          payload.bookingAvailability = {
+            slotDurationMinutes: formData.bookingAvailability.slotDurationMinutes || 90,
+            concurrentProviders: formData.bookingAvailability.concurrentProviders || 1,
+            timezone: formData.bookingAvailability.timezone || 'Africa/Lagos',
+            daysAvailable: formData.bookingAvailability.daysAvailable || [],
+            availabilityPeriod: formData.bookingAvailability.availabilityPeriod || { type: 'rollingWeeks', weeksAhead: 8 }
+          };
+        }
       }
 
       console.log('🚨 PAYLOAD DEBUG BEFORE API CALL 🚨');
@@ -622,6 +633,355 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                 onChangeText={(text) => setFormData({...formData, totalAvailableServiceProviders: text})}
                 keyboardType="numeric"
               />
+
+              {/* BOOKING AVAILABILITY CONFIGURATION */}
+              <View style={styles.bookingSection}>
+                <Text style={styles.bookingSectionTitle}>🎯 Booking Availability Configuration</Text>
+                <Text style={styles.bookingSectionSubtitle}>Configure how customers can book this service</Text>
+                
+                {/* Slot Duration */}
+                <Text style={styles.inputLabel}>Slot Duration (Minutes) *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="90"
+                  value={formData.bookingAvailability?.slotDurationMinutes?.toString() || ''}
+                  onChangeText={(text) => setFormData({
+                    ...formData, 
+                    bookingAvailability: {
+                      ...formData.bookingAvailability,
+                      slotDurationMinutes: parseInt(text) || 90
+                    }
+                  })}
+                  keyboardType="numeric"
+                />
+                <Text style={styles.inputDescription}>Duration of each booking slot (15-480 minutes)</Text>
+
+                {/* Concurrent Providers */}
+                <Text style={styles.inputLabel}>Concurrent Providers *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="2"
+                  value={formData.bookingAvailability?.concurrentProviders?.toString() || ''}
+                  onChangeText={(text) => setFormData({
+                    ...formData, 
+                    bookingAvailability: {
+                      ...formData.bookingAvailability,
+                      concurrentProviders: parseInt(text) || 1
+                    }
+                  })}
+                  keyboardType="numeric"
+                />
+                <Text style={styles.inputDescription}>How many providers can handle the same time slot (1-100)</Text>
+
+                {/* Timezone */}
+                <Text style={styles.inputLabel}>Timezone</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Africa/Lagos"
+                  value={formData.bookingAvailability?.timezone || 'Africa/Lagos'}
+                  onChangeText={(text) => setFormData({
+                    ...formData, 
+                    bookingAvailability: {
+                      ...formData.bookingAvailability,
+                      timezone: text
+                    }
+                  })}
+                />
+
+                {/* Days Available */}
+                <Text style={styles.inputLabel}>Available Days & Times</Text>
+                <Text style={styles.inputDescription}>Configure which days and times the service is available</Text>
+                
+                {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((dayName, dayIndex) => {
+                  const dayConfig = formData.bookingAvailability?.daysAvailable?.find(d => d.dayOfWeek === dayIndex) || {
+                    dayOfWeek: dayIndex,
+                    isAvailable: false,
+                    timeWindows: []
+                  };
+                  
+                  return (
+                    <View key={dayIndex} style={styles.dayConfigCard}>
+                      <View style={styles.dayHeader}>
+                        <Text style={styles.dayName}>{dayName}</Text>
+                        <TouchableOpacity
+                          style={[styles.dayToggle, dayConfig.isAvailable && styles.dayToggleActive]}
+                          onPress={() => {
+                            const updatedDays = [...(formData.bookingAvailability?.daysAvailable || [])];
+                            const existingIndex = updatedDays.findIndex(d => d.dayOfWeek === dayIndex);
+                            
+                            if (existingIndex >= 0) {
+                              updatedDays[existingIndex] = {
+                                ...updatedDays[existingIndex],
+                                isAvailable: !dayConfig.isAvailable,
+                                timeWindows: !dayConfig.isAvailable ? [{ startTime: '09:00', endTime: '17:00' }] : []
+                              };
+                            } else {
+                              updatedDays.push({
+                                dayOfWeek: dayIndex,
+                                isAvailable: true,
+                                timeWindows: [{ startTime: '09:00', endTime: '17:00' }]
+                              });
+                            }
+                            
+                            setFormData({
+                              ...formData,
+                              bookingAvailability: {
+                                ...formData.bookingAvailability,
+                                daysAvailable: updatedDays
+                              }
+                            });
+                          }}
+                        >
+                          <Text style={[styles.dayToggleText, dayConfig.isAvailable && styles.dayToggleTextActive]}>
+                            {dayConfig.isAvailable ? 'Available' : 'Closed'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      
+                      {dayConfig.isAvailable && (
+                        <View style={styles.timeWindowsContainer}>
+                          {dayConfig.timeWindows.map((window, windowIndex) => (
+                            <View key={windowIndex} style={styles.timeWindow}>
+                              <View style={styles.timeInputGroup}>
+                                <Text style={styles.timeLabel}>From:</Text>
+                                <TextInput
+                                  style={styles.timeInput}
+                                  placeholder="09:00"
+                                  value={window.startTime}
+                                  onChangeText={(text) => {
+                                    const updatedDays = [...(formData.bookingAvailability?.daysAvailable || [])];
+                                    const dayIndex = updatedDays.findIndex(d => d.dayOfWeek === dayConfig.dayOfWeek);
+                                    if (dayIndex >= 0) {
+                                      updatedDays[dayIndex].timeWindows[windowIndex].startTime = text;
+                                      setFormData({
+                                        ...formData,
+                                        bookingAvailability: {
+                                          ...formData.bookingAvailability,
+                                          daysAvailable: updatedDays
+                                        }
+                                      });
+                                    }
+                                  }}
+                                />
+                              </View>
+                              <View style={styles.timeInputGroup}>
+                                <Text style={styles.timeLabel}>To:</Text>
+                                <TextInput
+                                  style={styles.timeInput}
+                                  placeholder="17:00"
+                                  value={window.endTime}
+                                  onChangeText={(text) => {
+                                    const updatedDays = [...(formData.bookingAvailability?.daysAvailable || [])];
+                                    const dayIndex = updatedDays.findIndex(d => d.dayOfWeek === dayConfig.dayOfWeek);
+                                    if (dayIndex >= 0) {
+                                      updatedDays[dayIndex].timeWindows[windowIndex].endTime = text;
+                                      setFormData({
+                                        ...formData,
+                                        bookingAvailability: {
+                                          ...formData.bookingAvailability,
+                                          daysAvailable: updatedDays
+                                        }
+                                      });
+                                    }
+                                  }}
+                                />
+                              </View>
+                              {dayConfig.timeWindows.length > 1 && (
+                                <TouchableOpacity
+                                  style={styles.removeTimeWindowButton}
+                                  onPress={() => {
+                                    const updatedDays = [...(formData.bookingAvailability?.daysAvailable || [])];
+                                    const dayIndex = updatedDays.findIndex(d => d.dayOfWeek === dayConfig.dayOfWeek);
+                                    if (dayIndex >= 0) {
+                                      updatedDays[dayIndex].timeWindows = updatedDays[dayIndex].timeWindows.filter((_, i) => i !== windowIndex);
+                                      setFormData({
+                                        ...formData,
+                                        bookingAvailability: {
+                                          ...formData.bookingAvailability,
+                                          daysAvailable: updatedDays
+                                        }
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <Ionicons name="close-circle" size={20} color="#FF4444" />
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          ))}
+                          
+                          <TouchableOpacity
+                            style={styles.addTimeWindowButton}
+                            onPress={() => {
+                              const updatedDays = [...(formData.bookingAvailability?.daysAvailable || [])];
+                              const dayIndex = updatedDays.findIndex(d => d.dayOfWeek === dayConfig.dayOfWeek);
+                              if (dayIndex >= 0) {
+                                updatedDays[dayIndex].timeWindows.push({ startTime: '09:00', endTime: '17:00' });
+                                setFormData({
+                                  ...formData,
+                                  bookingAvailability: {
+                                    ...formData.bookingAvailability,
+                                    daysAvailable: updatedDays
+                                  }
+                                });
+                              }
+                            }}
+                          >
+                            <Text style={styles.addTimeWindowText}>+ Add Time Window</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+
+                {/* Availability Period */}
+                <Text style={styles.inputLabel}>Booking Period</Text>
+                <Text style={styles.inputDescription}>How far ahead can customers book?</Text>
+                
+                <View style={styles.availabilityPeriodOptions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.periodOption,
+                      formData.bookingAvailability?.availabilityPeriod?.type === 'unlimited' && styles.periodOptionSelected
+                    ]}
+                    onPress={() => setFormData({
+                      ...formData,
+                      bookingAvailability: {
+                        ...formData.bookingAvailability,
+                        availabilityPeriod: { type: 'unlimited' }
+                      }
+                    })}
+                  >
+                    <View style={styles.radioButton}>
+                      {formData.bookingAvailability?.availabilityPeriod?.type === 'unlimited' && (
+                        <View style={styles.radioButtonSelected} />
+                      )}
+                    </View>
+                    <View style={styles.periodOptionText}>
+                      <Text style={styles.periodTitle}>Unlimited</Text>
+                      <Text style={styles.periodSubtitle}>No booking limit</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.periodOption,
+                      formData.bookingAvailability?.availabilityPeriod?.type === 'rollingWeeks' && styles.periodOptionSelected
+                    ]}
+                    onPress={() => setFormData({
+                      ...formData,
+                      bookingAvailability: {
+                        ...formData.bookingAvailability,
+                        availabilityPeriod: { type: 'rollingWeeks', weeksAhead: 8 }
+                      }
+                    })}
+                  >
+                    <View style={styles.radioButton}>
+                      {formData.bookingAvailability?.availabilityPeriod?.type === 'rollingWeeks' && (
+                        <View style={styles.radioButtonSelected} />
+                      )}
+                    </View>
+                    <View style={styles.periodOptionText}>
+                      <Text style={styles.periodTitle}>Rolling Weeks</Text>
+                      <Text style={styles.periodSubtitle}>Fixed weeks ahead</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.periodOption,
+                      formData.bookingAvailability?.availabilityPeriod?.type === 'dateRange' && styles.periodOptionSelected
+                    ]}
+                    onPress={() => setFormData({
+                      ...formData,
+                      bookingAvailability: {
+                        ...formData.bookingAvailability,
+                        availabilityPeriod: { type: 'dateRange', startDate: '', endDate: '' }
+                      }
+                    })}
+                  >
+                    <View style={styles.radioButton}>
+                      {formData.bookingAvailability?.availabilityPeriod?.type === 'dateRange' && (
+                        <View style={styles.radioButtonSelected} />
+                      )}
+                    </View>
+                    <View style={styles.periodOptionText}>
+                      <Text style={styles.periodTitle}>Date Range</Text>
+                      <Text style={styles.periodSubtitle}>Specific start and end dates</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Rolling Weeks Configuration */}
+                {formData.bookingAvailability?.availabilityPeriod?.type === 'rollingWeeks' && (
+                  <View style={styles.weeksAheadContainer}>
+                    <Text style={styles.inputLabel}>Weeks Ahead</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="8"
+                      value={formData.bookingAvailability?.availabilityPeriod?.weeksAhead?.toString() || ''}
+                      onChangeText={(text) => setFormData({
+                        ...formData,
+                        bookingAvailability: {
+                          ...formData.bookingAvailability,
+                          availabilityPeriod: {
+                            ...formData.bookingAvailability.availabilityPeriod,
+                            weeksAhead: parseInt(text) || 8
+                          }
+                        }
+                      })}
+                      keyboardType="numeric"
+                    />
+                    <Text style={styles.inputDescription}>How many weeks ahead customers can book</Text>
+                  </View>
+                )}
+
+                {/* Date Range Configuration */}
+                {formData.bookingAvailability?.availabilityPeriod?.type === 'dateRange' && (
+                  <View style={styles.dateRangeContainer}>
+                    <View style={styles.dateRangeRow}>
+                      <View style={styles.dateRangeInput}>
+                        <Text style={styles.inputLabel}>Start Date</Text>
+                        <TextInput
+                          style={styles.input}
+                          placeholder="2024-01-01"
+                          value={formData.bookingAvailability?.availabilityPeriod?.startDate || ''}
+                          onChangeText={(text) => setFormData({
+                            ...formData,
+                            bookingAvailability: {
+                              ...formData.bookingAvailability,
+                              availabilityPeriod: {
+                                ...formData.bookingAvailability.availabilityPeriod,
+                                startDate: text
+                              }
+                            }
+                          })}
+                        />
+                      </View>
+                      <View style={styles.dateRangeInput}>
+                        <Text style={styles.inputLabel}>End Date</Text>
+                        <TextInput
+                          style={styles.input}
+                          placeholder="2024-12-31"
+                          value={formData.bookingAvailability?.availabilityPeriod?.endDate || ''}
+                          onChangeText={(text) => setFormData({
+                            ...formData,
+                            bookingAvailability: {
+                              ...formData.bookingAvailability,
+                              availabilityPeriod: {
+                                ...formData.bookingAvailability.availabilityPeriod,
+                                endDate: text
+                              }
+                            }
+                          })}
+                        />
+                      </View>
+                    </View>
+                    <Text style={styles.inputDescription}>Format: YYYY-MM-DD</Text>
+                  </View>
+                )}
+              </View>
 
 
 
@@ -1538,6 +1898,156 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     marginTop: 12,
+  },
+  // Booking Availability Styles
+  bookingSection: {
+    backgroundColor: '#F5F3FF',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 2,
+    borderColor: '#7B2CBF',
+  },
+  bookingSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#7B2CBF',
+    marginBottom: 4,
+  },
+  bookingSectionSubtitle: {
+    fontSize: 14,
+    color: '#6B46C1',
+    marginBottom: 16,
+  },
+  dayConfigCard: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  dayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  dayName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  dayToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  dayToggleActive: {
+    backgroundColor: '#7B2CBF',
+    borderColor: '#7B2CBF',
+  },
+  dayToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  dayToggleTextActive: {
+    color: 'white',
+  },
+  timeWindowsContainer: {
+    marginTop: 8,
+  },
+  timeWindow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  timeInputGroup: {
+    flex: 1,
+  },
+  timeLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  timeInput: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 6,
+    padding: 8,
+    fontSize: 14,
+    backgroundColor: '#FAFAFA',
+    textAlign: 'center',
+  },
+  removeTimeWindowButton: {
+    padding: 4,
+  },
+  addTimeWindowButton: {
+    backgroundColor: '#EDE9FE',
+    borderRadius: 6,
+    padding: 8,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  addTimeWindowText: {
+    fontSize: 12,
+    color: '#7B2CBF',
+    fontWeight: '600',
+  },
+  availabilityPeriodOptions: {
+    marginBottom: 16,
+  },
+  periodOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: 'white',
+  },
+  periodOptionSelected: {
+    borderColor: '#7B2CBF',
+    backgroundColor: '#F5F3FF',
+  },
+  periodOptionText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  periodTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  periodSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  weeksAheadContainer: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  dateRangeContainer: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  dateRangeRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  dateRangeInput: {
+    flex: 1,
   },
 });
 

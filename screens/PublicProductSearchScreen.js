@@ -131,6 +131,117 @@ const PublicProductSearchScreen = ({ navigation }) => {
     }
   };
 
+  const renderBookingAvailability = (item) => {
+    if (item.itemType !== 'service' || !item.availabilitySummary?.hasBookingAvailability) {
+      return null;
+    }
+
+    const { availabilitySummary, bookingAvailability } = item;
+    
+    return (
+      <View style={styles.bookingAvailabilitySection}>
+        <View style={styles.bookingHeader}>
+          <Ionicons name="calendar-outline" size={16} color="#7B2CBF" />
+          <Text style={styles.bookingHeaderText}>Booking Available</Text>
+        </View>
+        
+        <View style={styles.bookingDetails}>
+          <View style={styles.bookingRow}>
+            <View style={styles.bookingItem}>
+              <Ionicons name="time-outline" size={14} color="#666" />
+              <Text style={styles.bookingItemText}>{availabilitySummary.slotDuration}</Text>
+            </View>
+            <View style={styles.bookingItem}>
+              <Ionicons name="people-outline" size={14} color="#666" />
+              <Text style={styles.bookingItemText}>Up to {availabilitySummary.maxBookingsPerSlot}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.availableDaysContainer}>
+            <Text style={styles.availableDaysLabel}>Available:</Text>
+            <View style={styles.daysGrid}>
+              {availabilitySummary.availableDays?.slice(0, 3).map((day, index) => (
+                <View key={index} style={styles.dayChip}>
+                  <Text style={styles.dayChipText}>{day.substring(0, 3)}</Text>
+                </View>
+              ))}
+              {availabilitySummary.availableDays?.length > 3 && (
+                <View style={styles.dayChip}>
+                  <Text style={styles.dayChipText}>+{availabilitySummary.availableDays.length - 3}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+          
+          {bookingAvailability?.daysAvailable?.length > 0 && (
+            <View style={styles.timeWindowsPreview}>
+              <Text style={styles.timeWindowsLabel}>Today's Hours:</Text>
+              <View style={styles.timeWindowsContainer}>
+                {bookingAvailability.daysAvailable[0]?.timeWindows?.slice(0, 2).map((window, index) => (
+                  <View key={index} style={styles.timeWindow}>
+                    <Text style={styles.timeWindowText}>
+                      {window.displayStartTime} - {window.displayEndTime}
+                    </Text>
+                  </View>
+                ))}
+                {bookingAvailability.daysAvailable[0]?.timeWindows?.length > 2 && (
+                  <Text style={styles.moreTimeWindows}>+more</Text>
+                )}
+              </View>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  const renderSubServices = (item) => {
+    if (!item.hasSubServices || !item.subServices?.length) {
+      return null;
+    }
+
+    return (
+      <View style={styles.subServicesSection}>
+        <View style={styles.subServicesHeader}>
+          <Ionicons name="add-circle-outline" size={16} color="#7B2CBF" />
+          <Text style={styles.subServicesHeaderText}>Additional Services Available</Text>
+        </View>
+        <View style={styles.subServicesList}>
+          {item.subServices.slice(0, 2).map((subService, index) => (
+            <View key={index} style={styles.subServiceItem}>
+              <Text style={styles.subServiceName}>{subService.name}</Text>
+              <Text style={styles.subServicePrice}>+₦{subService.price?.toLocaleString()}</Text>
+            </View>
+          ))}
+          {item.subServices.length > 2 && (
+            <Text style={styles.moreSubServices}>+{item.subServices.length - 2} more services</Text>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  const renderLocationInfo = (item) => {
+    if (!item.location) return null;
+
+    return (
+      <View style={styles.locationSection}>
+        <View style={styles.locationHeader}>
+          <Ionicons name="location-outline" size={14} color="#666" />
+          <Text style={styles.locationText} numberOfLines={1}>
+            {item.location.brandName} • {item.location.city}, {item.location.state}
+          </Text>
+        </View>
+        {item.location.verified && (
+          <View style={styles.locationVerified}>
+            <Ionicons name="shield-checkmark" size={12} color="#4CAF50" />
+            <Text style={styles.locationVerifiedText}>Verified Location</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   const renderProductCard = ({ item }) => (
     <TouchableOpacity
       style={styles.productCard}
@@ -141,21 +252,26 @@ const PublicProductSearchScreen = ({ navigation }) => {
           <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
         ) : (
           <View style={styles.placeholderImage}>
-            <Ionicons name="cube" size={40} color="#7B2CBF" />
+            <Ionicons name={item.itemType === 'service' ? 'construct' : 'cube'} size={40} color="#7B2CBF" />
           </View>
         )}
         <View style={styles.badgeOverlay}>
-          {item.location?.verified && (
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark" size={12} color="#fff" />
-              <Text style={styles.verifiedText}>Verified</Text>
-            </View>
-          )}
-          {item.discount > 0 && (
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>{item.discount}% OFF</Text>
-            </View>
-          )}
+          <View style={styles.badgeRow}>
+            {item.location?.verified && (
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark" size={12} color="#fff" />
+                <Text style={styles.verifiedText}>Verified</Text>
+              </View>
+            )}
+            {item.discount > 0 && (
+              <View style={styles.discountBadge}>
+                <Text style={styles.discountText}>{item.discount}% OFF</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.itemTypeBadge}>
+            <Text style={styles.itemTypeText}>{item.itemType?.toUpperCase()}</Text>
+          </View>
         </View>
       </View>
 
@@ -164,26 +280,47 @@ const PublicProductSearchScreen = ({ navigation }) => {
         <Text style={styles.provider}>{item.businessName}</Text>
         <Text style={styles.category}>{item.categoryName}</Text>
         
+        {renderLocationInfo(item)}
+        
         <View style={styles.pricingSection}>
-          {item.discount > 0 && (
-            <Text style={styles.originalPrice}>₦{item.originalPrice?.toLocaleString()}</Text>
+          <View style={styles.priceContainer}>
+            {item.discount > 0 && (
+              <Text style={styles.originalPrice}>₦{item.originalPrice?.toLocaleString()}</Text>
+            )}
+            <Text style={styles.currentPrice}>₦{item.discountedPrice?.toLocaleString()}</Text>
+          </View>
+          {item.youSave > 0 && (
+            <View style={styles.savingsContainer}>
+              <Text style={styles.savings}>Save ₦{item.youSave?.toLocaleString()}</Text>
+            </View>
           )}
-          <Text style={styles.currentPrice}>₦{item.discountedPrice?.toLocaleString()}</Text>
         </View>
 
-        <View style={styles.savingsStock}>
-          {item.youSave > 0 && (
-            <Text style={styles.savings}>Save ₦{item.youSave?.toLocaleString()}</Text>
-          )}
-          <Text style={styles.stock}>{item.availableQuantity} left</Text>
-        </View>
+        {item.itemType === 'product' && (
+          <View style={styles.stockSection}>
+            <Ionicons name="cube-outline" size={14} color="#666" />
+            <Text style={styles.stock}>{item.availableQuantity || 0} in stock</Text>
+          </View>
+        )}
+
+        {renderSubServices(item)}
+        {renderBookingAvailability(item)}
 
         <TouchableOpacity 
-          style={styles.viewButton}
+          style={[
+            styles.viewButton,
+            item.itemType === 'service' && styles.serviceViewButton
+          ]}
           onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}
         >
-          <Ionicons name="eye" size={16} color="#fff" />
-          <Text style={styles.viewButtonText}>View Details</Text>
+          <Ionicons 
+            name={item.itemType === 'service' ? 'calendar' : 'eye'} 
+            size={16} 
+            color="#fff" 
+          />
+          <Text style={styles.viewButtonText}>
+            {item.itemType === 'service' ? 'Book Service' : 'View Details'}
+          </Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -420,9 +557,25 @@ const styles = StyleSheet.create({
     top: 12,
     left: 12,
     right: 12,
+    flexDirection: 'column',
+    gap: 8,
+  },
+  badgeRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
+  },
+  itemTypeBadge: {
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  itemTypeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   productInfo: {
     padding: 16,
@@ -433,9 +586,6 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   verifiedBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#4CAF50',
@@ -468,11 +618,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   pricingSection: {
+    marginBottom: 12,
+  },
+  priceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    marginBottom: 8,
     gap: 8,
+    marginBottom: 4,
+  },
+  savingsContainer: {
+    alignItems: 'flex-end',
   },
   originalPrice: {
     fontSize: 14,
@@ -487,6 +643,12 @@ const styles = StyleSheet.create({
   savingsStock: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  stockSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     marginBottom: 8,
   },
   savings: {
@@ -517,6 +679,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 12,
     gap: 6,
+  },
+  serviceViewButton: {
+    backgroundColor: '#4CAF50',
   },
   viewButtonText: {
     color: 'white',
@@ -552,6 +717,171 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     marginTop: 4,
+  },
+  
+  // Location Section Styles
+  locationSection: {
+    marginBottom: 8,
+  },
+  locationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  locationText: {
+    fontSize: 12,
+    color: '#666',
+    flex: 1,
+  },
+  locationVerified: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  locationVerifiedText: {
+    fontSize: 10,
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+  
+  // Sub-Services Section Styles
+  subServicesSection: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  subServicesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  subServicesHeaderText: {
+    fontSize: 12,
+    color: '#7B2CBF',
+    fontWeight: '600',
+  },
+  subServicesList: {
+    gap: 4,
+  },
+  subServiceItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  subServiceName: {
+    fontSize: 11,
+    color: '#333',
+    flex: 1,
+  },
+  subServicePrice: {
+    fontSize: 11,
+    color: '#7B2CBF',
+    fontWeight: '600',
+  },
+  moreSubServices: {
+    fontSize: 10,
+    color: '#666',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  
+  // Booking Availability Section Styles
+  bookingAvailabilitySection: {
+    backgroundColor: '#F0F8FF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E3F2FD',
+  },
+  bookingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  bookingHeaderText: {
+    fontSize: 12,
+    color: '#7B2CBF',
+    fontWeight: '600',
+  },
+  bookingDetails: {
+    gap: 8,
+  },
+  bookingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  bookingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
+  },
+  bookingItemText: {
+    fontSize: 11,
+    color: '#666',
+  },
+  availableDaysContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  availableDaysLabel: {
+    fontSize: 11,
+    color: '#666',
+    fontWeight: '500',
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    gap: 4,
+    flex: 1,
+  },
+  dayChip: {
+    backgroundColor: '#7B2CBF',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  dayChipText: {
+    fontSize: 9,
+    color: 'white',
+    fontWeight: '500',
+  },
+  timeWindowsPreview: {
+    gap: 4,
+  },
+  timeWindowsLabel: {
+    fontSize: 11,
+    color: '#666',
+    fontWeight: '500',
+  },
+  timeWindowsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timeWindow: {
+    backgroundColor: 'white',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  timeWindowText: {
+    fontSize: 9,
+    color: '#333',
+    fontWeight: '500',
+  },
+  moreTimeWindows: {
+    fontSize: 9,
+    color: '#7B2CBF',
+    fontWeight: '500',
   },
 });
 
