@@ -1,291 +1,260 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  Alert,
   ActivityIndicator,
-  Linking,
-  BackHandler,
+  Alert,
+  Modal,
+  TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
 import ApiService from '../services/api';
 
-const BookingPaymentVerificationScreen = ({ navigation, route }) => {
+const BookingPaymentVerificationScreen = ({ route, navigation }) => {
+  const [verifying, setVerifying] = useState(false);
+  const [status, setStatus] = useState('payment');
+  const [showPaymentWebView, setShowPaymentWebView] = useState(true);
+  
   const { 
     paymentLink, 
     orderId, 
     transactionId, 
     service, 
     bookingData, 
-    paymentAmount, 
+    pricingBreakdown,
+    paymentAmount,
     paymentType 
-  } = route.params;
-  
-  const [verifying, setVerifying] = useState(false);
-  const [paymentCompleted, setPaymentCompleted] = useState(false);
-  const [verificationResult, setVerificationResult] = useState(null);
+  } = route.params || {};
 
   useEffect(() => {
-    // Handle back button press
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      handleBackPress();
-      return true;
-    });
-
-    return () => backHandler.remove();
+    console.log('🚨 BOOKING PAYMENT VERIFICATION SCREEN LOADED 🚨');
+    console.log('Payment link:', paymentLink);
+    console.log('Order ID:', orderId);
+    console.log('Transaction ID:', transactionId);
+    console.log('Service:', service?.name);
+    console.log('Payment amount:', paymentAmount);
+    console.log('Payment type:', paymentType);
   }, []);
 
-  const handleBackPress = () => {
-    Alert.alert(
-      'Cancel Payment?',
-      'Are you sure you want to cancel this payment? Your booking will not be confirmed.',
-      [
-        { text: 'Continue Payment', style: 'cancel' },
-        { 
-          text: 'Cancel', 
-          style: 'destructive',
-          onPress: () => navigation.navigate('PublicProductSearch')
-        },
-      ]
-    );
-  };
-
-  const openPaymentLink = async () => {
-    try {
-      const supported = await Linking.canOpenURL(paymentLink);
-      if (supported) {
-        await Linking.openURL(paymentLink);
-        setPaymentCompleted(true);
-      } else {
-        Alert.alert('Error', 'Unable to open payment link');
-      }
-    } catch (error) {
-      console.error('Error opening payment link:', error);
-      Alert.alert('Error', 'Failed to open payment link');
+  const handleWebViewNavigationStateChange = (navState) => {
+    const { url } = navState;
+    console.log('🚨 WEBVIEW NAVIGATION 🚨');
+    console.log('Current URL:', url);
+    
+    if (url.includes('status=successful')) {
+      const urlParams = new URLSearchParams(url.split('?')[1]);
+      const txRef = urlParams.get('transaction_id') || urlParams.get('tx_ref');
+      
+      console.log('✅ PAYMENT SUCCESSFUL');
+      console.log('Transaction reference:', txRef);
+      
+      setShowPaymentWebView(false);
+      setStatus('verifying');
+      setVerifying(true);
+      
+      // Verify the booking payment
+      verifyBookingPayment(txRef || transactionId);
+    } else if (url.includes('status=cancelled') || url.includes('status=failed')) {
+      console.log('❌ PAYMENT CANCELLED/FAILED');
+      setShowPaymentWebView(false);
+      setStatus('failed');
+      
+      setTimeout(() => {
+        Alert.alert(
+          'Payment Cancelled', 
+          'Your booking payment was cancelled or failed.',
+          [
+            {
+              text: 'Try Again',
+              onPress: () => navigation.goBack()
+            }
+          ]
+        );
+      }, 1000);
     }
   };
 
-  const verifyPayment = async () => {
+  const verifyBookingPayment = async (txRef) => {
     try {
-      setVerifying(true);
-      const response = await ApiService.verifyBookingPayment(transactionId);
+      console.log('🚨 VERIFYING BOOKING PAYMENT 🚨');
+      console.log('Using transaction reference:', txRef);
+      
+      const response = await ApiService.verifyBookingPayment(txRef);
+      console.log('Verification response:', JSON.stringify(response, null, 2));
       
       if (response.success) {
-        setVerificationResult(response.data);
-        Alert.alert(
-          'Payment Successful!',
-          'Your booking has been confirmed. You will receive a confirmation email shortly.',
-          [
-            {
-              text: 'View Booking Details',
-              onPress: () => navigation.navigate('BookingConfirmationScreen', {
-                order: response.data.order,
-                service: service,
-                paymentAmount: paymentAmount,
-                paymentType: paymentType,
-              }),
-            },
-          ]
-        );
+        setStatus('success');
+        setTimeout(() => {
+          Alert.alert(
+            'Booking Confirmed!',
+            `Your ${service?.name || 'service'} booking has been confirmed successfully.`,
+            [
+              {
+                text: 'View My Orders',
+                onPress: () => navigation.navigate('MyOrders')
+              },
+              {
+                text: 'Back to Services',
+                onPress: () => navigation.navigate('PublicProductSearch')
+              }
+            ]
+          );
+        }, 2000);
       } else {
-        Alert.alert(
-          'Payment Verification Failed',
-          response.message || 'Unable to verify payment. Please try again or contact support.',
-          [
-            { text: 'Try Again', onPress: verifyPayment },
-            { text: 'Cancel', style: 'cancel' },
-          ]
-        );
+        setStatus('failed');
+        setTimeout(() => {
+          Alert.alert(
+            'Verification Failed',
+            response.message || 'Failed to verify booking payment',
+            [
+              {
+                text: 'Contact Support',
+                onPress: () => navigation.navigate('Help')
+              },
+              {
+                text: 'Try Again',
+                onPress: () => navigation.goBack()
+              }
+            ]
+          );
+        }, 2000);
       }
     } catch (error) {
-      console.error('Error verifying payment:', error);
-      Alert.alert(
-        'Verification Error',
-        'Failed to verify payment. Please check your connection and try again.',
-        [
-          { text: 'Try Again', onPress: verifyPayment },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
+      console.error('Booking payment verification error:', error);
+      setStatus('failed');
+      setTimeout(() => {
+        Alert.alert(
+          'Verification Error',
+          'Failed to verify booking payment. Please contact support.',
+          [
+            {
+              text: 'Contact Support',
+              onPress: () => navigation.navigate('Help')
+            },
+            {
+              text: 'Try Again',
+              onPress: () => navigation.goBack()
+            }
+          ]
+        );
+      }, 2000);
     } finally {
       setVerifying(false);
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+  const renderContent = () => {
+    switch (status) {
+      case 'payment':
+        return (
+          <>
+            <View style={styles.paymentIcon}>
+              <Ionicons name="card" size={80} color="#7B2CBF" />
+            </View>
+            <Text style={styles.title}>Complete Your Payment</Text>
+            <Text style={styles.subtitle}>
+              You will be redirected to complete your booking payment securely
+            </Text>
+          </>
+        );
+      case 'verifying':
+        return (
+          <>
+            <ActivityIndicator size="large" color="#7B2CBF" />
+            <Text style={styles.title}>Verifying Payment</Text>
+            <Text style={styles.subtitle}>Please wait while we confirm your booking payment...</Text>
+          </>
+        );
+      case 'success':
+        return (
+          <>
+            <View style={styles.successIcon}>
+              <Ionicons name="checkmark-circle" size={80} color="#10B981" />
+            </View>
+            <Text style={styles.title}>Booking Confirmed!</Text>
+            <Text style={styles.subtitle}>
+              Your {service?.name || 'service'} booking has been confirmed successfully
+            </Text>
+            {pricingBreakdown && (
+              <View style={styles.bookingDetails}>
+                <Text style={styles.detailsTitle}>Booking Details</Text>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Service:</Text>
+                  <Text style={styles.detailValue}>{service?.name}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Amount Paid:</Text>
+                  <Text style={styles.detailValue}>₦{paymentAmount?.toLocaleString()}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Payment Type:</Text>
+                  <Text style={styles.detailValue}>
+                    {paymentType === 'full' ? 'Full Payment' : `Upfront Payment (${pricingBreakdown.upfrontPercentage}%)`}
+                  </Text>
+                </View>
+                {paymentType === 'upfront' && pricingBreakdown.remainingBalance > 0 && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Remaining Balance:</Text>
+                    <Text style={styles.remainingBalance}>₦{pricingBreakdown.remainingBalance?.toLocaleString()}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </>
+        );
+      case 'failed':
+        return (
+          <>
+            <View style={styles.errorIcon}>
+              <Ionicons name="close-circle" size={80} color="#EF4444" />
+            </View>
+            <Text style={styles.title}>Payment Failed</Text>
+            <Text style={styles.subtitle}>There was an issue processing your booking payment</Text>
+          </>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBackPress}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Complete Payment</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <View style={styles.content}>
-        {/* Payment Status */}
-        <View style={styles.statusContainer}>
-          <View style={styles.statusIcon}>
-            <Ionicons 
-              name={paymentCompleted ? "checkmark-circle" : "card"} 
-              size={64} 
-              color={paymentCompleted ? "#10B981" : "#7B2CBF"} 
-            />
-          </View>
-          
-          <Text style={styles.statusTitle}>
-            {paymentCompleted ? 'Payment Completed' : 'Complete Your Payment'}
-          </Text>
-          
-          <Text style={styles.statusMessage}>
-            {paymentCompleted 
-              ? 'Click "Verify Payment" below to confirm your booking'
-              : 'Click "Pay Now" to complete your booking payment'
-            }
-          </Text>
-        </View>
-
-        {/* Booking Summary */}
-        <View style={styles.summaryContainer}>
-          <Text style={styles.summaryTitle}>Booking Summary</Text>
-          
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Service:</Text>
-              <Text style={styles.summaryValue}>{service.name}</Text>
-            </View>
-            
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Provider:</Text>
-              <Text style={styles.summaryValue}>{service.producer}</Text>
-            </View>
-            
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Date:</Text>
-              <Text style={styles.summaryValue}>{formatDate(bookingData.bookingDate)}</Text>
-            </View>
-            
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Time:</Text>
-              <Text style={styles.summaryValue}>{bookingData.bookingTime}</Text>
-            </View>
-            
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Duration:</Text>
-              <Text style={styles.summaryValue}>{bookingData.bookingDuration} minutes</Text>
-            </View>
-            
-            <View style={styles.summaryDivider} />
-            
-            <View style={styles.summaryRow}>
-              <Text style={styles.totalLabel}>
-                {paymentType === 'full' ? 'Total Amount' : 'Upfront Payment'}:
-              </Text>
-              <Text style={styles.totalValue}>₦{paymentAmount.toLocaleString()}</Text>
-            </View>
-            
-            {paymentType === 'upfront' && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.remainingLabel}>Remaining Balance:</Text>
-                <Text style={styles.remainingValue}>
-                  ₦{(bookingData.productPrice - paymentAmount).toLocaleString()}
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Payment Instructions */}
-        <View style={styles.instructionsContainer}>
-          <View style={styles.instructionsHeader}>
-            <Ionicons name="information-circle" size={20} color="#7B2CBF" />
-            <Text style={styles.instructionsTitle}>Payment Instructions</Text>
-          </View>
-          
-          <View style={styles.instructionsList}>
-            <View style={styles.instructionItem}>
-              <Text style={styles.instructionNumber}>1.</Text>
-              <Text style={styles.instructionText}>
-                Click "Pay Now" to open the secure payment page
-              </Text>
-            </View>
-            
-            <View style={styles.instructionItem}>
-              <Text style={styles.instructionNumber}>2.</Text>
-              <Text style={styles.instructionText}>
-                Complete your payment using your preferred method
-              </Text>
-            </View>
-            
-            <View style={styles.instructionItem}>
-              <Text style={styles.instructionNumber}>3.</Text>
-              <Text style={styles.instructionText}>
-                Return to this screen and click "Verify Payment"
-              </Text>
-            </View>
-            
-            <View style={styles.instructionItem}>
-              <Text style={styles.instructionNumber}>4.</Text>
-              <Text style={styles.instructionText}>
-                Receive booking confirmation and service provider contact
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.footer}>
-        {!paymentCompleted ? (
-          <TouchableOpacity
-            style={styles.payButton}
-            onPress={openPaymentLink}
-          >
-            <Ionicons name="card" size={20} color="white" />
-            <Text style={styles.payButtonText}>
-              Pay ₦{paymentAmount.toLocaleString()} Now
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.buttonGroup}>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={openPaymentLink}
-            >
-              <Text style={styles.secondaryButtonText}>Pay Again</Text>
+    <View style={styles.container}>
+      {/* Payment WebView Modal */}
+      <Modal visible={showPaymentWebView} animationType="slide">
+        <View style={styles.webViewContainer}>
+          <View style={styles.webViewHeader}>
+            <Text style={styles.webViewTitle}>Complete Booking Payment</Text>
+            <TouchableOpacity onPress={() => {
+              setShowPaymentWebView(false);
+              navigation.goBack();
+            }}>
+              <Ionicons name="close" size={24} color="white" />
             </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.verifyButton, verifying && styles.disabledButton]}
-              onPress={verifyPayment}
-              disabled={verifying}
-            >
-              {verifying ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <>
-                  <Ionicons name="checkmark-circle" size={20} color="white" />
-                  <Text style={styles.verifyButtonText}>Verify Payment</Text>
-                </>
+          </View>
+          
+          {paymentLink && (
+            <WebView
+              source={{ uri: paymentLink }}
+              onNavigationStateChange={handleWebViewNavigationStateChange}
+              startInLoadingState={true}
+              renderLoading={() => (
+                <View style={styles.webViewLoading}>
+                  <ActivityIndicator size="large" color="#7B2CBF" />
+                  <Text style={styles.webViewLoadingText}>Loading payment page...</Text>
+                </View>
               )}
-            </TouchableOpacity>
-          </View>
-        )}
+            />
+          )}
+        </View>
+      </Modal>
+
+      {/* Verification Content */}
+      <View style={styles.content}>
+        {renderContent()}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -294,200 +263,101 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
   content: {
     flex: 1,
-    padding: 20,
-  },
-  statusContainer: {
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 32,
-    marginBottom: 20,
+    paddingHorizontal: 40,
   },
-  statusIcon: {
-    marginBottom: 16,
+  paymentIcon: {
+    marginBottom: 24,
   },
-  statusTitle: {
+  successIcon: {
+    marginBottom: 24,
+  },
+  errorIcon: {
+    marginBottom: 24,
+  },
+  title: {
     fontSize: 24,
     fontWeight: '700',
     color: '#1F2937',
-    marginBottom: 8,
     textAlign: 'center',
+    marginBottom: 12,
   },
-  statusMessage: {
+  subtitle: {
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 24,
+    marginBottom: 24,
   },
-  summaryContainer: {
+  bookingDetails: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 20,
-    marginBottom: 20,
+    width: '100%',
+    marginTop: 20,
   },
-  summaryTitle: {
+  detailsTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 16,
+    textAlign: 'center',
   },
-  summaryCard: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 16,
-  },
-  summaryRow: {
+  detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
-  summaryLabel: {
+  detailLabel: {
     fontSize: 14,
     color: '#6B7280',
   },
-  summaryValue: {
+  detailValue: {
     fontSize: 14,
     fontWeight: '500',
     color: '#1F2937',
-    textAlign: 'right',
-    flex: 1,
-    marginLeft: 16,
   },
-  summaryDivider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 8,
-  },
-  totalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  totalValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#7B2CBF',
-  },
-  remainingLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontStyle: 'italic',
-  },
-  remainingValue: {
+  remainingBalance: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: '#EF4444',
   },
-  instructionsContainer: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#7B2CBF',
-  },
-  instructionsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  instructionsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#7B2CBF',
-  },
-  instructionsList: {
-    gap: 12,
-  },
-  instructionItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  instructionNumber: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#7B2CBF',
-    width: 20,
-  },
-  instructionText: {
-    fontSize: 14,
-    color: '#6B7280',
+  webViewContainer: {
     flex: 1,
-    lineHeight: 20,
-  },
-  footer: {
     backgroundColor: 'white',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
   },
-  payButton: {
+  webViewHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
     backgroundColor: '#7B2CBF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    gap: 8,
   },
-  payButtonText: {
+  webViewTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: 'white',
   },
-  buttonGroup: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  secondaryButton: {
+  webViewLoading: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#7B2CBF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#7B2CBF',
-  },
-  verifyButton: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10B981',
-    borderRadius: 12,
-    paddingVertical: 16,
-    gap: 8,
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
   },
-  disabledButton: {
-    backgroundColor: '#9CA3AF',
-  },
-  verifyButtonText: {
+  webViewLoadingText: {
+    marginTop: 16,
     fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
+    color: '#6B7280',
   },
 });
 

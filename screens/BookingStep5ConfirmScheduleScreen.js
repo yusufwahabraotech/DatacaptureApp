@@ -146,20 +146,26 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
     try {
       setLoading(true);
 
+      // Ensure bookingLocation has the correct format
+      if (!bookingLocation || !bookingLocation.locationType) {
+        Alert.alert('Error', 'Booking location is missing. Please go back and select a location.');
+        return;
+      }
+
       // Prepare booking data with updated structure
       const bookingData = {
         serviceId: service.id || service._id,
         productId: service.id || service._id,
         productName: service.name,
         productPrice: calculateTotalAmount(),
-        upfrontAmount: getPaymentAmount(),
+        upfrontPercentage: getUpfrontPercentage(), // Backend expects this field name
         customerName: customerInfo.name,
         customerEmail: customerInfo.email,
         customerPhone: customerInfo.phone,
         paymentType: paymentType,
         itemType: 'service',
         organizationId: service.organizationId,
-        organizationName: service.producer || service.serviceProvider?.producer,
+        organizationName: service.producer || service.serviceProvider?.producer || 'Service Provider',
 
         // Booking specific fields
         bookingDate: selectedDate,
@@ -168,7 +174,11 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
         bookingNotes: customerInfo.notes || '',
 
         // Location data
-        bookingLocation: bookingLocation,
+        bookingLocation: {
+          type: bookingLocation.locationType || bookingLocation.type,
+          address: bookingLocation.address,
+          whatsappLocationUrl: bookingLocation.whatsappLocationUrl
+        },
 
         // Persons data
         bookedForPersons: [
@@ -213,10 +223,13 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
       console.log('Service ID:', service.id || service._id);
       console.log('Service Name:', service.name);
       console.log('Organization ID:', service.organizationId);
+      console.log('=== BOOKING LOCATION DEBUG ===');
+      console.log('Raw bookingLocation:', JSON.stringify(bookingLocation, null, 2));
+      console.log('Location type:', bookingLocation.locationType || bookingLocation.type);
+      console.log('Location address:', bookingLocation.address);
       console.log('=== BOOKING INFO ===');
       console.log('Date:', selectedDate);
       console.log('Slot:', selectedSlot);
-      console.log('Location:', bookingLocation);
       console.log('=== PRICING INFO ===');
       console.log('Payment Type:', paymentType);
       console.log('Total Amount:', calculateTotalAmount());
