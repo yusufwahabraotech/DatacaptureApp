@@ -21,6 +21,7 @@ const BookingStep4SelectLocationScreen = ({ navigation, route }) => {
   const [customAddress, setCustomAddress] = useState('');
   const [whatsappLocationUrl, setWhatsappLocationUrl] = useState('');
   const [validating, setValidating] = useState(false);
+  const [validationError, setValidationError] = useState(null);
 
   useEffect(() => {
     loadLocationOptions();
@@ -53,13 +54,26 @@ const BookingStep4SelectLocationScreen = ({ navigation, route }) => {
   };
 
   const validateLocationSelection = async () => {
+    // Clear previous validation errors
+    setValidationError(null);
+    
+    // Map frontend location types to backend expected types
+    const locationTypeMapping = {
+      'merchantLocation': 'merchant_location',
+      'customerAddress': 'customer_address',
+      'newAddress': 'new_address',
+      'whatsappLocation': 'whatsapp_location'
+    };
+    
+    const backendLocationType = locationTypeMapping[selectedLocationType] || selectedLocationType;
+    
     const locationData = {
-      locationType: selectedLocationType,
+      locationType: backendLocationType,
       customerEmail: customerInfo.email,
     };
 
     // Add required fields based on location type
-    if (selectedLocationType === 'new_address') {
+    if (selectedLocationType === 'newAddress') {
       if (!customAddress.trim()) {
         Alert.alert('Required Field', 'Please enter the address');
         return false;
@@ -67,13 +81,18 @@ const BookingStep4SelectLocationScreen = ({ navigation, route }) => {
       locationData.address = customAddress.trim();
     }
 
-    if (selectedLocationType === 'whatsapp_location') {
+    if (selectedLocationType === 'whatsappLocation') {
       if (!whatsappLocationUrl.trim()) {
         Alert.alert('Required Field', 'Please enter the WhatsApp location URL');
         return false;
       }
       locationData.whatsappLocationUrl = whatsappLocationUrl.trim();
     }
+
+    console.log('🚨 LOCATION VALIDATION DEBUG 🚨');
+    console.log('Frontend selectedLocationType:', selectedLocationType);
+    console.log('Backend locationType being sent:', backendLocationType);
+    console.log('Full locationData:', JSON.stringify(locationData, null, 2));
 
     try {
       setValidating(true);
@@ -82,7 +101,34 @@ const BookingStep4SelectLocationScreen = ({ navigation, route }) => {
       if (response.success) {
         return locationData;
       } else {
-        Alert.alert('Validation Error', response.message || 'Invalid location selection');
+        // Handle specific validation errors with suggestions
+        if (response.suggestion) {
+          setValidationError({
+            message: response.message,
+            suggestion: response.suggestion
+          });
+          
+          // Show alert with suggestion
+          Alert.alert(
+            'Address Validation',
+            response.message,
+            [
+              { text: 'OK', style: 'default' },
+              {
+                text: response.suggestion === 'Use \'New address\' option' ? 'Use New Address' : 'OK',
+                style: 'default',
+                onPress: () => {
+                  if (response.suggestion === 'Use \'New address\' option') {
+                    setSelectedLocationType('newAddress');
+                    setValidationError(null);
+                  }
+                }
+              }
+            ]
+          );
+        } else {
+          Alert.alert('Validation Error', response.message || 'Invalid location selection');
+        }
         return false;
       }
     } catch (error) {
@@ -168,28 +214,28 @@ const BookingStep4SelectLocationScreen = ({ navigation, route }) => {
   };
 
   const renderInputField = () => {
-    const option = locationOptions[selectedLocationType];
-    if (!option || !option.requiresInput) return null;
-
-    if (selectedLocationType === 'new_address') {
+    if (selectedLocationType === 'newAddress') {
       return (
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Enter Address *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, styles.textAreaInput]}
             value={customAddress}
             onChangeText={setCustomAddress}
-            placeholder={option.placeholder || 'Enter full address'}
+            placeholder="Enter full address (e.g., 123 Main Street, Victoria Island, Lagos)"
             placeholderTextColor="#9CA3AF"
             multiline
             numberOfLines={3}
             textAlignVertical="top"
           />
+          <Text style={styles.inputHint}>
+            Please provide a complete address including street, area, and city
+          </Text>
         </View>
       );
     }
 
-    if (selectedLocationType === 'whatsapp_location') {
+    if (selectedLocationType === 'whatsappLocation') {
       return (
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>WhatsApp Location URL *</Text>
@@ -197,7 +243,7 @@ const BookingStep4SelectLocationScreen = ({ navigation, route }) => {
             style={styles.input}
             value={whatsappLocationUrl}
             onChangeText={setWhatsappLocationUrl}
-            placeholder={option.placeholder || 'Paste WhatsApp location URL'}
+            placeholder="Paste WhatsApp location URL (e.g., https://maps.google.com/...)"
             placeholderTextColor="#9CA3AF"
             keyboardType="url"
             autoCapitalize="none"
@@ -295,6 +341,35 @@ const BookingStep4SelectLocationScreen = ({ navigation, route }) => {
           </View>
 
           {renderInputField()}
+
+          {/* Validation Error Display */}
+          {validationError && (
+            <View style={styles.validationErrorContainer}>
+              <View style={styles.errorHeader}>
+                <Ionicons name="warning" size={20} color="#EF4444" />
+                <Text style={styles.errorTitle}>Address Validation</Text>
+              </View>
+              <Text style={styles.errorMessage}>{validationError.message}</Text>
+              {validationError.suggestion && (
+                <TouchableOpacity
+                  style={styles.suggestionButton}
+                  onPress={() => {
+                    if (validationError.suggestion === 'Use \'New address\' option') {
+                      setSelectedLocationType('newAddress');
+                      setValidationError(null);
+                    }
+                  }}
+                >
+                  <Text style={styles.suggestionButtonText}>
+                    {validationError.suggestion === 'Use \'New address\' option' 
+                      ? 'Switch to New Address' 
+                      : validationError.suggestion}
+                  </Text>
+                  <Ionicons name="arrow-forward" size={16} color="#7B2CBF" />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Location Info */}
@@ -501,6 +576,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     marginTop: 16,
+    marginBottom: 8,
   },
   inputLabel: {
     fontSize: 14,
@@ -518,6 +594,10 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     backgroundColor: 'white',
     minHeight: 48,
+  },
+  textAreaInput: {
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   inputHint: {
     fontSize: 12,
@@ -571,6 +651,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: 'white',
+  },
+  validationErrorContainer: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 16,
+  },
+  errorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  errorTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#7F1D1D',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  suggestionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F3E8FF',
+    borderWidth: 1,
+    borderColor: '#7B2CBF',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  suggestionButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#7B2CBF',
   },
 });
 

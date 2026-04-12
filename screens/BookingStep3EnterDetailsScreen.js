@@ -343,38 +343,47 @@ const BookingStep3EnterDetailsScreen = ({ navigation, route }) => {
 
         {/* Guest Booking */}
         <View style={styles.section}>
-          <View style={styles.guestHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Guest Booking</Text>
-              <Text style={styles.sectionSubtitle}>
-                Add guests who will also book this service
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.addGuestButton}
-              onPress={handleAddGuest}
-            >
-              <Ionicons name="add" size={20} color="white" />
-              <Text style={styles.addGuestText}>Add Guest</Text>
-            </TouchableOpacity>
+          <View style={styles.guestHeaderText}>
+            <Text style={styles.sectionTitle}>Guest Booking</Text>
+            <Text style={styles.sectionSubtitle}>
+              Add guests who will also book this service
+            </Text>
           </View>
 
           {guests.length > 0 ? (
-            <FlatList
-              data={guests}
-              renderItem={renderGuestItem}
-              keyExtractor={(item, index) => index.toString()}
-              scrollEnabled={false}
-              contentContainerStyle={styles.guestsList}
-            />
+            <>
+              <FlatList
+                data={guests}
+                renderItem={renderGuestItem}
+                keyExtractor={(item, index) => index.toString()}
+                scrollEnabled={false}
+                contentContainerStyle={styles.guestsList}
+              />
+              <TouchableOpacity
+                style={styles.addGuestButton}
+                onPress={handleAddGuest}
+              >
+                <Ionicons name="add" size={20} color="white" />
+                <Text style={styles.addGuestText}>Add Another Guest</Text>
+              </TouchableOpacity>
+            </>
           ) : (
-            <View style={styles.noGuestsContainer}>
-              <Ionicons name="people-outline" size={32} color="#E5E7EB" />
-              <Text style={styles.noGuestsText}>No guests added</Text>
-              <Text style={styles.noGuestsSubtext}>
-                Guests can book their own time slots for the same service
-              </Text>
-            </View>
+            <>
+              <View style={styles.noGuestsContainer}>
+                <Ionicons name="people-outline" size={32} color="#E5E7EB" />
+                <Text style={styles.noGuestsText}>No guests added</Text>
+                <Text style={styles.noGuestsSubtext}>
+                  Guests can book their own time slots for the same service
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.addGuestButton}
+                onPress={handleAddGuest}
+              >
+                <Ionicons name="add" size={20} color="white" />
+                <Text style={styles.addGuestText}>Add Guest</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
       </ScrollView>
@@ -585,20 +594,24 @@ const styles = StyleSheet.create({
     height: 80,
     textAlignVertical: 'top',
   },
-  guestHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  guestHeaderText: {
     marginBottom: 16,
   },
   addGuestButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#7B2CBF',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     gap: 6,
+    marginTop: 16,
+    elevation: 2,
+    shadowColor: '#7B2CBF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   addGuestText: {
     fontSize: 14,
@@ -687,13 +700,20 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   modalContent: {
     backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
+    borderRadius: 16,
+    width: '100%',
+    height: '95%',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
   },
   modalHeader: {
     flexDirection: 'row',

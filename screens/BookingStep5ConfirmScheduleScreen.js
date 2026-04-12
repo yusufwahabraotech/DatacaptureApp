@@ -26,21 +26,96 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [paymentType, setPaymentType] = useState('full');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [pricingBreakdown, setPricingBreakdown] = useState(null);
+
+  useEffect(() => {
+    console.log('🚨 SERVICE DATA DEBUG 🚨');
+    console.log('Service object:', JSON.stringify(service, null, 2));
+    console.log('Service price fields:');
+    console.log('- actualAmount:', service.actualAmount);
+    console.log('- priceInDollars:', service.priceInDollars);
+    console.log('- price:', service.price);
+    console.log('- upfrontPaymentPercentage:', service.upfrontPaymentPercentage);
+    console.log('- bookingAvailability:', service.bookingAvailability);
+  }, [service]);
 
   const calculateTotalAmount = () => {
-    const baseAmount = service.actualAmount || service.priceInDollars || 0;
-    const guestCount = guests.length;
-    return baseAmount * (1 + guestCount); // Base amount + same amount for each guest
+    // Updated price field detection based on actual service structure
+    const baseAmount = service.pricing?.discountedPrice || 
+                      service.pricing?.originalPrice || 
+                      service.actualAmount || 
+                      service.priceInDollars || 
+                      service.price || 0;
+    const numberOfPersons = 1 + guests.length; // Customer + guests
+    const totalServicePrice = baseAmount * numberOfPersons;
+    
+    console.log('💰 PRICING CALCULATION:');
+    console.log('- service.pricing:', service.pricing);
+    console.log('- discountedPrice:', service.pricing?.discountedPrice);
+    console.log('- originalPrice:', service.pricing?.originalPrice);
+    console.log('- baseProductPrice:', baseAmount);
+    console.log('- numberOfPersons:', numberOfPersons);
+    console.log('- totalServicePrice:', totalServicePrice);
+    
+    return totalServicePrice;
+  };
+
+  const calculateSubServicesTotal = () => {
+    if (!service.subServices || service.subServices.length === 0) return 0;
+    return service.subServices.reduce((total, sub) => total + (sub.price || 0), 0);
+  };
+
+  const getUpfrontPercentage = () => {
+    // Updated upfront percentage detection
+    return service.pricing?.upfrontPaymentPercentage || 
+           service.upfrontPaymentPercentage || 50; // Default to 50% if not set
   };
 
   const calculateUpfrontAmount = () => {
     const totalAmount = calculateTotalAmount();
-    const upfrontPercentage = service.upfrontPaymentPercentage || 50;
+    const upfrontPercentage = getUpfrontPercentage();
     return Math.round(totalAmount * (upfrontPercentage / 100));
   };
 
+  const calculateRemainingBalance = () => {
+    return calculateTotalAmount() - calculateUpfrontAmount();
+  };
+
   const getPaymentAmount = () => {
-    return paymentType === 'full' ? calculateTotalAmount() : calculateUpfrontAmount();
+    const mainServiceAmount = paymentType === 'full' ? calculateTotalAmount() : calculateUpfrontAmount();
+    const subServicesTotal = calculateSubServicesTotal();
+    const totalPaymentAmount = mainServiceAmount + subServicesTotal;
+    
+    console.log('💰 FINAL PRICING:');
+    console.log('- paymentType:', paymentType);
+    console.log('- mainServiceAmount:', mainServiceAmount);
+    console.log('- subServicesTotal:', subServicesTotal);
+    console.log('- totalPaymentAmount:', totalPaymentAmount);
+    console.log('- upfrontPercentage:', getUpfrontPercentage());
+    
+    return totalPaymentAmount;
+  };
+
+  const getPaymentOptions = () => {
+    const totalServicePrice = calculateTotalAmount();
+    const subServicesTotal = calculateSubServicesTotal();
+    const upfrontPercentage = getUpfrontPercentage();
+    const upfrontAmount = calculateUpfrontAmount();
+    
+    return {
+      upfront: {
+        available: upfrontPercentage > 0 && upfrontPercentage < 100,
+        amount: upfrontAmount + subServicesTotal,
+        percentage: upfrontPercentage,
+        remainingBalance: calculateRemainingBalance()
+      },
+      full: {
+        available: true,
+        amount: totalServicePrice + subServicesTotal,
+        percentage: 100,
+        remainingBalance: 0
+      }
+    };
   };
 
   const formatDate = (dateString) => {
@@ -71,10 +146,10 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
     try {
       setLoading(true);
 
-      // Prepare booking data
+      // Prepare booking data with updated structure
       const bookingData = {
-        serviceId: service._id,
-        productId: service._id,
+        serviceId: service.id || service._id,
+        productId: service.id || service._id,
         productName: service.name,
         productPrice: calculateTotalAmount(),
         upfrontAmount: getPaymentAmount(),
@@ -84,15 +159,18 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
         paymentType: paymentType,
         itemType: 'service',
         organizationId: service.organizationId,
-        organizationName: service.producer,
+        organizationName: service.producer || service.serviceProvider?.producer,
 
+        // Booking specific fields
         bookingDate: selectedDate,
         bookingTime: selectedSlot.time,
-        bookingDuration: service.bookingAvailability?.slotDurationMinutes || 60,
-        bookingNotes: customerInfo.notes,
+        bookingDuration: service.bookingConfiguration?.slotDurationMinutes || 60,
+        bookingNotes: customerInfo.notes || '',
 
+        // Location data
         bookingLocation: bookingLocation,
 
+        // Persons data
         bookedForPersons: [
           {
             name: customerInfo.name,
@@ -108,27 +186,88 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
           })),
         ],
 
+        // Sub-services
         selectedSubServices: service.subServices || [],
+        
+        // Pricing breakdown
+        pricingBreakdown: {
+          baseProductPrice: service.pricing?.discountedPrice || service.pricing?.originalPrice || 0,
+          numberOfPersons: 1 + guests.length,
+          totalServicePrice: calculateTotalAmount(),
+          upfrontPercentage: getUpfrontPercentage(),
+          upfrontAmount: calculateUpfrontAmount(),
+          remainingBalance: calculateRemainingBalance(),
+          subServices: service.subServices || [],
+          subServicesTotal: calculateSubServicesTotal(),
+          paymentType: paymentType,
+          totalPaymentAmount: getPaymentAmount()
+        }
       };
 
-      console.log('🚨 BOOKING DATA DEBUG 🚨');
-      console.log('Booking data:', JSON.stringify(bookingData, null, 2));
+      console.log('🚨 COMPREHENSIVE BOOKING DATA DEBUG 🚨');
+      console.log('=== CUSTOMER INFO ===');
+      console.log('Name:', customerInfo.name);
+      console.log('Email:', customerInfo.email);
+      console.log('Phone:', customerInfo.phone);
+      console.log('=== SERVICE INFO ===');
+      console.log('Service ID:', service.id || service._id);
+      console.log('Service Name:', service.name);
+      console.log('Organization ID:', service.organizationId);
+      console.log('=== BOOKING INFO ===');
+      console.log('Date:', selectedDate);
+      console.log('Slot:', selectedSlot);
+      console.log('Location:', bookingLocation);
+      console.log('=== PRICING INFO ===');
+      console.log('Payment Type:', paymentType);
+      console.log('Total Amount:', calculateTotalAmount());
+      console.log('Payment Amount:', getPaymentAmount());
+      console.log('=== FULL BOOKING DATA ===');
+      console.log(JSON.stringify(bookingData, null, 2));
 
       const response = await ApiService.createBookingOrder(bookingData);
 
+      console.log('🚨 BOOKING RESPONSE DEBUG 🚨');
+      console.log('Response status:', response.success);
+      console.log('Response message:', response.message);
+      console.log('Response data keys:', response.data ? Object.keys(response.data) : 'No data');
+      console.log('Full response:', JSON.stringify(response, null, 2));
+
       if (response.success) {
-        // Navigate to payment verification screen
+        // Store pricing breakdown for display
+        if (response.data.pricingBreakdown) {
+          setPricingBreakdown(response.data.pricingBreakdown);
+        }
+
+        // Navigate to payment verification screen with comprehensive data
         navigation.navigate('BookingPaymentVerification', {
-          paymentLink: response.data.paymentLink,
+          paymentLink: response.data.link,
           orderId: response.data.orderId,
-          transactionId: response.data.transactionId,
+          transactionId: response.data.tx_ref,
           service: service,
           bookingData: bookingData,
-          paymentAmount: getPaymentAmount(),
-          paymentType: paymentType,
+          pricingBreakdown: response.data.pricingBreakdown,
+          paymentAmount: response.data.pricingBreakdown?.totalPaymentAmount || getPaymentAmount(),
+          paymentType: response.data.pricingBreakdown?.paymentType || paymentType,
         });
       } else {
-        Alert.alert('Booking Error', response.message || 'Failed to create booking');
+        console.log('❌ BOOKING ERROR DETAILS:');
+        console.log('Error message:', response.message);
+        console.log('Error data:', response.data);
+        
+        // Show detailed error message
+        Alert.alert(
+          'Booking Error', 
+          response.message || 'Failed to create booking',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Log the error for debugging
+                console.log('User acknowledged booking error');
+              }
+            }
+          ]
+        );
       }
     } catch (error) {
       console.error('Error creating booking:', error);
@@ -276,73 +415,164 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
           </Text>
 
           <View style={styles.paymentOptions}>
+            {/* Full Payment Option - Always Available */}
             {renderPaymentOption(
               'full',
-              'Full Payment',
-              calculateTotalAmount(),
-              'Pay the complete amount now'
+              'Pay Full Amount',
+              getPaymentOptions().full.amount,
+              'Pay the complete amount now - No remaining balance'
             )}
 
-            {service.upfrontPaymentPercentage && service.upfrontPaymentPercentage < 100 && (
+            {/* Upfront Payment Option - Show if available */}
+            {getPaymentOptions().upfront.available && (
               renderPaymentOption(
                 'upfront',
-                `Upfront Payment (${service.upfrontPaymentPercentage}%)`,
-                calculateUpfrontAmount(),
-                `Pay ${service.upfrontPaymentPercentage}% now, remaining at service time`
+                `Pay ${getUpfrontPercentage()}% Upfront`,
+                getPaymentOptions().upfront.amount,
+                `Pay ${getUpfrontPercentage()}% now, remaining ₦${getPaymentOptions().upfront.remainingBalance.toLocaleString()} due later`
               )
             )}
           </View>
         </View>
 
-        {/* Pricing Breakdown */}
+        {/* Enhanced Pricing Breakdown */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Pricing Breakdown</Text>
           
           <View style={styles.pricingCard}>
+            {/* Base Service Price */}
             <View style={styles.pricingRow}>
-              <Text style={styles.pricingLabel}>Base Service</Text>
+              <Text style={styles.pricingLabel}>Base Service Price</Text>
               <Text style={styles.pricingValue}>
-                ₦{(service.actualAmount || service.priceInDollars || 0).toLocaleString()}
+                ₦{(service.pricing?.discountedPrice || service.pricing?.originalPrice || 0).toLocaleString()}
               </Text>
             </View>
 
-            {guests.length > 0 && (
+            {/* Show discount if applicable */}
+            {service.pricing?.discount && service.pricing?.discount > 0 && (
               <View style={styles.pricingRow}>
-                <Text style={styles.pricingLabel}>
-                  Additional Guests ({guests.length})
+                <Text style={styles.discountLabel}>
+                  Discount ({service.pricing.discount}%)
                 </Text>
-                <Text style={styles.pricingValue}>
-                  ₦{((service.actualAmount || service.priceInDollars || 0) * guests.length).toLocaleString()}
+                <Text style={styles.discountValue}>
+                  -₦{(service.pricing?.youSave || 0).toLocaleString()}
                 </Text>
               </View>
             )}
 
-            <View style={styles.pricingDivider} />
-
+            {/* Number of Persons */}
             <View style={styles.pricingRow}>
-              <Text style={styles.totalLabel}>Total Amount</Text>
-              <Text style={styles.totalValue}>
+              <Text style={styles.pricingLabel}>
+                Number of Persons (You + {guests.length} guest{guests.length !== 1 ? 's' : ''})
+              </Text>
+              <Text style={styles.pricingValue}>
+                {1 + guests.length} person{(1 + guests.length) !== 1 ? 's' : ''}
+              </Text>
+            </View>
+
+            {/* Total Service Price */}
+            <View style={styles.pricingRow}>
+              <Text style={styles.pricingLabel}>Total Service Price</Text>
+              <Text style={styles.pricingValue}>
                 ₦{calculateTotalAmount().toLocaleString()}
               </Text>
             </View>
 
+            {/* Sub-Services - Show if they exist */}
+            {service.subServices && service.subServices.length > 0 && (
+              <>
+                <View style={styles.pricingDivider} />
+                <View style={styles.subServicesHeader}>
+                  <Text style={styles.subServicesTitle}>Sub-Services</Text>
+                </View>
+                {service.subServices.map((subService, index) => (
+                  <View key={index} style={styles.pricingRow}>
+                    <Text style={styles.subServiceLabel}>
+                      {subService.name} ({subService.code || `SUB${index + 1}`})
+                    </Text>
+                    <Text style={styles.pricingValue}>
+                      ₦{(subService.price || 0).toLocaleString()}
+                    </Text>
+                  </View>
+                ))}
+                <View style={styles.pricingRow}>
+                  <Text style={styles.pricingLabel}>Sub-Services Total</Text>
+                  <Text style={styles.pricingValue}>
+                    ₦{calculateSubServicesTotal().toLocaleString()}
+                  </Text>
+                </View>
+              </>
+            )}
+
+            <View style={styles.pricingDivider} />
+
+            {/* Payment Type Breakdown */}
+            {paymentType === 'upfront' ? (
+              <>
+                <View style={styles.pricingRow}>
+                  <Text style={styles.pricingLabel}>
+                    Upfront Payment ({getUpfrontPercentage()}% of service)
+                  </Text>
+                  <Text style={styles.pricingValue}>
+                    ₦{calculateUpfrontAmount().toLocaleString()}
+                  </Text>
+                </View>
+                <View style={styles.pricingRow}>
+                  <Text style={styles.pricingLabel}>Sub-Services (pay now)</Text>
+                  <Text style={styles.pricingValue}>
+                    ₦{calculateSubServicesTotal().toLocaleString()}
+                  </Text>
+                </View>
+                <View style={styles.pricingRow}>
+                  <Text style={styles.remainingLabel}>Remaining Balance (due later)</Text>
+                  <Text style={styles.remainingValue}>
+                    ₦{calculateRemainingBalance().toLocaleString()}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.pricingRow}>
+                  <Text style={styles.pricingLabel}>Full Service Payment</Text>
+                  <Text style={styles.pricingValue}>
+                    ₦{calculateTotalAmount().toLocaleString()}
+                  </Text>
+                </View>
+                <View style={styles.pricingRow}>
+                  <Text style={styles.pricingLabel}>Sub-Services</Text>
+                  <Text style={styles.pricingValue}>
+                    ₦{calculateSubServicesTotal().toLocaleString()}
+                  </Text>
+                </View>
+              </>
+            )}
+
+            <View style={styles.pricingDivider} />
+
+            {/* Total Payment Amount */}
             <View style={styles.pricingRow}>
               <Text style={styles.paymentLabel}>
-                {paymentType === 'full' ? 'Amount to Pay Now' : 'Upfront Payment'}
+                Total Payment Now
               </Text>
               <Text style={styles.paymentValue}>
                 ₦{getPaymentAmount().toLocaleString()}
               </Text>
             </View>
 
-            {paymentType === 'upfront' && (
-              <View style={styles.pricingRow}>
-                <Text style={styles.remainingLabel}>Remaining Balance</Text>
-                <Text style={styles.remainingValue}>
-                  ₦{(calculateTotalAmount() - calculateUpfrontAmount()).toLocaleString()}
+            {/* Payment Type Badge */}
+            <View style={styles.paymentTypeBadge}>
+              <Text style={styles.paymentTypeBadgeText}>
+                {paymentType === 'full' ? 'Full Payment' : `Upfront Payment (${getUpfrontPercentage()}%)`}
+              </Text>
+              <Text style={styles.paymentNumberText}>
+                Payment #{paymentType === 'upfront' ? '1 of 2' : '1 of 1'}
+              </Text>
+              {paymentType === 'upfront' && (
+                <Text style={styles.paymentNumberText}>
+                  Remaining: ₦{calculateRemainingBalance().toLocaleString()} due later
                 </Text>
-              </View>
-            )}
+              )}
+            </View>
           </View>
         </View>
 
@@ -638,6 +868,47 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#6B7280',
+  },
+  subServicesHeader: {
+    marginBottom: 8,
+  },
+  subServicesTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  subServiceLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    paddingLeft: 12,
+  },
+  paymentTypeBadge: {
+    backgroundColor: '#7B2CBF',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  paymentTypeBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+  },
+  paymentNumberText: {
+    fontSize: 12,
+    color: '#E5E7EB',
+    marginTop: 2,
+  },
+  discountLabel: {
+    fontSize: 14,
+    color: '#10B981',
+    fontStyle: 'italic',
+  },
+  discountValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#10B981',
   },
   termsSection: {
     backgroundColor: 'white',
