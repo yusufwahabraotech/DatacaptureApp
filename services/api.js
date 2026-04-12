@@ -3243,6 +3243,68 @@ class ApiService {
     return this.apiCall(endpoint);
   }
 
+  // NEW BOOKING FLOW ENDPOINTS
+  // Step 1: Get Available Days
+  static async getAvailableDays(organizationId, month, year, serviceId = null) {
+    const params = new URLSearchParams({
+      organizationId,
+      month: month.toString(),
+      year: year.toString()
+    });
+    if (serviceId) params.append('serviceId', serviceId);
+    
+    return this.apiCall(`/orders/public/available-days?${params}`);
+  }
+
+  // Step 2: Get Available Slots
+  static async getAvailableSlots(organizationId, date, serviceId = null) {
+    const params = new URLSearchParams({
+      organizationId,
+      date
+    });
+    if (serviceId) params.append('serviceId', serviceId);
+    
+    return this.apiCall(`/orders/public/available-slots?${params}`);
+  }
+
+  // Step 4: Get Location Options
+  static async getLocationOptions(organizationId, serviceId = null) {
+    const params = new URLSearchParams({ organizationId });
+    if (serviceId) params.append('serviceId', serviceId);
+    
+    return this.apiCall(`/orders/public/location-options?${params}`);
+  }
+
+  // Step 4: Validate Location Selection
+  static async validateLocationSelection(locationData) {
+    return this.apiCall('/orders/public/validate-location', {
+      method: 'POST',
+      body: JSON.stringify(locationData),
+    });
+  }
+
+  // Step 5: Create Booking Order (Enhanced)
+  static async createBookingOrder(bookingData) {
+    console.log('🚨 BOOKING ORDER CREATION DEBUG 🚨');
+    console.log('Booking data:', JSON.stringify(bookingData, null, 2));
+    
+    return this.apiCall('/orders/public/initiate', {
+      method: 'POST',
+      body: JSON.stringify(bookingData),
+    });
+  }
+
+  // Step 5: Verify Booking Payment
+  static async verifyBookingPayment(transactionId) {
+    console.log('🚨 BOOKING PAYMENT VERIFICATION DEBUG 🚨');
+    console.log('Transaction ID:', transactionId);
+    
+    return this.apiCall('/orders/public/verify', {
+      method: 'POST',
+      body: JSON.stringify({ transactionId }),
+    });
+  }
+
   // REMITTANCE SYSTEM
   // Organization Bank Details
   static async registerBankDetails(bankData) {

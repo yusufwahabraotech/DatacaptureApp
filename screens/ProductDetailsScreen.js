@@ -569,10 +569,10 @@ const ProductDetailsScreen = ({ navigation, route }) => {
           <>
             <TouchableOpacity 
               style={styles.bookServiceButton}
-              onPress={() => navigation.navigate('ServiceBookingDetails', { service: product })}
+              onPress={() => navigation.navigate('BookingStep1SelectDay', { service: product })}
             >
               <Ionicons name="calendar" size={20} color="#fff" />
-              <Text style={styles.bookServiceButtonText}>Book Service</Text>
+              <Text style={styles.bookServiceButtonText}>Book Now</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 

@@ -113,6 +113,13 @@ import CreateVerificationFromAssignmentScreen from './screens/CreateVerification
 import PendingVerificationAssignmentsScreen from './screens/PendingVerificationAssignmentsScreen';
 import ServiceBookingCalendarScreen from './screens/ServiceBookingCalendarScreen';
 import MySubscriptionScreen from './screens/MySubscriptionScreen';
+import BookingStep1SelectDayScreen from './screens/BookingStep1SelectDayScreen';
+import BookingStep2SelectTimeScreen from './screens/BookingStep2SelectTimeScreen';
+import BookingStep3EnterDetailsScreen from './screens/BookingStep3EnterDetailsScreen';
+import BookingStep4SelectLocationScreen from './screens/BookingStep4SelectLocationScreen';
+import BookingStep5ConfirmScheduleScreen from './screens/BookingStep5ConfirmScheduleScreen';
+import BookingPaymentVerificationScreen from './screens/BookingPaymentVerificationScreen';
+import BookingConfirmationScreen from './screens/BookingConfirmationScreen';
 
 const Stack = createStackNavigator();
 
@@ -247,6 +254,15 @@ export default function App() {
         <Stack.Screen name="ConfirmedDeliveries" component={ConfirmedDeliveriesScreen} />
         <Stack.Screen name="ProcessRemittance" component={ProcessRemittanceScreen} />
         <Stack.Screen name="Settlements" component={SettlementsScreen} />
+        
+        {/* 5-Step Booking Flow Screens */}
+        <Stack.Screen name="BookingStep1SelectDay" component={BookingStep1SelectDayScreen} />
+        <Stack.Screen name="BookingStep2SelectTime" component={BookingStep2SelectTimeScreen} />
+        <Stack.Screen name="BookingStep3EnterDetails" component={BookingStep3EnterDetailsScreen} />
+        <Stack.Screen name="BookingStep4SelectLocation" component={BookingStep4SelectLocationScreen} />
+        <Stack.Screen name="BookingStep5ConfirmSchedule" component={BookingStep5ConfirmScheduleScreen} />
+        <Stack.Screen name="BookingPaymentVerification" component={BookingPaymentVerificationScreen} />
+        <Stack.Screen name="BookingConfirmation" component={BookingConfirmationScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>
