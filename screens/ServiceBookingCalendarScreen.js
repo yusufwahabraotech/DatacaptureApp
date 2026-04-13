@@ -171,29 +171,103 @@ const ServiceBookingCalendarScreen = ({ navigation }) => {
             {item.productName}
           </Text>
           <Text style={styles.customerName}>{item.customerName}</Text>
-          <Text style={styles.bookingTime}>{formatTime(item.serviceBooking?.bookingTime)}</Text>
+          <Text style={styles.bookingTime}>{formatTime(item.bookingTime)}</Text>
+          <Text style={styles.bookingDuration}>
+            Duration: {item.bookingDuration || 'Not specified'} minutes
+          </Text>
         </View>
         
         <View style={styles.bookingStatus}>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.serviceBooking?.bookingStatus) }]}>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.bookingStatus) }]}>
             <Text style={styles.statusText}>
-              {item.serviceBooking?.bookingStatus?.toUpperCase() || 'SCHEDULED'}
+              {item.bookingStatus?.toUpperCase() || 'SCHEDULED'}
+            </Text>
+          </View>
+          <View style={[styles.paymentStatusBadge, { 
+            backgroundColor: item.paymentStatus === 'completed' ? '#4CAF50' : '#FF9800',
+            marginTop: 4 
+          }]}>
+            <Text style={styles.statusText}>
+              {item.paymentStatus?.toUpperCase() || 'PENDING'}
             </Text>
           </View>
         </View>
       </View>
 
       <View style={styles.bookingDetails}>
+        {/* Customer Contact Information */}
         <View style={styles.customerSection}>
+          <Text style={styles.sectionTitle}>Customer Details</Text>
           <Text style={styles.customerEmail}>{item.customerEmail}</Text>
           {item.customerPhone && (
-            <Text style={styles.customerPhone}>{item.customerPhone}</Text>
+            <Text style={styles.customerPhone}>📞 {item.customerPhone}</Text>
           )}
         </View>
 
+        {/* Booking Location */}
+        {item.bookingLocation && (
+          <View style={styles.locationSection}>
+            <Text style={styles.sectionTitle}>Booking Location</Text>
+            <Text style={styles.locationType}>
+              Type: {item.bookingLocation.type === 'new_address' ? 'Customer Address' : 
+                     item.bookingLocation.type === 'organization_location' ? 'Organization Location' : 
+                     'Other Location'}
+            </Text>
+            {item.bookingLocation.address && (
+              <Text style={styles.locationAddress}>📍 {item.bookingLocation.address}</Text>
+            )}
+          </View>
+        )}
+
+        {/* Booked Persons */}
+        {item.bookedForPersons && item.bookedForPersons.length > 0 && (
+          <View style={styles.personsSection}>
+            <Text style={styles.sectionTitle}>Booked For ({item.bookedForPersons.length} person{item.bookedForPersons.length > 1 ? 's' : ''})</Text>
+            {item.bookedForPersons.map((person, index) => (
+              <View key={index} style={styles.personItem}>
+                <Text style={styles.personName}>
+                  {person.name} {person.isMainBooker ? '(Main Booker)' : ''}
+                </Text>
+                {person.email && (
+                  <Text style={styles.personEmail}>{person.email}</Text>
+                )}
+                {person.slotDateTime && (
+                  <Text style={styles.personSlot}>
+                    Slot: {new Date(person.slotDateTime).toLocaleString()}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Booking Notes */}
+        {item.bookingNotes && (
+          <View style={styles.notesSection}>
+            <Text style={styles.sectionTitle}>Booking Notes</Text>
+            <Text style={styles.bookingNotes}>{item.bookingNotes}</Text>
+          </View>
+        )}
+
+        {/* Payment Information */}
         <View style={styles.priceSection}>
-          <Text style={styles.priceLabel}>Service Price: ₦{item.productPrice?.toLocaleString()}</Text>
-          <Text style={styles.orderStatus}>Order: {item.orderStatus}</Text>
+          <Text style={styles.sectionTitle}>Payment Details</Text>
+          <View style={styles.priceRow}>
+            <Text style={styles.priceLabel}>Total Amount:</Text>
+            <Text style={styles.priceValue}>₦{item.totalAmount?.toLocaleString()}</Text>
+          </View>
+          <View style={styles.priceRow}>
+            <Text style={styles.priceLabel}>Amount Paid:</Text>
+            <Text style={styles.pricePaid}>₦{item.paidAmount?.toLocaleString()}</Text>
+          </View>
+          <View style={styles.priceRow}>
+            <Text style={styles.priceLabel}>Payment Status:</Text>
+            <Text style={[styles.paymentStatusText, { 
+              color: item.paymentStatus === 'completed' ? '#4CAF50' : '#FF9800' 
+            }]}>
+              {item.paymentStatus?.toUpperCase() || 'PENDING'}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.actionButtons}>
@@ -325,7 +399,7 @@ const ServiceBookingCalendarScreen = ({ navigation }) => {
                 <Text style={styles.modalBookingName}>{selectedBooking.productName}</Text>
                 <Text style={styles.modalCustomerName}>{selectedBooking.customerName}</Text>
                 <Text style={styles.modalBookingTime}>
-                  {formatTime(selectedBooking.serviceBooking?.bookingTime)}
+                  {formatTime(selectedBooking.bookingTime)}
                 </Text>
               </View>
             )}
@@ -367,7 +441,7 @@ const ServiceBookingCalendarScreen = ({ navigation }) => {
                 <Text style={styles.modalBookingName}>{selectedBooking.productName}</Text>
                 <Text style={styles.modalCustomerName}>{selectedBooking.customerName}</Text>
                 <Text style={styles.modalBookingTime}>
-                  Current: {formatTime(selectedBooking.serviceBooking?.bookingTime)}
+                  Current: {formatTime(selectedBooking.bookingTime)}
                 </Text>
               </View>
             )}
@@ -549,6 +623,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  bookingDuration: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
   bookingStatus: {
     alignItems: 'flex-end',
   },
@@ -562,6 +641,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  paymentStatusBadge: {
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   bookingDetails: {
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
@@ -573,6 +657,12 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
   customerEmail: {
     fontSize: 14,
     color: '#333',
@@ -582,22 +672,93 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  locationSection: {
+    backgroundColor: '#F0F8FF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  locationType: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 4,
+  },
+  locationAddress: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  personsSection: {
+    backgroundColor: '#F5F5DC',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  personItem: {
+    backgroundColor: 'white',
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 8,
+  },
+  personName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 2,
+  },
+  personEmail: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  personSlot: {
+    fontSize: 12,
+    color: '#7B2CBF',
+    fontWeight: '500',
+  },
+  notesSection: {
+    backgroundColor: '#FFF8DC',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  bookingNotes: {
+    fontSize: 14,
+    color: '#333',
+    fontStyle: 'italic',
+    lineHeight: 20,
+  },
   priceSection: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 6,
   },
   priceLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  priceValue: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#333',
   },
-  orderStatus: {
-    fontSize: 12,
-    color: '#666',
-    textTransform: 'capitalize',
+  pricePaid: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#4CAF50',
   },
+  paymentStatusText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+
   actionButtons: {
     flexDirection: 'row',
     gap: 12,

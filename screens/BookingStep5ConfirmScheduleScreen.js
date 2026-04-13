@@ -8,9 +8,11 @@ import {
   ScrollView,
   ActivityIndicator,
   Modal,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
 import ApiService from '../services/api';
 
 const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
@@ -27,6 +29,10 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
   const [paymentType, setPaymentType] = useState('full');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pricingBreakdown, setPricingBreakdown] = useState(null);
+  const [showPaymentWebView, setShowPaymentWebView] = useState(false);
+  const [paymentLink, setPaymentLink] = useState(null);
+  const [bookingOrderData, setBookingOrderData] = useState(null);
+  const [paymentTimeout, setPaymentTimeout] = useState(null);
 
   useEffect(() => {
     console.log('🚨 SERVICE DATA DEBUG 🚨');
@@ -251,9 +257,8 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
           setPricingBreakdown(response.data.pricingBreakdown);
         }
 
-        // Navigate to payment verification screen with comprehensive data
-        navigation.navigate('BookingPaymentVerification', {
-          paymentLink: response.data.link,
+        // Store booking order data and show payment WebView
+        setBookingOrderData({
           orderId: response.data.orderId,
           transactionId: response.data.tx_ref,
           service: service,
@@ -262,6 +267,33 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
           paymentAmount: response.data.pricingBreakdown?.totalPaymentAmount || getPaymentAmount(),
           paymentType: response.data.pricingBreakdown?.paymentType || paymentType,
         });
+        
+        setPaymentLink(response.data.link);
+        setShowPaymentWebView(true);
+        
+        // Set up automatic verification after 3 minutes (fallback)
+        const timeout = setTimeout(() => {
+          console.log('⏰ PAYMENT TIMEOUT - AUTO VERIFYING');
+          Alert.alert(
+            'Payment Taking Too Long?',
+            'If you\'ve completed the payment, we can verify it now.',
+            [
+              {
+                text: 'Still Paying',
+                style: 'cancel'
+              },
+              {
+                text: 'Verify Payment',
+                onPress: () => {
+                  setShowPaymentWebView(false);
+                  verifyBookingPayment(response.data.tx_ref);
+                }
+              }
+            ]
+          );
+        }, 180000); // 3 minutes
+        
+        setPaymentTimeout(timeout);
       } else {
         console.log('❌ BOOKING ERROR DETAILS:');
         console.log('Error message:', response.message);
@@ -287,6 +319,79 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
       Alert.alert('Error', 'Failed to create booking. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const verifyBookingPayment = async (txRef) => {
+    try {
+      // Clear any existing timeout
+      if (paymentTimeout) {
+        clearTimeout(paymentTimeout);
+        setPaymentTimeout(null);
+      }
+      
+      console.log('🚨 VERIFYING BOOKING PAYMENT 🚨');
+      console.log('Using transaction reference:', txRef);
+      
+      const response = await ApiService.verifyBookingPayment(txRef);
+      console.log('Verification response:', JSON.stringify(response, null, 2));
+      
+      if (response.success) {
+        setShowPaymentWebView(false);
+        setTimeout(() => {
+          Alert.alert(
+            'Booking Confirmed!',
+            `Your ${service?.name || 'service'} booking has been confirmed successfully.`,
+            [
+              {
+                text: 'View My Orders',
+                onPress: () => navigation.navigate('MyOrders')
+              },
+              {
+                text: 'Back to Services',
+                onPress: () => navigation.navigate('PublicProductSearch')
+              }
+            ]
+          );
+        }, 1000);
+      } else {
+        setShowPaymentWebView(false);
+        setTimeout(() => {
+          Alert.alert(
+            'Verification Failed',
+            response.message || 'Failed to verify booking payment',
+            [
+              {
+                text: 'Contact Support',
+                onPress: () => navigation.navigate('Help')
+              },
+              {
+                text: 'Try Again',
+                onPress: () => setShowPaymentWebView(true)
+              }
+            ]
+          );
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Booking payment verification error:', error);
+      setShowPaymentWebView(false);
+      setTimeout(() => {
+        Alert.alert(
+          'Verification Error',
+          'Failed to verify booking payment. Please contact support.',
+          [
+            {
+              text: 'Contact Support',
+              onPress: () => navigation.navigate('Help')
+            },
+            {
+              text: 'Try Again',
+              onPress: () => setShowPaymentWebView(true)
+            }
+          ]
+        );
+      }, 1000);
     }
   };
 
@@ -602,6 +707,242 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
         </View>
       </ScrollView>
 
+      {/* Payment WebView Modal */}
+      <Modal visible={showPaymentWebView} animationType="slide">
+        <View style={styles.webViewContainer}>
+          <View style={styles.webViewHeader}>
+            <Text style={styles.webViewTitle}>Complete Booking Payment</Text>
+            <View style={styles.headerActions}>
+              <TouchableOpacity 
+                style={styles.manualVerifyButton}
+                onPress={() => {
+                  console.log('🔄 MANUAL VERIFICATION TRIGGERED');
+                  setShowPaymentWebView(false);
+                  verifyBookingPayment(bookingOrderData?.transactionId);
+                }}
+              >
+                <Ionicons name="checkmark-circle" size={16} color="white" />
+                <Text style={styles.manualVerifyText}>Payment Done?</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => {
+                // Clear timeout when closing
+                if (paymentTimeout) {
+                  clearTimeout(paymentTimeout);
+                  setPaymentTimeout(null);
+                }
+                setShowPaymentWebView(false);
+              }}>
+                <Ionicons name="close" size={24} color="white" />
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          {paymentLink && (
+            <WebView
+              source={{ uri: paymentLink }}
+              onNavigationStateChange={(navState) => {
+                console.log('🚨 WEBVIEW NAVIGATION 🚨');
+                console.log('Current URL:', navState.url);
+                
+                // Check for Flutterwave success indicators in URL
+                if (navState.url.includes('flutterwave') && 
+                    (navState.url.includes('successful') || navState.url.includes('completed') || navState.url.includes('success'))) {
+                  console.log('✅ FLUTTERWAVE SUCCESS DETECTED IN URL');
+                  setShowPaymentWebView(false);
+                  
+                  // Use the original transaction ID for verification
+                  setTimeout(() => {
+                    verifyBookingPayment(bookingOrderData?.transactionId);
+                  }, 1000);
+                }
+                
+                // Check for Flutterwave failure/cancellation
+                if (navState.url.includes('flutterwave') && 
+                    (navState.url.includes('cancelled') || navState.url.includes('failed'))) {
+                  console.log('❌ FLUTTERWAVE FAILURE DETECTED IN URL');
+                  setShowPaymentWebView(false);
+                  setTimeout(() => {
+                    Alert.alert(
+                      'Payment Cancelled',
+                      'Your payment was cancelled or failed.',
+                      [
+                        {
+                          text: 'Try Again',
+                          onPress: () => setShowPaymentWebView(true)
+                        }
+                      ]
+                    );
+                  }, 1000);
+                }
+                
+                return true;
+              }}
+              onShouldStartLoadWithRequest={(request) => {
+                console.log('🔗 Should start load with request:', request.url);
+                
+                if (request.url.startsWith('vestradat://')) {
+                  console.log('🔗 Deep link detected, opening with Linking');
+                  
+                  Linking.openURL(request.url)
+                    .then(() => {
+                      console.log('✅ Deep link opened successfully');
+                      setShowPaymentWebView(false);
+                    })
+                    .catch((error) => {
+                      console.error('❌ Failed to open deep link:', error);
+                      
+                      try {
+                        const url = new URL(request.url);
+                        const status = url.searchParams.get('status');
+                        const txRef = url.searchParams.get('tx_ref') || url.searchParams.get('transaction_id');
+                        
+                        console.log('💳 Fallback - Deep link payment data:', { status, txRef });
+                        
+                        setShowPaymentWebView(false);
+                        
+                        if (status === 'successful') {
+                          console.log('✅ PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                          verifyBookingPayment(txRef || bookingOrderData?.transactionId);
+                        } else {
+                          console.log('❌ PAYMENT FAILED/CANCELLED');
+                          setTimeout(() => {
+                            Alert.alert(
+                              'Payment Failed', 
+                              'Your booking payment was cancelled or failed.',
+                              [
+                                {
+                                  text: 'Try Again',
+                                  onPress: () => setShowPaymentWebView(true)
+                                }
+                              ]
+                            );
+                          }, 1000);
+                        }
+                      } catch (parseError) {
+                        console.error('❌ Failed to parse deep link:', parseError);
+                        setShowPaymentWebView(false);
+                        Alert.alert('Error', 'Failed to process payment response');
+                      }
+                    });
+                  
+                  return false;
+                }
+                
+                return true;
+              }}
+              startInLoadingState={true}
+              renderLoading={() => (
+                <View style={styles.webViewLoading}>
+                  <ActivityIndicator size="large" color="#7B2CBF" />
+                  <Text style={styles.webViewLoadingText}>Loading payment page...</Text>
+                </View>
+              )}
+              onError={(syntheticEvent) => {
+                const { nativeEvent } = syntheticEvent;
+                console.warn('WebView error: ', nativeEvent);
+              }}
+              onHttpError={(syntheticEvent) => {
+                const { nativeEvent } = syntheticEvent;
+                console.warn('WebView HTTP error: ', nativeEvent);
+              }}
+              injectedJavaScript={`
+                // Inject JavaScript to detect thank you page and add return button
+                (function() {
+                  function addReturnButton() {
+                    // Check if we're on a thank you/success page
+                    const bodyText = document.body.innerText.toLowerCase();
+                    const isThankYouPage = bodyText.includes('thank') || 
+                                         bodyText.includes('success') || 
+                                         bodyText.includes('completed') ||
+                                         bodyText.includes('transaction was completed');
+                    
+                    if (isThankYouPage && !document.getElementById('return-to-app-btn')) {
+                      console.log('Thank you page detected, adding return button');
+                      
+                      // Create return button
+                      const returnBtn = document.createElement('button');
+                      returnBtn.id = 'return-to-app-btn';
+                      returnBtn.innerHTML = '🔙 Return to App';
+                      returnBtn.style.cssText = \`
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        z-index: 9999;
+                        background: #7B2CBF;
+                        color: white;
+                        border: none;
+                        padding: 12px 20px;
+                        border-radius: 25px;
+                        font-size: 16px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                        animation: pulse 2s infinite;
+                      \`;
+                      
+                      // Add pulse animation
+                      const style = document.createElement('style');
+                      style.textContent = \`
+                        @keyframes pulse {
+                          0% { transform: scale(1); }
+                          50% { transform: scale(1.05); }
+                          100% { transform: scale(1); }
+                        }
+                      \`;
+                      document.head.appendChild(style);
+                      
+                      // Add click handler
+                      returnBtn.onclick = function() {
+                        window.ReactNativeWebView.postMessage(JSON.stringify({
+                          type: 'MANUAL_RETURN',
+                          action: 'verify_payment'
+                        }));
+                      };
+                      
+                      // Add button to page
+                      document.body.appendChild(returnBtn);
+                      
+                      // Also try to trigger automatic return after 3 seconds
+                      setTimeout(() => {
+                        window.ReactNativeWebView.postMessage(JSON.stringify({
+                          type: 'AUTO_RETURN',
+                          action: 'verify_payment'
+                        }));
+                      }, 3000);
+                    }
+                  }
+                  
+                  // Run immediately and also after page changes
+                  addReturnButton();
+                  
+                  // Watch for page changes
+                  const observer = new MutationObserver(addReturnButton);
+                  observer.observe(document.body, { childList: true, subtree: true });
+                  
+                  // Also run after a delay to catch late-loading content
+                  setTimeout(addReturnButton, 2000);
+                })();
+                true;
+              `}
+              onMessage={(event) => {
+                try {
+                  const data = JSON.parse(event.nativeEvent.data);
+                  console.log('💬 MESSAGE FROM WEBVIEW:', data);
+                  
+                  if (data.type === 'MANUAL_RETURN' || data.type === 'AUTO_RETURN') {
+                    console.log('✅ RETURN TO APP TRIGGERED:', data.type);
+                    setShowPaymentWebView(false);
+                    verifyBookingPayment(bookingOrderData?.transactionId);
+                  }
+                } catch (error) {
+                  console.log('Error parsing WebView message:', error);
+                }
+              }}
+            />
+          )}
+        </View>
+      </Modal>
+
       {/* Confirm Button */}
       <View style={styles.footer}>
         <TouchableOpacity
@@ -912,6 +1253,56 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#E5E7EB',
     marginTop: 2,
+  },
+  webViewContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  webViewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: '#7B2CBF',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  manualVerifyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  manualVerifyText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
+  },
+  webViewTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'white',
+  },
+  webViewLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  webViewLoadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
   },
   discountLabel: {
     fontSize: 14,

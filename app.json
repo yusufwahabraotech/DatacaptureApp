@@ -7,13 +7,15 @@
     "icon": "./assets/Vestradat_logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "scheme": "vestradat",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yusufwahabraotech.Vestradat"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +23,21 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.yusufwahabraotech.Vestradat"
+      "package": "com.yusufwahabraotech.Vestradat",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "vestradat"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

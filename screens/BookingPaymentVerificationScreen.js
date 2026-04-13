@@ -7,6 +7,7 @@ import {
   Alert,
   Modal,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
@@ -25,7 +26,8 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
     bookingData, 
     pricingBreakdown,
     paymentAmount,
-    paymentType 
+    paymentType,
+    deepLinkData // New parameter for deep link handling
   } = route.params || {};
 
   useEffect(() => {
@@ -36,18 +38,77 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
     console.log('Service:', service?.name);
     console.log('Payment amount:', paymentAmount);
     console.log('Payment type:', paymentType);
-  }, []);
+    console.log('Deep link data:', deepLinkData);
+    
+    // If we received deep link data, handle it immediately
+    if (deepLinkData && deepLinkData.fromDeepLink) {
+      console.log('🔗 HANDLING DEEP LINK DATA IMMEDIATELY');
+      setShowPaymentWebView(false);
+      
+      if (deepLinkData.status === 'successful') {
+        setStatus('verifying');
+        setVerifying(true);
+        verifyBookingPayment(deepLinkData.txRef);
+      } else {
+        setStatus('failed');
+      }
+    }
+  }, [deepLinkData]);
 
   const handleWebViewNavigationStateChange = (navState) => {
     const { url } = navState;
     console.log('🚨 WEBVIEW NAVIGATION 🚨');
     console.log('Current URL:', url);
     
+    // Handle deep link redirect
+    if (url.startsWith('vestradat://payment/verify-order')) {
+      console.log('✅ DEEP LINK DETECTED - PAYMENT SUCCESSFUL');
+      
+      // Extract parameters from deep link
+      const urlParts = url.split('?');
+      if (urlParts.length > 1) {
+        const params = new URLSearchParams(urlParts[1]);
+        const status = params.get('status');
+        const txRef = params.get('tx_ref') || params.get('transaction_id');
+        
+        console.log('Deep link status:', status);
+        console.log('Deep link tx_ref:', txRef);
+        
+        if (status === 'successful') {
+          setShowPaymentWebView(false);
+          setStatus('verifying');
+          setVerifying(true);
+          
+          // Verify the booking payment
+          verifyBookingPayment(txRef || transactionId);
+        } else {
+          console.log('❌ PAYMENT FAILED/CANCELLED FROM DEEP LINK');
+          setShowPaymentWebView(false);
+          setStatus('failed');
+          
+          setTimeout(() => {
+            Alert.alert(
+              'Payment Failed', 
+              'Your booking payment was cancelled or failed.',
+              [
+                {
+                  text: 'Try Again',
+                  onPress: () => navigation.goBack()
+                }
+              ]
+            );
+          }, 1000);
+        }
+      }
+      return false; // Prevent WebView from navigating to deep link
+    }
+    
+    // Handle regular URL-based success/failure (fallback)
     if (url.includes('status=successful')) {
       const urlParams = new URLSearchParams(url.split('?')[1]);
       const txRef = urlParams.get('transaction_id') || urlParams.get('tx_ref');
       
-      console.log('✅ PAYMENT SUCCESSFUL');
+      console.log('✅ PAYMENT SUCCESSFUL (URL)');
       console.log('Transaction reference:', txRef);
       
       setShowPaymentWebView(false);
@@ -57,7 +118,7 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
       // Verify the booking payment
       verifyBookingPayment(txRef || transactionId);
     } else if (url.includes('status=cancelled') || url.includes('status=failed')) {
-      console.log('❌ PAYMENT CANCELLED/FAILED');
+      console.log('❌ PAYMENT CANCELLED/FAILED (URL)');
       setShowPaymentWebView(false);
       setStatus('failed');
       
@@ -73,6 +134,17 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
           ]
         );
       }, 1000);
+    }
+    
+    // FALLBACK: Check if URL contains Flutterwave success indicators
+    if (url.includes('flutterwave') && url.includes('successful')) {
+      console.log('✅ FLUTTERWAVE SUCCESS DETECTED IN URL');
+      setShowPaymentWebView(false);
+      setStatus('verifying');
+      setVerifying(true);
+      
+      // Use the original transaction ID since we can't extract from URL
+      verifyBookingPayment(transactionId);
     }
   };
 
@@ -157,6 +229,21 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
             <Text style={styles.subtitle}>
               You will be redirected to complete your booking payment securely
             </Text>
+            
+            {/* Manual verification button - shown after some time */}
+            <TouchableOpacity 
+              style={styles.manualVerifyButton}
+              onPress={() => {
+                console.log('🔄 MANUAL VERIFICATION TRIGGERED');
+                setShowPaymentWebView(false);
+                setStatus('verifying');
+                setVerifying(true);
+                verifyBookingPayment(transactionId);
+              }}
+            >
+              <Ionicons name="refresh" size={20} color="#7B2CBF" />
+              <Text style={styles.manualVerifyText}>Payment Complete? Verify Now</Text>
+            </TouchableOpacity>
           </>
         );
       case 'verifying':
@@ -238,6 +325,68 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
             <WebView
               source={{ uri: paymentLink }}
               onNavigationStateChange={handleWebViewNavigationStateChange}
+              onShouldStartLoadWithRequest={(request) => {
+                console.log('🔗 Should start load with request:', request.url);
+                
+                // Check if it's a deep link to your app
+                if (request.url.startsWith('vestradat://')) {
+                  console.log('🔗 Deep link detected, opening with Linking');
+                  
+                  // Use React Native Linking to handle the deep link
+                  Linking.openURL(request.url)
+                    .then(() => {
+                      console.log('✅ Deep link opened successfully');
+                      // Close the WebView
+                      setShowPaymentWebView(false);
+                    })
+                    .catch((error) => {
+                      console.error('❌ Failed to open deep link:', error);
+                      
+                      // Fallback: manually parse and navigate
+                      try {
+                        const url = new URL(request.url);
+                        const status = url.searchParams.get('status');
+                        const txRef = url.searchParams.get('tx_ref') || url.searchParams.get('transaction_id');
+                        
+                        console.log('💳 Fallback - Deep link payment data:', { status, txRef });
+                        
+                        setShowPaymentWebView(false);
+                        
+                        if (status === 'successful') {
+                          console.log('✅ PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                          setStatus('verifying');
+                          setVerifying(true);
+                          verifyBookingPayment(txRef || transactionId);
+                        } else {
+                          console.log('❌ PAYMENT FAILED/CANCELLED');
+                          setStatus('failed');
+                          setTimeout(() => {
+                            Alert.alert(
+                              'Payment Failed', 
+                              'Your booking payment was cancelled or failed.',
+                              [
+                                {
+                                  text: 'Try Again',
+                                  onPress: () => navigation.goBack()
+                                }
+                              ]
+                            );
+                          }, 1000);
+                        }
+                      } catch (parseError) {
+                        console.error('❌ Failed to parse deep link:', parseError);
+                        setShowPaymentWebView(false);
+                        setStatus('failed');
+                      }
+                    });
+                  
+                  // Prevent WebView from trying to load the deep link
+                  return false;
+                }
+                
+                // Allow all other URLs to load normally
+                return true;
+              }}
               startInLoadingState={true}
               renderLoading={() => (
                 <View style={styles.webViewLoading}>
@@ -245,6 +394,15 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
                   <Text style={styles.webViewLoadingText}>Loading payment page...</Text>
                 </View>
               )}
+              // Add these props for better deep link handling
+              onError={(syntheticEvent) => {
+                const { nativeEvent } = syntheticEvent;
+                console.warn('WebView error: ', nativeEvent);
+              }}
+              onHttpError={(syntheticEvent) => {
+                const { nativeEvent } = syntheticEvent;
+                console.warn('WebView HTTP error: ', nativeEvent);
+              }}
             />
           )}
         </View>
@@ -358,6 +516,23 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#6B7280',
+  },
+  manualVerifyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#7B2CBF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginTop: 20,
+    gap: 8,
+  },
+  manualVerifyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#7B2CBF',
   },
 });
 

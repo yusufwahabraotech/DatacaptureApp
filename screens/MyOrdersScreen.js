@@ -32,15 +32,53 @@ const MyOrdersScreen = ({ navigation }) => {
     }
 
     try {
+      console.log('🚨 MyOrdersScreen: Fetching orders at', new Date().toISOString());
+      
+      // Check user profile first for debugging
+      const profileResponse = await ApiService.getUserProfile();
+      if (profileResponse.success && profileResponse.data.user) {
+        console.log('🚨 MyOrdersScreen: Current user info:', {
+          userId: profileResponse.data.user._id || profileResponse.data.user.id,
+          email: profileResponse.data.user.email,
+          role: profileResponse.data.user.role
+        });
+      }
+      
       const response = await ApiService.getMyOrders();
       
+      console.log('🚨 MyOrdersScreen: API Response:', {
+        success: response.success,
+        hasData: !!response.data,
+        hasOrders: !!(response.data && response.data.orders),
+        ordersCount: response.data?.orders?.length || 0,
+        timestamp: new Date().toISOString()
+      });
+      
       if (response.success) {
-        setOrders(response.data.orders || []);
+        const orders = response.data.orders || [];
+        console.log('🚨 MyOrdersScreen: Setting orders:', orders.length);
+        
+        // Log each order for debugging
+        orders.forEach((order, index) => {
+          console.log(`Order ${index + 1}:`, {
+            id: order._id,
+            productName: order.productName,
+            itemType: order.itemType,
+            orderStatus: order.orderStatus,
+            hasServiceBooking: !!order.serviceBooking,
+            serviceBookingStatus: order.serviceBooking?.bookingStatus,
+            createdAt: order.createdAt,
+            timeSinceCreation: order.createdAt ? `${Math.round((Date.now() - new Date(order.createdAt).getTime()) / 1000 / 60)} minutes ago` : 'Unknown'
+          });
+        });
+        
+        setOrders(orders);
       } else {
+        console.log('🚨 MyOrdersScreen: API Error:', response.message);
         Alert.alert('Error', response.message || 'Failed to fetch orders');
       }
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error('🚨 MyOrdersScreen: Exception:', error);
       Alert.alert('Error', 'Failed to fetch orders. Please try again.');
     } finally {
       setLoading(false);
@@ -127,9 +165,9 @@ const MyOrdersScreen = ({ navigation }) => {
           <Text style={styles.orderDate}>{formatDate(item.createdAt)}</Text>
           {item.serviceBooking && (
             <View style={styles.bookingInfo}>
-              <Ionicons name="calendar" size={14} color="#7B2CBF" />
+              <Ionicons name="calendar-outline" size={14} color="#7B2CBF" />
               <Text style={styles.bookingText}>
-                {new Date(item.serviceBooking.bookingDate).toLocaleDateString()} at {item.serviceBooking.bookingTime}
+                {item.serviceBooking.serviceName || item.productName} - {new Date(item.serviceBooking.bookingDate).toLocaleDateString()} at {item.serviceBooking.bookingTime}
               </Text>
             </View>
           )}
@@ -244,6 +282,70 @@ const MyOrdersScreen = ({ navigation }) => {
       <Text style={styles.emptyMessage}>
         You haven't placed any orders yet. Start shopping to see your orders here.
       </Text>
+      
+      {/* Debug Info */}
+      <TouchableOpacity
+        style={styles.debugButton}
+        onPress={() => {
+          console.log('🚨 MANUAL DEBUG REFRESH 🚨');
+          fetchOrders(true);
+        }}
+      >
+        <Text style={styles.debugButtonText}>🔄 Force Refresh Orders</Text>
+      </TouchableOpacity>
+      
+      {/* Test User Profile */}
+      <TouchableOpacity
+        style={styles.profileTestButton}
+        onPress={async () => {
+          console.log('🚨 TESTING USER PROFILE 🚨');
+          try {
+            const profileResponse = await ApiService.getUserProfile();
+            console.log('Profile test result:', JSON.stringify(profileResponse, null, 2));
+            if (profileResponse.success && profileResponse.data.user) {
+              Alert.alert('User Profile', `ID: ${profileResponse.data.user._id || profileResponse.data.user.id}\nEmail: ${profileResponse.data.user.email}\nRole: ${profileResponse.data.user.role}`);
+            } else {
+              Alert.alert('Profile Error', profileResponse.message || 'Failed to get profile');
+            }
+          } catch (error) {
+            console.log('Profile test error:', error);
+            Alert.alert('Profile Error', error.message);
+          }
+        }}
+      >
+        <Text style={styles.profileTestButtonText}>👤 Test User Profile</Text>
+      </TouchableOpacity>
+      
+      {/* Compare with Admin Endpoint */}
+      <TouchableOpacity
+        style={styles.compareButton}
+        onPress={async () => {
+          console.log('🚨 COMPARING CUSTOMER vs ADMIN ENDPOINTS 🚨');
+          try {
+            // Call admin endpoint for comparison
+            const adminResponse = await ApiService.getAdminOrders({ page: 1, limit: 50 });
+            console.log('Admin orders response:', JSON.stringify(adminResponse, null, 2));
+            
+            if (adminResponse.success && adminResponse.data.orders) {
+              console.log('Admin orders count:', adminResponse.data.orders.length);
+              adminResponse.data.orders.forEach((order, index) => {
+                console.log(`Admin Order ${index + 1}:`, {
+                  id: order._id,
+                  productName: order.productName,
+                  customerEmail: order.customerEmail,
+                  itemType: order.itemType,
+                  hasServiceBooking: !!order.serviceBooking
+                });
+              });
+            }
+          } catch (error) {
+            console.log('Error comparing endpoints:', error);
+          }
+        }}
+      >
+        <Text style={styles.compareButtonText}>🔍 Compare with Admin Data</Text>
+      </TouchableOpacity>
+      
       <TouchableOpacity
         style={styles.shopButton}
         onPress={() => navigation.navigate('PublicProductSearch')}
@@ -556,6 +658,42 @@ const styles = StyleSheet.create({
   shopButtonText: {
     color: 'white',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  debugButton: {
+    backgroundColor: '#FF6B6B',
+    borderRadius: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  debugButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  compareButton: {
+    backgroundColor: '#4ECDC4',
+    borderRadius: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  compareButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  profileTestButton: {
+    backgroundColor: '#9C27B0',
+    borderRadius: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  profileTestButtonText: {
+    color: 'white',
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });

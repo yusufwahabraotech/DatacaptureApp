@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
 // Single base URL configuration - Updated to use local IP
-const BASE_URL = 'http://192.168.1.183:3000/api';
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v15 - RENDER DEPLOYMENT UPDATE
 const FORCE_RELOAD_NOW = 'RENDER_DEPLOYMENT_UPDATE_' + Date.now();
@@ -1702,9 +1702,18 @@ class ApiService {
     console.log('🚨 PAYMENT INITIALIZATION DEBUG 🚨');
     console.log('Payment data being sent:', JSON.stringify(paymentData, null, 2));
     
+    // Add platform parameter for mobile app
+    const enhancedPaymentData = {
+      ...paymentData,
+      platform: 'mobile'
+    };
+    
+    console.log('🚨 ENHANCED PAYMENT DATA WITH PLATFORM 🚨');
+    console.log('Enhanced data:', JSON.stringify(enhancedPaymentData, null, 2));
+    
     return this.apiCall('/payment/initialize', {
       method: 'POST',
-      body: JSON.stringify(paymentData),
+      body: JSON.stringify(enhancedPaymentData),
     });
   }
 
@@ -2445,14 +2454,15 @@ class ApiService {
     const correctedPaymentData = {
       ...paymentData,
       includeVerifiedBadge: paymentData.includeVerifiedBadge || paymentData.includeLocationVerification,
-      locations: paymentData.locations || []
+      locations: paymentData.locations || [],
+      platform: 'mobile' // Add platform parameter for mobile app
     };
     
     // Remove old field names if they exist
     delete correctedPaymentData.includeLocationVerification;
     delete correctedPaymentData.locationVerificationAmount;
     
-    console.log('🚨 CORRECTED PAYMENT DATA 🚨');
+    console.log('🚨 CORRECTED PAYMENT DATA WITH PLATFORM 🚨');
     console.log('Final payload:', JSON.stringify(correctedPaymentData, null, 2));
     
     return this.apiCall('/payment/combined/initialize', {
@@ -2935,9 +2945,28 @@ class ApiService {
     console.log('🚨 PRODUCT PAYMENT INITIALIZATION 🚨');
     console.log('Payment data:', JSON.stringify(paymentData, null, 2));
     
+    // Get current user profile to include userId
+    const profileResponse = await this.getUserProfile();
+    let userId = null;
+    if (profileResponse.success && profileResponse.data.user) {
+      userId = profileResponse.data.user._id || profileResponse.data.user.id;
+      console.log('🚨 ADDING USER ID TO PAYMENT 🚨');
+      console.log('User ID:', userId);
+    }
+    
+    // Add platform parameter and userId for mobile app
+    const enhancedPaymentData = {
+      ...paymentData,
+      platform: 'mobile',
+      ...(userId && { userId }) // Include userId if available
+    };
+    
+    console.log('🚨 ENHANCED PAYMENT DATA WITH PLATFORM & USER ID 🚨');
+    console.log('Enhanced data:', JSON.stringify(enhancedPaymentData, null, 2));
+    
     return this.apiCall('/orders/public/initiate', {
       method: 'POST',
-      body: JSON.stringify(paymentData),
+      body: JSON.stringify(enhancedPaymentData),
     });
   }
 
@@ -2954,14 +2983,70 @@ class ApiService {
   // USER ENDPOINTS (Authenticated Users)
   static async getMyOrders() {
     console.log('🚨 FETCHING USER ORDERS 🚨');
-    return this.apiCall('/orders/user/my-orders');
+    
+    // Check user profile first
+    const profileResponse = await this.getUserProfile();
+    console.log('User profile check:', {
+      success: profileResponse.success,
+      hasUser: !!(profileResponse.data && profileResponse.data.user),
+      userId: profileResponse.data?.user?._id,
+      userEmail: profileResponse.data?.user?.email,
+      userRole: profileResponse.data?.user?.role
+    });
+    
+    const response = await this.apiCall('/orders/user/my-orders');
+    console.log('My orders response:', JSON.stringify(response, null, 2));
+    
+    if (response.success && response.data && response.data.orders) {
+      console.log('Total orders found:', response.data.orders.length);
+      response.data.orders.forEach((order, index) => {
+        console.log(`Order ${index + 1}:`, {
+          id: order._id,
+          productName: order.productName,
+          itemType: order.itemType,
+          orderStatus: order.orderStatus,
+          hasServiceBooking: !!order.serviceBooking,
+          createdAt: order.createdAt
+        });
+      });
+    } else {
+      console.log('🚨 NO ORDERS FOUND OR ERROR 🚨');
+      console.log('Response success:', response.success);
+      console.log('Response message:', response.message);
+      console.log('Response data:', response.data);
+    }
+    
+    return response;
   }
 
   static async getOrderById(orderId) {
-    console.log('🚨 FETCHING ORDER DETAILS 🚨');
+    console.log('🚨 FETCHING CUSTOMER ORDER DETAILS 🚨');
     console.log('Order ID:', orderId);
     
-    return this.apiCall(`/orders/user/${orderId}`);
+    const response = await this.apiCall(`/orders/user/${orderId}`);
+    
+    console.log('🚨 CUSTOMER ORDER DETAILS RESPONSE 🚨');
+    console.log('Response success:', response.success);
+    
+    if (response.success && response.data && response.data.order) {
+      const order = response.data.order;
+      console.log('Order details:', {
+        id: order._id,
+        productName: order.productName,
+        itemType: order.itemType,
+        orderStatus: order.orderStatus,
+        hasServiceBooking: !!order.serviceBooking,
+        serviceBookingKeys: order.serviceBooking ? Object.keys(order.serviceBooking) : [],
+        bookingStatus: order.serviceBooking?.bookingStatus,
+        bookingDate: order.serviceBooking?.bookingDate,
+        bookingTime: order.serviceBooking?.bookingTime
+      });
+    } else {
+      console.log('❌ CUSTOMER ORDER DETAILS FAILED ❌');
+      console.log('Error:', response.message);
+    }
+    
+    return response;
   }
 
   // ORGANIZATION ENDPOINTS (For order management)
@@ -3144,7 +3229,14 @@ class ApiService {
         ? `${baseUrl}/service-bookings?date=${date}`
         : `${baseUrl}/service-bookings`;
       
-      return this.apiCall(endpoint);
+      console.log('🚨 SERVICE BOOKINGS API CALL 🚨');
+      console.log('Endpoint:', endpoint);
+      console.log('Date filter:', date);
+      
+      const response = await this.apiCall(endpoint);
+      console.log('Service bookings response:', JSON.stringify(response, null, 2));
+      
+      return response;
     }
     return { success: false, message: 'Failed to get user profile' };
   }
@@ -3202,9 +3294,24 @@ class ApiService {
     console.log('🚨 SERVICE BOOKING DEBUG 🚨');
     console.log('Booking data:', JSON.stringify(bookingData, null, 2));
     
+    // Get current user profile to include userId
+    const profileResponse = await this.getUserProfile();
+    let userId = null;
+    if (profileResponse.success && profileResponse.data.user) {
+      userId = profileResponse.data.user._id || profileResponse.data.user.id;
+      console.log('🚨 ADDING USER ID TO SERVICE BOOKING 🚨');
+      console.log('User ID:', userId);
+    }
+    
+    // Add userId to booking data
+    const enhancedBookingData = {
+      ...bookingData,
+      ...(userId && { userId }) // Include userId if available
+    };
+    
     return this.apiCall('/orders/public/initiate', {
       method: 'POST',
-      body: JSON.stringify(bookingData),
+      body: JSON.stringify(enhancedBookingData),
     });
   }
 
@@ -3288,9 +3395,28 @@ class ApiService {
     console.log('🚨 BOOKING ORDER CREATION DEBUG 🚨');
     console.log('Booking data:', JSON.stringify(bookingData, null, 2));
     
+    // Get current user profile to include userId
+    const profileResponse = await this.getUserProfile();
+    let userId = null;
+    if (profileResponse.success && profileResponse.data.user) {
+      userId = profileResponse.data.user._id || profileResponse.data.user.id;
+      console.log('🚨 ADDING USER ID TO BOOKING 🚨');
+      console.log('User ID:', userId);
+    }
+    
+    // Add platform parameter and userId for mobile app
+    const enhancedBookingData = {
+      ...bookingData,
+      platform: 'mobile',
+      ...(userId && { userId }) // Include userId if available
+    };
+    
+    console.log('🚨 ENHANCED BOOKING DATA WITH PLATFORM & USER ID 🚨');
+    console.log('Enhanced data:', JSON.stringify(enhancedBookingData, null, 2));
+    
     return this.apiCall('/orders/public/initiate', {
       method: 'POST',
-      body: JSON.stringify(bookingData),
+      body: JSON.stringify(enhancedBookingData),
     });
   }
 
@@ -3299,10 +3425,27 @@ class ApiService {
     console.log('🚨 BOOKING PAYMENT VERIFICATION DEBUG 🚨');
     console.log('Transaction ID:', transactionId);
     
-    return this.apiCall('/orders/public/verify', {
+    const response = await this.apiCall('/orders/public/verify', {
       method: 'POST',
       body: JSON.stringify({ transactionId }),
     });
+    
+    console.log('🚨 BOOKING PAYMENT VERIFICATION RESPONSE 🚨');
+    console.log('Response:', JSON.stringify(response, null, 2));
+    
+    if (response.success && response.data) {
+      console.log('Order created successfully:', {
+        orderId: response.data.orderId,
+        orderStatus: response.data.orderStatus,
+        hasServiceBooking: !!response.data.serviceBooking,
+        bookingStatus: response.data.serviceBooking?.bookingStatus
+      });
+    } else {
+      console.log('❌ BOOKING PAYMENT VERIFICATION FAILED ❌');
+      console.log('Error:', response.message);
+    }
+    
+    return response;
   }
 
   // REMITTANCE SYSTEM

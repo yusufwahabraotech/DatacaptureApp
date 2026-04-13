@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { Linking } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -119,14 +120,75 @@ import BookingStep3EnterDetailsScreen from './screens/BookingStep3EnterDetailsSc
 import BookingStep4SelectLocationScreen from './screens/BookingStep4SelectLocationScreen';
 import BookingStep5ConfirmScheduleScreen from './screens/BookingStep5ConfirmScheduleScreen';
 import BookingPaymentVerificationScreen from './screens/BookingPaymentVerificationScreen';
+import BookingPaymentSuccessScreen from './screens/BookingPaymentSuccessScreen';
 import BookingConfirmationScreen from './screens/BookingConfirmationScreen';
 
 const Stack = createStackNavigator();
 
+// Deep linking configuration
+const linking = {
+  prefixes: ['vestradat://'],
+  config: {
+    screens: {
+      BookingPaymentSuccess: 'payment/verify-order',
+      ProductPaymentVerification: 'payment/verify-product',
+      PaymentVerification: 'payment/verify-subscription',
+    },
+  },
+};
+
 export default function App() {
+  useEffect(() => {
+    // Handle deep links when app is already running
+    const handleDeepLink = (url) => {
+      console.log('🚨 APP-LEVEL DEEP LINK RECEIVED 🚨');
+      console.log('URL:', url);
+      
+      if (url.includes('payment/verify-order')) {
+        // Extract parameters and navigate to booking verification
+        const urlParts = url.split('?');
+        if (urlParts.length > 1) {
+          const params = new URLSearchParams(urlParts[1]);
+          const status = params.get('status');
+          const txRef = params.get('tx_ref') || params.get('transaction_id');
+          
+          console.log('💳 Payment verification data:', { status, txRef });
+          
+          // Navigate to BookingPaymentVerification with the deep link data
+          if (navigationRef.current) {
+            navigationRef.current.navigate('BookingPaymentVerification', {
+              deepLinkData: {
+                status,
+                txRef,
+                fromDeepLink: true
+              }
+            });
+          }
+        }
+      }
+    };
+
+    // Listen for deep links
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleDeepLink(url);
+    });
+
+    // Handle deep link if app was opened from a deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        console.log('🚀 App opened with deep link:', url);
+        handleDeepLink(url);
+      }
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
   return (
     <SafeAreaProvider>
-      <NavigationContainer ref={navigationRef}>
+      <NavigationContainer ref={navigationRef} linking={linking}>
         <StatusBar style="auto" />
         <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
@@ -262,6 +324,7 @@ export default function App() {
         <Stack.Screen name="BookingStep4SelectLocation" component={BookingStep4SelectLocationScreen} />
         <Stack.Screen name="BookingStep5ConfirmSchedule" component={BookingStep5ConfirmScheduleScreen} />
         <Stack.Screen name="BookingPaymentVerification" component={BookingPaymentVerificationScreen} />
+        <Stack.Screen name="BookingPaymentSuccess" component={BookingPaymentSuccessScreen} />
         <Stack.Screen name="BookingConfirmation" component={BookingConfirmationScreen} />
       </Stack.Navigator>
     </NavigationContainer>

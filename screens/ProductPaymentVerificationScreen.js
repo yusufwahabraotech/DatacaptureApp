@@ -27,46 +27,7 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
     console.log('Auto-verification disabled - waiting for user action');
   }, []);
 
-  const handleWebViewNavigationStateChange = (navState) => {
-    const { url } = navState;
-    console.log('WebView URL:', url);
-
-    // More comprehensive detection of Flutterwave completion
-    const isPaymentComplete = (
-      url.includes('successful') || 
-      url.includes('success') || 
-      url.includes('completed') ||
-      url.includes('tx_ref') || 
-      url.includes('transaction_id') ||
-      url.includes('status=successful') ||
-      url.includes('status=completed') ||
-      // Check if URL contains our transaction reference
-      (txRef && url.includes(txRef))
-    );
-
-    const isPaymentFailed = (
-      url.includes('failed') || 
-      url.includes('cancelled') || 
-      url.includes('error') ||
-      url.includes('status=failed') ||
-      url.includes('status=cancelled')
-    );
-
-    if (isPaymentComplete) {
-      console.log('🚨 PAYMENT COMPLETION DETECTED - READY FOR VERIFICATION 🚨');
-      console.log('Completion URL:', url);
-      setShowWebView(false);
-      // Don't auto-verify immediately - let user confirm
-      console.log('Payment completion detected - user can now verify manually');
-    } else if (isPaymentFailed) {
-      console.log('🚨 PAYMENT FAILED/CANCELLED 🚨');
-      console.log('Failure URL:', url);
-      setShowWebView(false);
-      setPaymentStatus('failed');
-    }
-  };
-
-  const handleVerifyPayment = async () => {
+  const handleVerifyPayment = async (txRefParam) => {
     if (loading || verificationAttempts >= 5) return;
 
     setLoading(true);
@@ -74,7 +35,7 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
 
     try {
       // Extract transaction ID from txRef or use orderId
-      const transactionId = txRef || orderId;
+      const transactionId = txRefParam || txRef || orderId;
       
       console.log('🚨 VERIFYING PAYMENT 🚨');
       console.log('Transaction ID:', transactionId);
@@ -244,7 +205,67 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
         <WebView
           source={{ uri: paymentLink }}
           style={styles.webView}
-          onNavigationStateChange={handleWebViewNavigationStateChange}
+          onNavigationStateChange={(navState) => {
+            console.log('🚨 PRODUCT WEBVIEW NAVIGATION 🚨');
+            console.log('Current URL:', navState.url);
+            
+            // Check for Flutterwave success indicators in URL (fallback)
+            if (navState.url.includes('flutterwave') && 
+                (navState.url.includes('successful') || navState.url.includes('completed') || navState.url.includes('success'))) {
+              console.log('✅ FLUTTERWAVE SUCCESS DETECTED IN URL');
+              setShowWebView(false);
+              setTimeout(() => {
+                handleVerifyPayment(txRef);
+              }, 1000);
+            }
+            
+            // Check for Flutterwave failure/cancellation
+            if (navState.url.includes('flutterwave') && 
+                (navState.url.includes('cancelled') || navState.url.includes('failed'))) {
+              console.log('❌ FLUTTERWAVE FAILURE DETECTED IN URL');
+              setShowWebView(false);
+              setPaymentStatus('failed');
+            }
+            
+            return true;
+          }}
+          onShouldStartLoadWithRequest={(request) => {
+            console.log('🔗 Should start load with request:', request.url);
+            
+            // Check if it's a deep link to your app
+            if (request.url.startsWith('vestradat://')) {
+              console.log('🔗 Deep link detected, handling manually');
+              
+              // Don't use Linking.openURL(), handle directly
+              try {
+                const url = new URL(request.url);
+                const status = url.searchParams.get('status');
+                const txRef = url.searchParams.get('tx_ref') || url.searchParams.get('transaction_id');
+                
+                console.log('💳 Deep link payment data:', { status, txRef });
+                
+                setShowWebView(false);
+                
+                if (status === 'successful') {
+                  console.log('✅ PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                  handleVerifyPayment(txRef);
+                } else {
+                  console.log('❌ PAYMENT FAILED/CANCELLED');
+                  setPaymentStatus('failed');
+                }
+              } catch (parseError) {
+                console.error('❌ Failed to parse deep link:', parseError);
+                setShowWebView(false);
+                setPaymentStatus('failed');
+              }
+              
+              // Prevent WebView from trying to load the deep link
+              return false;
+            }
+            
+            // Allow all other URLs to load normally
+            return true;
+          }}
           startInLoadingState={true}
           renderLoading={() => (
             <View style={styles.webViewLoading}>
@@ -252,6 +273,108 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
               <Text style={styles.loadingText}>Loading payment page...</Text>
             </View>
           )}
+          // Add these props for better deep link handling
+          onError={(syntheticEvent) => {
+            const { nativeEvent } = syntheticEvent;
+            console.warn('WebView error: ', nativeEvent);
+          }}
+          onHttpError={(syntheticEvent) => {
+            const { nativeEvent } = syntheticEvent;
+            console.warn('WebView HTTP error: ', nativeEvent);
+          }}
+          injectedJavaScript={`
+            // Inject JavaScript to detect thank you page and add return button
+            (function() {
+              function addReturnButton() {
+                // Check if we're on a thank you/success page
+                const bodyText = document.body.innerText.toLowerCase();
+                const isThankYouPage = bodyText.includes('thank') || 
+                                     bodyText.includes('success') || 
+                                     bodyText.includes('completed') ||
+                                     bodyText.includes('transaction was completed');
+                
+                if (isThankYouPage && !document.getElementById('return-to-app-btn')) {
+                  console.log('Thank you page detected, adding return button');
+                  
+                  // Create return button
+                  const returnBtn = document.createElement('button');
+                  returnBtn.id = 'return-to-app-btn';
+                  returnBtn.innerHTML = '🔙 Return to App';
+                  returnBtn.style.cssText = \`
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 9999;
+                    background: #7B2CBF;
+                    color: white;
+                    border: none;
+                    padding: 12px 20px;
+                    border-radius: 25px;
+                    font-size: 16px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    animation: pulse 2s infinite;
+                  \`;
+                  
+                  // Add pulse animation
+                  const style = document.createElement('style');
+                  style.textContent = \`
+                    @keyframes pulse {
+                      0% { transform: scale(1); }
+                      50% { transform: scale(1.05); }
+                      100% { transform: scale(1); }
+                    }
+                  \`;
+                  document.head.appendChild(style);
+                  
+                  // Add click handler
+                  returnBtn.onclick = function() {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'MANUAL_RETURN',
+                      action: 'verify_payment'
+                    }));
+                  };
+                  
+                  // Add button to page
+                  document.body.appendChild(returnBtn);
+                  
+                  // Also try to trigger automatic return after 3 seconds
+                  setTimeout(() => {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'AUTO_RETURN',
+                      action: 'verify_payment'
+                    }));
+                  }, 3000);
+                }
+              }
+              
+              // Run immediately and also after page changes
+              addReturnButton();
+              
+              // Watch for page changes
+              const observer = new MutationObserver(addReturnButton);
+              observer.observe(document.body, { childList: true, subtree: true });
+              
+              // Also run after a delay to catch late-loading content
+              setTimeout(addReturnButton, 2000);
+            })();
+            true;
+          `}
+          onMessage={(event) => {
+            try {
+              const data = JSON.parse(event.nativeEvent.data);
+              console.log('💬 MESSAGE FROM WEBVIEW:', data);
+              
+              if (data.type === 'MANUAL_RETURN' || data.type === 'AUTO_RETURN') {
+                console.log('✅ RETURN TO APP TRIGGERED:', data.type);
+                setShowWebView(false);
+                handleVerifyPayment(txRef);
+              }
+            } catch (error) {
+              console.log('Error parsing WebView message:', error);
+            }
+          }}
         />
       ) : (
         <View style={styles.verificationContainer}>

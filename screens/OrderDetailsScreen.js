@@ -18,6 +18,7 @@ const OrderDetailsScreen = ({ navigation, route }) => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showDeliveryImages, setShowDeliveryImages] = useState(false);
+  const [isAdminContext, setIsAdminContext] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -26,10 +27,11 @@ const OrderDetailsScreen = ({ navigation, route }) => {
   const fetchOrderDetails = async () => {
     try {
       // Check if this is being accessed from organization context
-      const isAdminContext = route.name === 'OrganizationOrderDetails';
+      const adminContext = route.name === 'OrganizationOrderDetails';
+      setIsAdminContext(adminContext);
       
       let response;
-      if (isAdminContext) {
+      if (adminContext) {
         response = await ApiService.getAdminOrderById(orderId);
       } else {
         response = await ApiService.getOrderById(orderId);
@@ -191,6 +193,157 @@ const OrderDetailsScreen = ({ navigation, route }) => {
             </View>
           )}
         </View>
+
+        {/* Service Booking Details */}
+        {order.serviceBooking && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Service Booking Details</Text>
+            
+            <View style={styles.bookingCard}>
+              {/* Booking Status */}
+              <View style={styles.bookingStatusHeader}>
+                <Text style={styles.bookingStatusLabel}>Booking Status:</Text>
+                <View style={[styles.bookingStatusBadge, { 
+                  backgroundColor: order.serviceBooking.bookingStatus === 'completed' ? '#4CAF50' :
+                                   order.serviceBooking.bookingStatus === 'cancelled' ? '#F44336' :
+                                   order.serviceBooking.bookingStatus === 'rescheduled' ? '#FF9800' : '#2196F3'
+                }]}>
+                  <Text style={styles.bookingStatusText}>
+                    {order.serviceBooking.bookingStatus?.toUpperCase() || 'SCHEDULED'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Booking ID and Task ID */}
+              {order.serviceBooking.bookingId && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Booking ID:</Text>
+                  <Text style={styles.infoValue}>{order.serviceBooking.bookingId}</Text>
+                </View>
+              )}
+              
+              {order.serviceBooking.taskId && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Task ID:</Text>
+                  <Text style={styles.infoValue}>{order.serviceBooking.taskId}</Text>
+                </View>
+              )}
+
+              {/* Date and Time */}
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Booking Date:</Text>
+                <Text style={styles.infoValue}>
+                  {new Date(order.serviceBooking.bookingDate).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Booking Time:</Text>
+                <Text style={styles.infoValue}>{order.serviceBooking.bookingTime}</Text>
+              </View>
+              
+              {order.serviceBooking.duration && (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Duration:</Text>
+                  <Text style={styles.infoValue}>{order.serviceBooking.duration} minutes</Text>
+                </View>
+              )}
+
+              {/* Booking Location */}
+              {order.serviceBooking.location && (
+                <View style={styles.locationSection}>
+                  <Text style={styles.subsectionTitle}>📍 Booking Location</Text>
+                  <View style={styles.locationCard}>
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Location Type:</Text>
+                      <Text style={styles.infoValue}>
+                        {order.serviceBooking.location.type === 'new_address' ? 'Customer Address' :
+                         order.serviceBooking.location.type === 'organization_location' ? 'Organization Location' :
+                         order.serviceBooking.location.type === 'whatsapp_location' ? 'WhatsApp Location' :
+                         'Other Location'}
+                      </Text>
+                    </View>
+                    
+                    {order.serviceBooking.location.address && (
+                      <View style={styles.addressContainer}>
+                        <Text style={styles.addressLabel}>Address:</Text>
+                        <Text style={styles.addressText}>{order.serviceBooking.location.address}</Text>
+                      </View>
+                    )}
+                    
+                    {order.serviceBooking.location.whatsappLocationUrl && (
+                      <TouchableOpacity 
+                        style={styles.whatsappLocationButton}
+                        onPress={() => {
+                          // Handle WhatsApp location opening
+                          Alert.alert('WhatsApp Location', 'WhatsApp location sharing feature will be available soon.');
+                        }}
+                      >
+                        <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+                        <Text style={styles.whatsappLocationText}>View WhatsApp Location</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* Booked Persons */}
+              {order.serviceBooking.bookedForPersons && order.serviceBooking.bookedForPersons.length > 0 && (
+                <View style={styles.personsSection}>
+                  <Text style={styles.subsectionTitle}>
+                    👥 Booked For ({order.serviceBooking.bookedForPersons.length} person{order.serviceBooking.bookedForPersons.length > 1 ? 's' : ''})
+                  </Text>
+                  {order.serviceBooking.bookedForPersons.map((person, index) => (
+                    <View key={index} style={styles.personCard}>
+                      <View style={styles.personHeader}>
+                        <Text style={styles.personName}>
+                          {person.name || `${person.firstName} ${person.lastName}`}
+                        </Text>
+                        {person.isMainBooker && (
+                          <View style={styles.mainBookerBadge}>
+                            <Text style={styles.mainBookerText}>Main Booker</Text>
+                          </View>
+                        )}
+                      </View>
+                      
+                      {person.email && (
+                        <Text style={styles.personEmail}>📧 {person.email}</Text>
+                      )}
+                      
+                      {person.slotDateTime && (
+                        <Text style={styles.personSlot}>
+                          🕐 Slot: {new Date(person.slotDateTime).toLocaleString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                        </Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Booking Notes */}
+              {order.serviceBooking.notes && (
+                <View style={styles.notesSection}>
+                  <Text style={styles.subsectionTitle}>📝 Special Instructions</Text>
+                  <View style={styles.notesCard}>
+                    <Text style={styles.notesText}>{order.serviceBooking.notes}</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Product Information */}
         <View style={styles.section}>
@@ -370,38 +523,40 @@ const OrderDetailsScreen = ({ navigation, route }) => {
         </View>
       </ScrollView>
 
-      {/* Action Buttons */}
-      <View style={styles.bottomSection}>
-        {order.orderStatus === 'fully_paid' && !order.deliveryConfirmation && (
+      {/* Action Buttons - Only show for customers, not admins */}
+      {!isAdminContext && (
+        <View style={styles.bottomSection}>
+          {order.orderStatus === 'fully_paid' && !order.deliveryConfirmation && (
+            <TouchableOpacity
+              style={styles.confirmDeliveryButton}
+              onPress={() => navigation.navigate('DeliveryConfirmation', { order })}
+            >
+              <Ionicons name="checkmark-circle" size={20} color="white" />
+              <Text style={styles.confirmDeliveryButtonText}>Confirm Delivery</Text>
+            </TouchableOpacity>
+          )}
+          
+          {order.orderStatus === 'partially_paid' && order.upfrontRemainingBalance > 0 && (
+            <TouchableOpacity
+              style={styles.payButton}
+              onPress={handlePayRemaining}
+            >
+              <Ionicons name="card" size={20} color="white" />
+              <Text style={styles.payButtonText}>
+                Pay Remaining ₦{order.upfrontRemainingBalance?.toLocaleString()}
+              </Text>
+            </TouchableOpacity>
+          )}
+          
           <TouchableOpacity
-            style={styles.confirmDeliveryButton}
-            onPress={() => navigation.navigate('DeliveryConfirmation', { order })}
+            style={styles.contactButton}
+            onPress={handleContactSeller}
           >
-            <Ionicons name="checkmark-circle" size={20} color="white" />
-            <Text style={styles.confirmDeliveryButtonText}>Confirm Delivery</Text>
+            <Ionicons name="chatbubble" size={20} color="#7B2CBF" />
+            <Text style={styles.contactButtonText}>Contact Seller</Text>
           </TouchableOpacity>
-        )}
-        
-        {order.orderStatus === 'partially_paid' && order.upfrontRemainingBalance > 0 && (
-          <TouchableOpacity
-            style={styles.payButton}
-            onPress={handlePayRemaining}
-          >
-            <Ionicons name="card" size={20} color="white" />
-            <Text style={styles.payButtonText}>
-              Pay Remaining ₦{order.upfrontRemainingBalance?.toLocaleString()}
-            </Text>
-          </TouchableOpacity>
-        )}
-        
-        <TouchableOpacity
-          style={styles.contactButton}
-          onPress={handleContactSeller}
-        >
-          <Ionicons name="chatbubble" size={20} color="#7B2CBF" />
-          <Text style={styles.contactButtonText}>Contact Seller</Text>
-        </TouchableOpacity>
-      </View>
+        </View>
+      )}
       
       <DeliveryImagesModal 
         visible={showDeliveryImages}
@@ -653,6 +808,143 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
     borderRadius: 8,
     padding: 16,
+  },
+  bookingCard: {
+    backgroundColor: '#F0F8FF',
+    borderRadius: 8,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#7B2CBF',
+  },
+  bookingStatusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  bookingStatusLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  bookingStatusBadge: {
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  bookingStatusText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  subsectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  locationSection: {
+    marginTop: 16,
+  },
+  locationCard: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  addressContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 6,
+  },
+  addressLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  addressText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+  },
+  whatsappLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0FFF0',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 8,
+    gap: 6,
+  },
+  whatsappLocationText: {
+    fontSize: 14,
+    color: '#25D366',
+    fontWeight: '500',
+  },
+  personsSection: {
+    marginTop: 16,
+  },
+  personCard: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  personHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  personName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+  },
+  mainBookerBadge: {
+    backgroundColor: '#7B2CBF',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  mainBookerText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  personEmail: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  personSlot: {
+    fontSize: 14,
+    color: '#7B2CBF',
+    fontWeight: '500',
+  },
+  notesSection: {
+    marginTop: 16,
+  },
+  notesCard: {
+    backgroundColor: '#FFF8DC',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#F0E68C',
+  },
+  notesText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+    fontStyle: 'italic',
   },
   deliveryCard: {
     backgroundColor: '#F0FDF4',
