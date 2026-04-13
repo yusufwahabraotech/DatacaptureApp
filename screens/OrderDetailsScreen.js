@@ -14,11 +14,17 @@ import ApiService from '../services/api';
 import DeliveryImagesModal from '../components/DeliveryImagesModal';
 
 const OrderDetailsScreen = ({ navigation, route }) => {
-  const { orderId } = route.params;
+  const { orderId, fromAdmin, isAdmin } = route.params;
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showDeliveryImages, setShowDeliveryImages] = useState(false);
   const [isAdminContext, setIsAdminContext] = useState(false);
+
+  console.log('🚨 ORDER DETAILS SCREEN INIT 🚨');
+  console.log('Route params:', JSON.stringify(route.params, null, 2));
+  console.log('Order ID:', orderId);
+  console.log('From Admin:', fromAdmin);
+  console.log('Is Admin:', isAdmin);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -26,25 +32,46 @@ const OrderDetailsScreen = ({ navigation, route }) => {
 
   const fetchOrderDetails = async () => {
     try {
-      // Check if this is being accessed from organization context
-      const adminContext = route.name === 'OrganizationOrderDetails';
+      console.log('🚨 FETCH ORDER DETAILS DEBUG 🚨');
+      console.log('Route name:', route.name);
+      console.log('Route params:', JSON.stringify(route.params, null, 2));
+      console.log('Navigation state:', navigation.getState?.());
+      
+      // Check if this is being accessed from organization/admin context
+      const adminContext = route.name === 'OrganizationOrderDetails' || 
+                          route.params?.fromAdmin === true ||
+                          route.params?.isAdmin === true;
+      
+      console.log('🚨 CONTEXT DETECTION 🚨');
+      console.log('Admin context detected:', adminContext);
+      
       setIsAdminContext(adminContext);
       
       let response;
       if (adminContext) {
+        console.log('🚨 USING ADMIN ENDPOINT 🚨');
+        console.log('Calling ApiService.getAdminOrderById with orderId:', orderId);
         response = await ApiService.getAdminOrderById(orderId);
       } else {
+        console.log('🚨 USING CUSTOMER ENDPOINT 🚨');
+        console.log('Calling ApiService.getOrderById with orderId:', orderId);
         response = await ApiService.getOrderById(orderId);
       }
       
+      console.log('🚨 ORDER DETAILS API RESPONSE 🚨');
+      console.log('Response success:', response.success);
+      console.log('Response message:', response.message);
+      
       if (response.success) {
         setOrder(response.data.order);
+        console.log('✅ Order loaded successfully');
       } else {
+        console.log('❌ Order loading failed:', response.message);
         Alert.alert('Error', response.message || 'Failed to fetch order details');
         navigation.goBack();
       }
     } catch (error) {
-      console.error('Error fetching order details:', error);
+      console.error('🚨 ORDER DETAILS EXCEPTION 🚨', error);
       Alert.alert('Error', 'Failed to fetch order details. Please try again.');
       navigation.goBack();
     } finally {

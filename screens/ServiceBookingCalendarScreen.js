@@ -48,11 +48,30 @@ const ServiceBookingCalendarScreen = ({ navigation }) => {
     }
 
     try {
+      console.log('🚨 FETCHING SERVICE BOOKINGS 🚨');
+      console.log('Selected date:', selectedDate);
+      
       const response = await ApiService.getServiceBookings(selectedDate);
       
+      console.log('🚨 SERVICE BOOKINGS RESPONSE 🚨');
+      console.log('Response success:', response.success);
+      console.log('Response data keys:', response.data ? Object.keys(response.data) : 'No data');
+      
       if (response.success) {
-        setBookings(response.data.bookings || []);
+        const bookings = response.data.bookings || [];
+        console.log('Bookings count:', bookings.length);
+        
+        // Log first booking structure for debugging
+        if (bookings.length > 0) {
+          console.log('First booking structure:', JSON.stringify(bookings[0], null, 2));
+          console.log('First booking keys:', Object.keys(bookings[0]));
+          console.log('Has _id:', !!bookings[0]._id);
+          console.log('Has orderId:', !!bookings[0].orderId);
+        }
+        
+        setBookings(bookings);
       } else {
+        console.log('API Error:', response.message);
         Alert.alert('Error', response.message || 'Failed to fetch bookings');
       }
     } catch (error) {
@@ -66,6 +85,11 @@ const ServiceBookingCalendarScreen = ({ navigation }) => {
 
   const handleStatusUpdate = async (status) => {
     if (!selectedBooking) return;
+
+    console.log('🚨 STATUS UPDATE DEBUG 🚨');
+    console.log('Selected booking:', JSON.stringify(selectedBooking, null, 2));
+    console.log('Using booking ID:', selectedBooking._id);
+    console.log('Status to update:', status);
 
     if (status === 'rescheduled') {
       setShowStatusModal(false);
@@ -94,6 +118,11 @@ const ServiceBookingCalendarScreen = ({ navigation }) => {
       Alert.alert('Error', 'Please select a new time');
       return;
     }
+
+    console.log('🚨 RESCHEDULE DEBUG 🚨');
+    console.log('Selected booking ID:', selectedBooking._id);
+    console.log('New date:', newDate.toISOString().split('T')[0]);
+    console.log('New time:', newTime.trim());
 
     try {
       const response = await ApiService.updateBookingStatus(selectedBooking._id, 'rescheduled', {
@@ -163,7 +192,16 @@ const ServiceBookingCalendarScreen = ({ navigation }) => {
   const renderBookingItem = ({ item }) => (
     <TouchableOpacity
       style={styles.bookingCard}
-      onPress={() => navigation.navigate('OrderDetails', { orderId: item.orderId })}
+      onPress={() => {
+        console.log('🚨 BOOKING CARD PRESSED 🚨');
+        console.log('Item data:', JSON.stringify(item, null, 2));
+        console.log('Using orderId:', item._id || item.orderId);
+        navigation.navigate('OrderDetails', { 
+          orderId: item._id || item.orderId,
+          fromAdmin: true,
+          isAdmin: true 
+        });
+      }}
     >
       <View style={styles.bookingHeader}>
         <View style={styles.bookingInfo}>
@@ -273,7 +311,16 @@ const ServiceBookingCalendarScreen = ({ navigation }) => {
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={styles.viewButton}
-            onPress={() => navigation.navigate('OrderDetails', { orderId: item.orderId })}
+            onPress={() => {
+              console.log('🚨 VIEW ORDER BUTTON PRESSED 🚨');
+              console.log('Item data:', JSON.stringify(item, null, 2));
+              console.log('Using orderId:', item._id || item.orderId);
+              navigation.navigate('OrderDetails', { 
+                orderId: item._id || item.orderId,
+                fromAdmin: true,
+                isAdmin: true 
+              });
+            }}
           >
             <Ionicons name="eye" size={16} color="#7B2CBF" />
             <Text style={styles.viewButtonText}>View Order</Text>
@@ -369,7 +416,7 @@ const ServiceBookingCalendarScreen = ({ navigation }) => {
       <FlatList
         data={bookings}
         renderItem={renderBookingItem}
-        keyExtractor={(item) => item._id || `${item.orderId}-${item.serviceBooking?.bookingDate}`}
+        keyExtractor={(item) => item._id || `${item._id}-${item.serviceBooking?.bookingDate}`}
         contentContainerStyle={styles.bookingsList}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => fetchBookings(true)} />
