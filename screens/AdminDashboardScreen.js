@@ -261,6 +261,16 @@ const AdminDashboardScreen = ({ navigation }) => {
       icon: 'calendar',
       moduleKey: ModuleAccessChecker.FREE_MODULES.ORDERS,
       onPress: () => navigation.navigate('ServiceBookingCalendar')
+    },
+    {
+      title: 'Service Provider Management',
+      subtitle: 'Assign and manage service providers',
+      icon: 'people',
+      moduleKey: ModuleAccessChecker.SUBSCRIPTION_MODULES.USER_MANAGEMENT,
+      onPress: () => ModuleAccessChecker.checkAndNavigate(
+        ModuleAccessChecker.SUBSCRIPTION_MODULES.USER_MANAGEMENT,
+        () => navigation.navigate('ServiceProviderManagement')
+      )
     }
   ];
 
@@ -326,6 +336,12 @@ const AdminDashboardScreen = ({ navigation }) => {
           </View>
         </View>
         <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate('AdminTaskNotifications')}
+          >
+            <Ionicons name="notifications" size={20} color="#7B2CBF" />
+          </TouchableOpacity>
           <TouchableOpacity 
             style={styles.profileImage}
             onPress={() => navigation.navigate('Profile')}
@@ -466,6 +482,15 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notificationButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3E8FF',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   profileImage: {

@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import TutorialModal from './TutorialModal';
 import ViewMeasurementModal from './ViewMeasurementModal';
 import BottomNavigation from '../components/BottomNavigation';
+import TaskNotificationComponent from '../components/TaskNotificationComponent';
 import { generateMeasurementsPDF, viewPDF } from '../utils/pdfGenerator';
 import ApiService from '../services/api';
 
@@ -207,9 +208,77 @@ const DashboardScreen = ({ navigation, route }) => {
       console.log('Profile response:', response);
       
       if (response.success) {
-        setUser(response.data.user);
+        const userData = response.data.user;
+        console.log('=== USER DATA DEBUG ===');
+        console.log('User ID:', userData._id || userData.id);
+        console.log('User email:', userData.email);
+        console.log('User role:', userData.role);
+        console.log('User organizationId:', userData.organizationId);
+        
+        // Check if user is a service provider - Updated logic
+        try {
+          console.log('=== CHECKING SERVICE PROVIDER STATUS ===');
+          console.log('User role:', userData.role);
+          
+          // Method 1: Check if user role is SERVICE_PROVIDER
+          if (userData.role === 'SERVICE_PROVIDER') {
+            userData.isServiceProvider = true;
+            console.log('✅ User is a service provider (role: SERVICE_PROVIDER)');
+          } else {
+            // Method 2: Try the service provider status check endpoint (for other roles)
+            console.log('Trying service provider status check endpoint...');
+            const statusCheck = await ApiService.checkServiceProviderStatus();
+            console.log('Service provider status check:', statusCheck);
+            
+            if (statusCheck.isServiceProvider) {
+              userData.isServiceProvider = true;
+              console.log('✅ User is a service provider (via status check)');
+            } else {
+              // Method 3: Fallback to checking the service provider users list (admin only)
+              if (userData.role === 'ORGANIZATION') {
+                console.log('Trying fallback method - checking service provider users list (admin only)');
+                const serviceProviderResponse = await ApiService.getServiceProviderUsers();
+                console.log('Service provider response:', JSON.stringify(serviceProviderResponse, null, 2));
+                
+                if (serviceProviderResponse.success) {
+                  const serviceProviders = serviceProviderResponse.data.users || [];
+                  console.log('Total service providers found:', serviceProviders.length);
+                  
+                  const currentUserId = userData._id || userData.id;
+                  const isServiceProvider = serviceProviders.some(sp => {
+                    const match = sp.userId === currentUserId;
+                    console.log(`Comparing: ${sp.userId} === ${currentUserId} = ${match}`);
+                    return match;
+                  });
+                  
+                  userData.isServiceProvider = isServiceProvider;
+                  console.log('Service provider status from user list:', isServiceProvider);
+                } else {
+                  console.log('Failed to get service providers:', serviceProviderResponse.message);
+                  userData.isServiceProvider = false;
+                }
+              } else {
+                userData.isServiceProvider = false;
+                console.log('❌ User is not a service provider');
+              }
+            }
+          }
+          
+          console.log('=== FINAL SERVICE PROVIDER CHECK ===');
+          console.log('Current User ID:', userData._id || userData.id);
+          console.log('User Role:', userData.role);
+          console.log('Is Service Provider:', userData.isServiceProvider);
+          console.log('Will show service provider card:', userData.isServiceProvider);
+          
+        } catch (spError) {
+          console.log('Error checking service provider status:', spError);
+          // If there's an error but user role is SERVICE_PROVIDER, still set it to true
+          userData.isServiceProvider = userData.role === 'SERVICE_PROVIDER';
+        }
+        
+        setUser(userData);
         // Check if user has data verification permission
-        const hasVerificationRole = response.data.user.permissions?.includes('data_verification');
+        const hasVerificationRole = userData.permissions?.includes('data_verification');
         setHasDataVerificationRole(hasVerificationRole);
       } else {
         console.log('Profile fetch failed:', response.message);
@@ -272,6 +341,7 @@ const DashboardScreen = ({ navigation, route }) => {
       <View style={styles.header}>
         <Text style={styles.greeting}>Hello, {user?.fullName || 'User'}</Text>
         <View style={styles.headerRight}>
+          <TaskNotificationComponent navigation={navigation} user={user} />
           <View style={styles.notificationContainer}>
             <Ionicons name="notifications-outline" size={20} color="#9CA3AF" />
           </View>
@@ -315,8 +385,34 @@ const DashboardScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Measurement Cards */}
+{/* Measurement Cards */}
         <View style={styles.cardsContainer}>
+          {/* Service Provider Tasks Card - Only for service providers */}
+          {(() => {
+            console.log('=== SERVICE PROVIDER CARD RENDER DEBUG ===');
+            console.log('user object:', user);
+            console.log('user.isServiceProvider:', user?.isServiceProvider);
+            console.log('Should show card:', !!user?.isServiceProvider);
+            return user?.isServiceProvider;
+          })() && (
+            <TouchableOpacity 
+              style={[styles.card, styles.tasksCard]}
+              onPress={() => {
+                console.log('Service provider card pressed - navigating to ServiceProviderTaskDashboard');
+                navigation.navigate('ServiceProviderTaskDashboard');
+              }}
+            >
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>My Service Tasks</Text>
+                <Ionicons name="briefcase" size={24} color="#FF6B35" />
+              </View>
+              <Text style={styles.cardValue}>View Tasks</Text>
+              <View style={styles.createNewButton}>
+                <Text style={styles.createNew}>Manage Tasks</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Data Verification Card - Only for users with permission */}
           {hasDataVerificationRole && (
             <TouchableOpacity 
@@ -549,6 +645,7 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
   notificationContainer: {
     width: 40,
@@ -640,6 +737,9 @@ const styles = StyleSheet.create({
   },
   ordersCard: {
     backgroundColor: '#E3F2FD',
+  },
+  tasksCard: {
+    backgroundColor: '#FFF3E0',
   },
   cardHeader: {
     flexDirection: 'row',

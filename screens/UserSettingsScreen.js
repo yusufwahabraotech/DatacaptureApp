@@ -16,6 +16,7 @@ const UserSettingsScreen = ({ navigation }) => {
   const [permissions, setPermissions] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isServiceProvider, setIsServiceProvider] = useState(false);
 
   useEffect(() => {
     fetchUserProfile();
@@ -31,7 +32,23 @@ const UserSettingsScreen = ({ navigation }) => {
     try {
       const response = await ApiService.getUserProfile();
       if (response.success) {
-        setUser(response.data.user);
+        const userData = response.data.user;
+        setUser(userData);
+        
+        // Check if user is a service provider
+        try {
+          const serviceProviderResponse = await ApiService.getServiceProviderUsers();
+          if (serviceProviderResponse.success) {
+            const serviceProviders = serviceProviderResponse.data.users || [];
+            const isProvider = serviceProviders.some(sp => 
+              sp.userId === userData._id || sp.userId === userData.id
+            );
+            setIsServiceProvider(isProvider);
+          }
+        } catch (spError) {
+          console.log('Error checking service provider status:', spError);
+          setIsServiceProvider(false);
+        }
       }
     } catch (error) {
       console.log('Error fetching profile:', error);
@@ -173,13 +190,31 @@ const UserSettingsScreen = ({ navigation }) => {
         bgColor: '#ECFEFF',
         permission: 'view_dashboard_stats',
         onPress: () => navigation.navigate('AdminDashboard')
+      },
+      {
+        title: 'Service Provider',
+        subtitle: 'Manage service tasks',
+        icon: 'briefcase',
+        color: '#FF6B35',
+        bgColor: '#FFF3E0',
+        permission: 'service_provider', // This will be checked differently
+        onPress: () => navigation.navigate('ServiceProviderProfile'),
+        isServiceProvider: true // Special flag
       }
     ];
 
     // Only add features that the user has access to
     allFeatures.forEach(feature => {
-      // Organization Admin has access to all features
-      const hasAccess = user?.role === 'ORGANIZATION' || hasPermission(feature.permission);
+      let hasAccess = false;
+      
+      if (feature.isServiceProvider) {
+        // Special check for service provider feature
+        hasAccess = isServiceProvider;
+      } else {
+        // Organization Admin has access to all features
+        hasAccess = user?.role === 'ORGANIZATION' || hasPermission(feature.permission);
+      }
+      
       if (hasAccess) {
         cards.push({
           ...feature,

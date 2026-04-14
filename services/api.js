@@ -8,7 +8,7 @@ const BASE_URL = 'http://192.168.0.183:3000/api';
 const FORCE_RELOAD_NOW = 'RENDER_DEPLOYMENT_UPDATE_' + Date.now();
 console.log('🚨 RENDER DEPLOYMENT UPDATE API SERVICE RELOAD v15 🚨', FORCE_RELOAD_NOW);
 console.log('🔥 USING RENDER DEPLOYMENT 🔥');
-console.log('🌐 Using Render base URL:', BASE_URL);
+console.log('🌐 Using local base URL:', BASE_URL);
 
 // CACHE BUST v2.5 - RENDER_DEPLOYMENT_UPDATE
 class ApiService {
@@ -22,6 +22,21 @@ class ApiService {
 
   static async apiCall(endpoint, options = {}) {
     const token = await this.getToken();
+    
+    // Debug token for service provider assignment endpoints
+    if (endpoint.includes('service-provider-assignment') && token) {
+      try {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        console.log('=== TOKEN DEBUG FOR SERVICE PROVIDER ASSIGNMENT ===');
+        console.log('User role:', tokenPayload.role);
+        console.log('Organization ID:', tokenPayload.organizationId);
+        console.log('User ID:', tokenPayload.userId);
+        console.log('Full payload keys:', Object.keys(tokenPayload));
+        console.log('==========================================');
+      } catch (error) {
+        console.log('Error decoding token:', error);
+      }
+    }
     
     const url = `${BASE_URL}${endpoint}`;
     
@@ -38,6 +53,21 @@ class ApiService {
     console.log('URL:', url);
     console.log('Method:', config.method || 'GET');
     console.log('Has token:', !!token);
+    
+    // Debug token for service provider assignment endpoints
+    if (endpoint.includes('service-provider-assignment') && token) {
+      try {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        console.log('=== TOKEN DEBUG FOR SERVICE PROVIDER ASSIGNMENT ===');
+        console.log('User role:', tokenPayload.role);
+        console.log('Organization ID:', tokenPayload.organizationId);
+        console.log('User ID:', tokenPayload.userId);
+        console.log('Token exp:', new Date(tokenPayload.exp * 1000));
+        console.log('==========================================');
+      } catch (error) {
+        console.log('❌ Error decoding token:', error);
+      }
+    }
 
     try {
       const response = await fetch(url, config);
@@ -50,6 +80,14 @@ class ApiService {
         console.log(`API Error - Status: ${response.status}, URL: ${url}`);
         const error = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.log('Error response:', JSON.stringify(error, null, 2));
+        
+        // Log token role on 403 to diagnose stale token issues
+        if (response.status === 403 && token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            console.log('🚨 403 TOKEN ROLE:', payload.role, '| EXP:', new Date(payload.exp * 1000).toISOString());
+          } catch (e) {}
+        }
         
         return {
           success: false,
@@ -2486,6 +2524,65 @@ class ApiService {
     return this.apiCall('/super-admin/locations');
   }
 
+  // SERVICE PROVIDER ASSIGNMENT MANAGEMENT
+  // Create Service Provider Module
+  static async createServiceProviderModule(moduleData) {
+    console.log('🚨 CREATING SERVICE PROVIDER MODULE 🚨');
+    console.log('Module data:', JSON.stringify(moduleData, null, 2));
+    
+    return this.apiCall('/service-provider-assignment/module', {
+      method: 'POST',
+      body: JSON.stringify(moduleData),
+    });
+  }
+
+  // Get Users for Service Provider Assignment
+  static async getServiceProviderUsers() {
+    console.log('🚨 FETCHING USERS FOR SERVICE PROVIDER ASSIGNMENT 🚨');
+    
+    return this.apiCall('/service-provider-assignment/users');
+  }
+
+  // Get Only Assigned Service Providers
+  static async getAssignedServiceProviders() {
+    console.log('🚨 FETCHING ASSIGNED SERVICE PROVIDERS 🚨');
+    
+    return this.apiCall('/service-provider-assignment/users/service-providers');
+  }
+
+  // Get Available Users for Assignment (not yet service providers)
+  static async getAvailableUsersForAssignment() {
+    console.log('🚨 FETCHING AVAILABLE USERS FOR ASSIGNMENT 🚨');
+    
+    return this.apiCall('/service-provider-assignment/users/available');
+  }
+
+  // Bulk Service Provider Assignment
+  static async bulkAssignServiceProviders(assignmentData) {
+    console.log('🚨 BULK SERVICE PROVIDER ASSIGNMENT 🚨');
+    console.log('Assignment data:', JSON.stringify(assignmentData, null, 2));
+    
+    return this.apiCall('/service-provider-assignment/assign', {
+      method: 'POST',
+      body: JSON.stringify(assignmentData),
+    });
+  }
+
+  // Get Service Provider Assignment Summary
+  static async getServiceProviderSummary() {
+    console.log('🚨 FETCHING SERVICE PROVIDER SUMMARY 🚨');
+    
+    return this.apiCall('/service-provider-assignment/summary');
+  }
+
+  // Get Service Provider Assignment History
+  static async getServiceProviderHistory(page = 1, limit = 20) {
+    console.log('🚨 FETCHING SERVICE PROVIDER HISTORY 🚨');
+    console.log('Page:', page, 'Limit:', limit);
+    
+    return this.apiCall(`/service-provider-assignment/history?page=${page}&limit=${limit}`);
+  }
+
   // LOCATION OPTIONS (New endpoints for city regions and hierarchy)
   static async getLocationHierarchy(level, params = {}) {
     const queryParams = new URLSearchParams({ level, ...params });
@@ -2568,6 +2665,101 @@ class ApiService {
     
     const queryString = queryParams.toString();
     return this.apiCall(`/super-admin/pricing/location?${queryString}`);
+  }
+
+  // SERVICE PROVIDER TASK MANAGEMENT ENDPOINTS
+  // Task Dashboard Endpoints
+  static async getMyBookings() {
+    console.log('🚨 FETCHING MY BOOKINGS 🚨');
+    return this.apiCall('/service-provider-tasks/my-bookings');
+  }
+
+  static async getAssignedTasks() {
+    console.log('🚨 FETCHING ASSIGNED TASKS 🚨');
+    
+    const token = await this.getToken();
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        console.log('🔍 ASSIGNED TASKS TOKEN ROLE:', payload.role);
+        console.log('🔍 ASSIGNED TASKS TOKEN ID:', payload.id);
+        console.log('🔍 ASSIGNED TASKS TOKEN EXP:', new Date(payload.exp * 1000).toISOString());
+        console.log('🔍 TOKEN EXPIRED?', Date.now() > payload.exp * 1000);
+      } catch (e) {
+        console.log('❌ Could not decode token:', e);
+      }
+    }
+    
+    return this.apiCall('/service-provider-tasks/tasks/assigned');
+  }
+
+  static async getAcceptedTasks() {
+    console.log('🚨 FETCHING ACCEPTED TASKS 🚨');
+    return this.apiCall('/service-provider-tasks/tasks/accepted');
+  }
+
+  static async getRejectedTasks() {
+    console.log('🚨 FETCHING REJECTED TASKS 🚨');
+    return this.apiCall('/service-provider-tasks/tasks/rejected');
+  }
+
+  static async getCompletedTasks() {
+    console.log('🚨 FETCHING COMPLETED TASKS 🚨');
+    return this.apiCall('/service-provider-tasks/tasks/completed');
+  }
+
+  static async getTaskStatistics() {
+    console.log('🚨 FETCHING TASK STATISTICS 🚨');
+    return this.apiCall('/service-provider-tasks/tasks/statistics');
+  }
+
+  // Check if current user is a service provider
+  static async checkServiceProviderStatus() {
+    console.log('🚨 CHECKING SERVICE PROVIDER STATUS 🚨');
+    try {
+      // Try to get task statistics - if successful, user is a service provider
+      const response = await this.apiCall('/service-provider-tasks/tasks/statistics');
+      console.log('Service provider status check response:', response);
+      return {
+        success: true,
+        isServiceProvider: response.success,
+        message: response.success ? 'User is a service provider' : 'User is not a service provider'
+      };
+    } catch (error) {
+      console.log('Service provider status check error:', error);
+      return {
+        success: true,
+        isServiceProvider: false,
+        message: 'User is not a service provider'
+      };
+    }
+  }
+
+  // Task Action Endpoints
+  static async acceptTask(taskId) {
+    console.log('🚨 ACCEPTING TASK 🚨');
+    console.log('Task ID:', taskId);
+    return this.apiCall(`/service-provider-tasks/tasks/${taskId}/accept`, {
+      method: 'POST',
+    });
+  }
+
+  static async rejectTask(taskId, reason) {
+    console.log('🚨 REJECTING TASK 🚨');
+    console.log('Task ID:', taskId);
+    console.log('Reason:', reason);
+    return this.apiCall(`/service-provider-tasks/tasks/${taskId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  static async completeTask(taskId) {
+    console.log('🚨 COMPLETING TASK 🚨');
+    console.log('Task ID:', taskId);
+    return this.apiCall(`/service-provider-tasks/tasks/${taskId}/complete`, {
+      method: 'POST',
+    });
   }
 
   // GALLERY MANAGEMENT

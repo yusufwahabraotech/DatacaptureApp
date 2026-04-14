@@ -113,6 +113,10 @@ import AssignmentLocationDetailsScreen from './screens/AssignmentLocationDetails
 import CreateVerificationFromAssignmentScreen from './screens/CreateVerificationFromAssignmentScreen';
 import PendingVerificationAssignmentsScreen from './screens/PendingVerificationAssignmentsScreen';
 import ServiceBookingCalendarScreen from './screens/ServiceBookingCalendarScreen';
+import ServiceProviderManagementScreen from './screens/ServiceProviderManagementScreen';
+import ServiceProviderAssignmentScreen from './screens/ServiceProviderAssignmentScreen';
+import ServiceProviderHistoryScreen from './screens/ServiceProviderHistoryScreen';
+import ServiceProviderListScreen from './screens/ServiceProviderListScreen';
 import MySubscriptionScreen from './screens/MySubscriptionScreen';
 import BookingStep1SelectDayScreen from './screens/BookingStep1SelectDayScreen';
 import BookingStep2SelectTimeScreen from './screens/BookingStep2SelectTimeScreen';
@@ -122,6 +126,9 @@ import BookingStep5ConfirmScheduleScreen from './screens/BookingStep5ConfirmSche
 import BookingPaymentVerificationScreen from './screens/BookingPaymentVerificationScreen';
 import BookingPaymentSuccessScreen from './screens/BookingPaymentSuccessScreen';
 import BookingConfirmationScreen from './screens/BookingConfirmationScreen';
+import ServiceProviderTaskDashboardScreen from './screens/ServiceProviderTaskDashboardScreen';
+import AdminTaskNotificationsScreen from './screens/AdminTaskNotificationsScreen';
+import ServiceProviderProfileScreen from './screens/ServiceProviderProfileScreen';
 
 const Stack = createStackNavigator();
 
@@ -264,6 +271,10 @@ export default function App() {
         <Stack.Screen name="AssignmentLocationDetails" component={AssignmentLocationDetailsScreen} />
         <Stack.Screen name="CreateVerificationFromAssignment" component={CreateVerificationFromAssignmentScreen} />
         <Stack.Screen name="ServiceBookingCalendar" component={ServiceBookingCalendarScreen} />
+        <Stack.Screen name="ServiceProviderManagement" component={ServiceProviderManagementScreen} />
+        <Stack.Screen name="ServiceProviderAssignment" component={ServiceProviderAssignmentScreen} />
+        <Stack.Screen name="ServiceProviderHistory" component={ServiceProviderHistoryScreen} />
+        <Stack.Screen name="ServiceProviderList" component={ServiceProviderListScreen} />
         <Stack.Screen name="FieldAgentVerification" component={FieldAgentVerificationScreen} />
         <Stack.Screen name="CreateDataVerificationRole" component={CreateDataVerificationRoleScreen} />
         <Stack.Screen name="CreateVerification" component={CreateVerificationScreen} />
@@ -326,6 +337,9 @@ export default function App() {
         <Stack.Screen name="BookingPaymentVerification" component={BookingPaymentVerificationScreen} />
         <Stack.Screen name="BookingPaymentSuccess" component={BookingPaymentSuccessScreen} />
         <Stack.Screen name="BookingConfirmation" component={BookingConfirmationScreen} />
+        <Stack.Screen name="ServiceProviderTaskDashboard" component={ServiceProviderTaskDashboardScreen} />
+        <Stack.Screen name="AdminTaskNotifications" component={AdminTaskNotificationsScreen} />
+        <Stack.Screen name="ServiceProviderProfile" component={ServiceProviderProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>
