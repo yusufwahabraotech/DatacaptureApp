@@ -2762,6 +2762,28 @@ class ApiService {
     });
   }
 
+  // ADMIN NOTIFICATION SYSTEM
+  static async getAdminNotifications(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.unreadOnly) queryParams.append('unreadOnly', 'true');
+    const qs = queryParams.toString();
+    return this.apiCall(`/admin/notifications${qs ? '?' + qs : ''}`);
+  }
+
+  static async getAdminNotificationUnreadCount() {
+    return this.apiCall('/admin/notifications/unread-count');
+  }
+
+  static async markAdminNotificationRead(notificationId) {
+    return this.apiCall(`/admin/notifications/${notificationId}/read`, { method: 'PUT' });
+  }
+
+  static async markAllAdminNotificationsRead() {
+    return this.apiCall('/admin/notifications/read-all', { method: 'PUT' });
+  }
+
   // GALLERY MANAGEMENT
   static async getGalleryItems(filters = {}) {
     const params = new URLSearchParams({

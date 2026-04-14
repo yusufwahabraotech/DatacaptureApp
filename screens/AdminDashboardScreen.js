@@ -28,11 +28,18 @@ const AdminDashboardScreen = ({ navigation }) => {
   });
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notifUnreadCount, setNotifUnreadCount] = useState(0);
 
   useEffect(() => {
     fetchDashboardStats();
     fetchUserProfile();
+    fetchNotifUnreadCount();
   }, []);
+
+  const fetchNotifUnreadCount = async () => {
+    const res = await ApiService.getAdminNotificationUnreadCount();
+    if (res.success) setNotifUnreadCount(res.data.unreadCount || 0);
+  };
 
   const fetchDashboardStats = async () => {
     try {
@@ -338,9 +345,19 @@ const AdminDashboardScreen = ({ navigation }) => {
         <View style={styles.headerRight}>
           <TouchableOpacity 
             style={styles.notificationButton}
-            onPress={() => navigation.navigate('AdminTaskNotifications')}
+            onPress={() => {
+              navigation.navigate('AdminTaskNotifications');
+              setNotifUnreadCount(0);
+            }}
           >
             <Ionicons name="notifications" size={20} color="#7B2CBF" />
+            {notifUnreadCount > 0 && (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>
+                  {notifUnreadCount > 99 ? '99+' : notifUnreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.profileImage}
@@ -492,6 +509,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3E8FF',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: 'white',
+  },
+  notifBadgeText: {
+    color: 'white',
+    fontSize: 9,
+    fontWeight: '700',
   },
   profileImage: {
     width: 40,
