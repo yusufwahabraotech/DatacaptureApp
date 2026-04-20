@@ -131,7 +131,7 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
         currency: 'NGN',
         email: userProfile.email,
         name: userProfile.fullName || `${userProfile.firstName} ${userProfile.lastName}`,
-        redirect_url: 'https://your-app.com/payment-success',
+        redirect_url: 'https://frontend-datacap.vercel.app/payment/verify-verified-badge',
       };
 
       const response = await ApiService.initializeVerifiedBadgePayment(paymentData);
@@ -155,26 +155,36 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
     console.log('🌐 WebView navigation to:', url);
     
     // Check if the URL contains success parameters from Flutterwave
-    if (url.includes('status=successful') || url.includes('successful')) {
+    if (url.includes('frontend-datacap.vercel.app/payment/verify-verified-badge') || 
+        url.includes('status=successful') || 
+        url.includes('successful')) {
       console.log('✅ Payment successful, extracting transaction ID from URL');
       
-      // Try to extract transaction_id from URL parameters
-      const urlParams = new URLSearchParams(url.split('?')[1] || '');
-      const flutterwaveTransactionId = urlParams.get('transaction_id') || urlParams.get('tx_ref');
+      // Fix HTML entities in URL (convert &amp; to &)
+      const cleanUrl = url.replace(/&amp;/g, '&');
+      console.log('🔧 Cleaned URL:', cleanUrl);
       
-      console.log('🔍 Extracted Flutterwave transaction ID:', flutterwaveTransactionId);
-      console.log('🔍 Our transaction ref:', transactionId);
+      // Extract parameters from URL
+      const urlParams = new URLSearchParams(cleanUrl.split('?')[1] || '');
+      const txRef = urlParams.get('tx_ref'); // This is OUR reference (VES-xxx)
+      const flutterwaveTransactionId = urlParams.get('transaction_id'); // This is Flutterwave's internal ID
+      
+      console.log('🔍 Extracted tx_ref (OUR reference):', txRef);
+      console.log('🔍 Extracted transaction_id (Flutterwave internal):', flutterwaveTransactionId);
+      console.log('🔍 Our stored transaction ref:', transactionId);
       
       setShowPaymentModal(false);
       
-      // Use Flutterwave's transaction ID if available, otherwise use our reference
-      const verificationId = flutterwaveTransactionId || transactionId;
-      console.log('🔍 Using transaction ID for verification:', verificationId);
+      // IMPORTANT: Use tx_ref for verification, NOT transaction_id
+      // tx_ref is what we sent to Flutterwave and what they expect for verification
+      const verificationId = txRef || transactionId; // Fallback to stored reference if URL parsing fails
+      console.log('🔍 Using tx_ref for verification:', verificationId);
       
       if (verificationId) {
         await verifyPaymentWithId(verificationId);
       } else {
-        Alert.alert('Error', 'Could not extract transaction ID from payment response');
+        console.log('❌ No tx_ref found in URL or stored state');
+        Alert.alert('Error', 'Could not extract transaction reference from payment response');
       }
     } else if (url.includes('status=cancelled') || url.includes('status=failed') || url.includes('cancelled') || url.includes('failed')) {
       console.log('❌ Payment cancelled or failed');
