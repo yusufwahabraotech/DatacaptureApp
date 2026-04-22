@@ -130,6 +130,18 @@ import ServiceProviderTaskDashboardScreen from './screens/ServiceProviderTaskDas
 import AdminTaskNotificationsScreen from './screens/AdminTaskNotificationsScreen';
 import ServiceProviderProfileScreen from './screens/ServiceProviderProfileScreen';
 import ServiceProviderDebugScreen from './screens/ServiceProviderDebugScreen';
+import AdminBookingStep1SelectDayScreen from './screens/AdminBookingStep1SelectDayScreen';
+import AdminBookingStep2SelectTimeScreen from './screens/AdminBookingStep2SelectTimeScreen';
+import AdminBookingStep3EnterDetailsScreen from './screens/AdminBookingStep3EnterDetailsScreen';
+import AdminBookingStep4SelectLocationScreen from './screens/AdminBookingStep4SelectLocationScreen';
+import AdminBookingStep5ConfirmScheduleScreen from './screens/AdminBookingStep5ConfirmScheduleScreen';
+import AdminBookingSuccessScreen from './screens/AdminBookingSuccessScreen';
+import AdminBookingManagementScreen from './screens/AdminBookingManagementScreen';
+import AdminGalleryItemsScreen from './screens/AdminGalleryItemsScreen';
+import AdminGalleryItemDetailsScreen from './screens/AdminGalleryItemDetailsScreen';
+import AdminPurchaseFlowScreen from './screens/AdminPurchaseFlowScreen';
+import AdminPurchaseManagementScreen from './screens/AdminPurchaseManagementScreen';
+import AdminPurchaseSuccessScreen from './screens/AdminPurchaseSuccessScreen';
 
 const Stack = createStackNavigator();
 
@@ -342,6 +354,22 @@ export default function App() {
         <Stack.Screen name="AdminTaskNotifications" component={AdminTaskNotificationsScreen} />
         <Stack.Screen name="ServiceProviderProfile" component={ServiceProviderProfileScreen} />
         <Stack.Screen name="ServiceProviderDebug" component={ServiceProviderDebugScreen} />
+        
+        {/* Admin Booking Flow Screens */}
+        <Stack.Screen name="AdminBookingStep1SelectDay" component={AdminBookingStep1SelectDayScreen} />
+        <Stack.Screen name="AdminBookingStep2SelectTime" component={AdminBookingStep2SelectTimeScreen} />
+        <Stack.Screen name="AdminBookingStep3EnterDetails" component={AdminBookingStep3EnterDetailsScreen} />
+        <Stack.Screen name="AdminBookingStep4SelectLocation" component={AdminBookingStep4SelectLocationScreen} />
+        <Stack.Screen name="AdminBookingStep5ConfirmSchedule" component={AdminBookingStep5ConfirmScheduleScreen} />
+        <Stack.Screen name="AdminBookingSuccess" component={AdminBookingSuccessScreen} />
+        <Stack.Screen name="AdminBookingManagement" component={AdminBookingManagementScreen} />
+        
+        {/* Admin Gallery & Purchase Flow Screens */}
+        <Stack.Screen name="AdminGalleryItems" component={AdminGalleryItemsScreen} />
+        <Stack.Screen name="AdminGalleryItemDetails" component={AdminGalleryItemDetailsScreen} />
+        <Stack.Screen name="AdminPurchaseFlow" component={AdminPurchaseFlowScreen} />
+        <Stack.Screen name="AdminPurchaseManagement" component={AdminPurchaseManagementScreen} />
+        <Stack.Screen name="AdminPurchaseSuccess" component={AdminPurchaseSuccessScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

@@ -161,6 +161,17 @@ const GalleryManagementScreen = ({ navigation, route }) => {
           )}
         </View>
         <View style={styles.itemActions}>
+          {item.itemType === 'service' && (
+            <TouchableOpacity
+              style={styles.bookButton}
+              onPress={() => {
+                navigation.navigate('AdminBookingStep1SelectDay', { service: item });
+              }}
+            >
+              <Ionicons name="calendar" size={16} color="white" />
+              <Text style={styles.bookButtonText}>Book</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.editButton}
             onPress={() => {
@@ -357,6 +368,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
+    gap: 8,
+  },
+  bookButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#10B981',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    gap: 4,
+  },
+  bookButtonText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '600',
   },
   editButton: {
     padding: 8,

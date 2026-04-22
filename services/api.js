@@ -3726,6 +3726,190 @@ class ApiService {
     });
   }
 
+  // ADMIN BOOKING FLOW ENDPOINTS
+  // Step 1: Get Available Days for Admin Booking
+  static async getAdminBookingAvailableDays(month, year, serviceId = null) {
+    const params = new URLSearchParams({
+      month: month.toString(),
+      year: year.toString()
+    });
+    if (serviceId) params.append('serviceId', serviceId);
+    
+    return this.apiCall(`/admin/booking/available-days?${params}`);
+  }
+
+  // Step 2: Get Available Slots for Admin Booking
+  static async getAdminBookingAvailableSlots(date, serviceId = null) {
+    const params = new URLSearchParams({ date });
+    if (serviceId) params.append('serviceId', serviceId);
+    
+    return this.apiCall(`/admin/booking/available-slots?${params}`);
+  }
+
+  // Step 3: Get Organization Users for Customer Selection
+  static async getAdminBookingOrganizationUsers(search = '', page = 1, limit = 20) {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+    if (search) params.append('search', search);
+    
+    return this.apiCall(`/admin/booking/organization-users?${params}`);
+  }
+
+  // Step 3: Get Service Providers for Manual Assignment
+  static async getAdminBookingServiceProviders(serviceId = null) {
+    const params = new URLSearchParams();
+    if (serviceId) params.append('serviceId', serviceId);
+    
+    const queryString = params.toString();
+    const endpoint = `/admin/booking/service-providers${queryString ? '?' + queryString : ''}`;
+    return this.apiCall(endpoint);
+  }
+
+  // Step 4: Get Location Options for Admin Booking
+  static async getAdminBookingLocationOptions(serviceId = null) {
+    const params = new URLSearchParams();
+    if (serviceId) params.append('serviceId', serviceId);
+    
+    const queryString = params.toString();
+    const endpoint = `/admin/booking/location-options${queryString ? '?' + queryString : ''}`;
+    return this.apiCall(endpoint);
+  }
+
+  // Step 4: Validate Location Selection for Admin Booking
+  static async validateAdminBookingLocation(locationData) {
+    return this.apiCall('/admin/booking/validate-location', {
+      method: 'POST',
+      body: JSON.stringify(locationData),
+    });
+  }
+
+  // Step 5: Create Admin Booking
+  static async createAdminBooking(bookingData) {
+    console.log('🚨 ADMIN BOOKING CREATION DEBUG 🚨');
+    console.log('Booking data:', JSON.stringify(bookingData, null, 2));
+    
+    return this.apiCall('/admin/booking/create', {
+      method: 'POST',
+      body: JSON.stringify(bookingData),
+    });
+  }
+
+  // Admin Booking Management
+  static async getAdminBookings(page = 1, limit = 20, status = null, date = null) {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+    if (status) params.append('status', status);
+    if (date) params.append('date', date);
+    
+    return this.apiCall(`/admin/bookings?${params}`);
+  }
+
+  static async getAdminBookingById(bookingId) {
+    return this.apiCall(`/admin/bookings/${bookingId}`);
+  }
+
+  static async updateAdminBookingStatus(bookingId, status, rescheduleData = null) {
+    const requestBody = { status };
+    if (rescheduleData) {
+      requestBody.newDate = rescheduleData.newDate;
+      requestBody.newTime = rescheduleData.newTime;
+      requestBody.adminNotes = rescheduleData.adminNotes;
+    }
+    
+    return this.apiCall(`/admin/bookings/${bookingId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(requestBody),
+    });
+  }
+
+  static async assignAdminBookingProvider(bookingId, serviceProviderId) {
+    return this.apiCall(`/admin/bookings/${bookingId}/assign-provider`, {
+      method: 'POST',
+      body: JSON.stringify({ serviceProviderId }),
+    });
+  }
+
+  // ADMIN GALLERY ENDPOINTS
+  // Get Organization Gallery Items
+  static async getAdminGalleryItems(filters = {}) {
+    const params = new URLSearchParams({
+      page: filters.page || 1,
+      limit: filters.limit || 20,
+      ...(filters.itemType && { itemType: filters.itemType }),
+      ...(filters.categoryId && { categoryId: filters.categoryId }),
+      ...(filters.search && { search: filters.search }),
+      sortBy: filters.sortBy || 'createdAt',
+      sortOrder: filters.sortOrder || 'desc'
+    });
+
+    return this.apiCall(`/admin/gallery/items?${params}`);
+  }
+
+  // Get Single Gallery Item Details
+  static async getAdminGalleryItemDetails(itemId) {
+    return this.apiCall(`/admin/gallery/items/${itemId}`);
+  }
+
+  // Get Gallery Categories
+  static async getAdminGalleryCategories() {
+    return this.apiCall('/admin/gallery/categories');
+  }
+
+  // ADMIN PURCHASE FLOW ENDPOINTS
+  // Get Organization Users for Purchase
+  static async getAdminPurchaseOrganizationUsers(search = '', page = 1, limit = 20) {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+    if (search) params.append('search', search);
+    
+    return this.apiCall(`/admin/purchase/organization-users?${params}`);
+  }
+
+  // Get Pickup Centers
+  static async getAdminPurchasePickupCenters() {
+    return this.apiCall('/admin/purchase/pickup-centers');
+  }
+
+  // Create Admin Purchase
+  static async createAdminPurchase(purchaseData) {
+    console.log('🚨 ADMIN PURCHASE CREATION DEBUG 🚨');
+    console.log('Purchase data:', JSON.stringify(purchaseData, null, 2));
+    
+    return this.apiCall('/admin/purchase/create', {
+      method: 'POST',
+      body: JSON.stringify(purchaseData),
+    });
+  }
+
+  // Admin Purchase Management
+  static async getAdminPurchases(page = 1, limit = 20, status = null, date = null) {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+    if (status) params.append('status', status);
+    if (date) params.append('date', date);
+    
+    return this.apiCall(`/admin/purchases?${params}`);
+  }
+
+  static async getAdminPurchaseById(orderId) {
+    return this.apiCall(`/admin/purchases/${orderId}`);
+  }
+
+  static async updateAdminPurchaseStatus(orderId, statusData) {
+    return this.apiCall(`/admin/purchases/${orderId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(statusData),
+    });
+  }
+
 }
 
 export default ApiService;

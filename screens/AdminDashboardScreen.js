@@ -242,11 +242,25 @@ const AdminDashboardScreen = ({ navigation }) => {
       onPress: () => navigation.navigate('GalleryManagement')
     },
     {
+      title: 'Gallery Items',
+      subtitle: 'View & book/purchase items',
+      icon: 'grid',
+      moduleKey: ModuleAccessChecker.FREE_MODULES.GALLERY,
+      onPress: () => navigation.navigate('AdminGalleryItems')
+    },
+    {
       title: 'Orders Management',
       subtitle: 'View and manage customer orders',
       icon: 'receipt',
       moduleKey: ModuleAccessChecker.FREE_MODULES.ORDERS,
       onPress: () => navigation.navigate('OrganizationOrders')
+    },
+    {
+      title: 'Admin Purchases',
+      subtitle: 'Manage admin-created purchases',
+      icon: 'bag',
+      moduleKey: ModuleAccessChecker.FREE_MODULES.ORDERS,
+      onPress: () => navigation.navigate('AdminPurchaseManagement')
     },
     {
       title: 'Bank Details',
@@ -278,6 +292,13 @@ const AdminDashboardScreen = ({ navigation }) => {
         ModuleAccessChecker.SUBSCRIPTION_MODULES.USER_MANAGEMENT,
         () => navigation.navigate('ServiceProviderManagement')
       )
+    },
+    {
+      title: 'Admin Bookings',
+      subtitle: 'Manage admin-created bookings',
+      icon: 'calendar-outline',
+      moduleKey: ModuleAccessChecker.FREE_MODULES.ORDERS,
+      onPress: () => navigation.navigate('AdminBookingManagement')
     }
   ];
 
