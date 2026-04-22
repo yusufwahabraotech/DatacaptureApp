@@ -108,6 +108,7 @@ const ServiceProviderListScreen = ({ navigation }) => {
   const renderServiceProvider = ({ item }) => {
     const fullName = `${item.firstName} ${item.lastName}`;
     const info = item.serviceProviderInfo || {};
+    const rating = info.rating || 0;
     const totalBookings = info.totalBookings || 0;
     const completedBookings = info.completedBookings || 0;
     const completionRate = totalBookings > 0 ? ((completedBookings / totalBookings) * 100).toFixed(1) : 0;
@@ -157,13 +158,16 @@ const ServiceProviderListScreen = ({ navigation }) => {
         {/* Performance Metrics */}
         <View style={styles.metricsSection}>
           <View style={styles.metricItem}>
-            <Text style={styles.metricValue}>{totalBookings}</Text>
-            <Text style={styles.metricLabel}>Total Bookings</Text>
+            <View style={styles.ratingContainer}>
+              <Ionicons name="star" size={16} color="#F59E0B" />
+              <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+            </View>
+            <Text style={styles.metricLabel}>Rating</Text>
           </View>
           
           <View style={styles.metricItem}>
-            <Text style={styles.metricValue}>{completedBookings}</Text>
-            <Text style={styles.metricLabel}>Completed</Text>
+            <Text style={styles.metricValue}>{totalBookings}</Text>
+            <Text style={styles.metricLabel}>Total Bookings</Text>
           </View>
           
           <View style={styles.metricItem}>
@@ -474,6 +478,16 @@ const styles = StyleSheet.create({
   },
   metricItem: {
     alignItems: 'center',
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  ratingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
   },
   metricValue: {
     fontSize: 16,

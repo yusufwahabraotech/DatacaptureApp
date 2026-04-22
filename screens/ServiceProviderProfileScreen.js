@@ -818,11 +818,6 @@ const styles = StyleSheet.create({
   metricItem: {
     alignItems: 'center',
   },
-  metricsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-  },
   metricValue: {
     fontSize: 20,
     fontWeight: '700',
