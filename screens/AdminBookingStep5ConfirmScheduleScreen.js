@@ -24,18 +24,54 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
     try {
       setLoading(true);
 
+      console.log('🚨 ADMIN BOOKING CREATION DEBUG 🚨');
+      console.log('Service:', JSON.stringify(service, null, 2));
+      console.log('Booking Details:', JSON.stringify(bookingDetails, null, 2));
+      console.log('Customer Type:', bookingDetails.customerType);
+      console.log('Customer Object:', JSON.stringify(bookingDetails.customer, null, 2));
+      
+      // Determine the correct customer ID field
+      let customerId = null;
+      if (bookingDetails.customerType === 'existing' && bookingDetails.customer) {
+        // Try different possible ID fields
+        customerId = bookingDetails.customer.id || 
+                    bookingDetails.customer._id || 
+                    bookingDetails.customer.userId || 
+                    bookingDetails.customer.customUserId;
+        
+        console.log('🚨 CUSTOMER ID RESOLUTION 🚨');
+        console.log('Customer ID fields check:');
+        console.log('- id:', bookingDetails.customer.id);
+        console.log('- _id:', bookingDetails.customer._id);
+        console.log('- userId:', bookingDetails.customer.userId);
+        console.log('- customUserId:', bookingDetails.customer.customUserId);
+        console.log('Final customerId:', customerId);
+        
+        // Validate that we have a customerId for existing customers
+        if (!customerId) {
+          console.log('❌ MISSING CUSTOMER ID FOR EXISTING CUSTOMER ❌');
+          Alert.alert('Error', 'Customer ID is missing. Please select the customer again.');
+          setLoading(false);
+          return;
+        }
+      }
+
       const bookingPayload = {
         serviceId: service._id,
         serviceName: service.name,
         servicePrice: service.actualAmount || service.priceInDollars || 0,
         
         customerType: bookingDetails.customerType,
+        
+        // Handle customer data based on type - EXACTLY as backend expects
         ...(bookingDetails.customerType === 'existing' ? {
-          customerId: bookingDetails.customer.id,
+          // For existing customers: ONLY send customerId, backend will fetch name/email
+          customerId: customerId,
         } : {
+          // For external customers: send name, email, phone (no customerId)
           customerName: bookingDetails.customer.name,
           customerEmail: bookingDetails.customer.email,
-          customerPhone: bookingDetails.customer.phone,
+          customerPhone: bookingDetails.customer.phone || '',
         }),
         
         primarySlot: selectedSlot.datetime,
@@ -46,14 +82,44 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
         
         // Admin Extensions
         ...(bookingDetails.serviceProvider && {
-          serviceProviderId: bookingDetails.serviceProvider.id,
+          serviceProviderId: bookingDetails.serviceProvider.id || bookingDetails.serviceProvider._id,
         }),
         paymentType,
         upfrontPercentage,
         processPayment,
       };
 
+      console.log('🚨 FINAL BOOKING PAYLOAD 🚨');
+      console.log('Payload:', JSON.stringify(bookingPayload, null, 2));
+      
+      // Validate payload structure matches backend expectations
+      if (bookingDetails.customerType === 'existing') {
+        console.log('✅ EXISTING CUSTOMER PAYLOAD VALIDATION:');
+        console.log('- customerType:', bookingPayload.customerType);
+        console.log('- customerId:', bookingPayload.customerId);
+        console.log('- Has customerName (should be undefined):', bookingPayload.customerName);
+        console.log('- Has customerEmail (should be undefined):', bookingPayload.customerEmail);
+        
+        if (bookingPayload.customerName || bookingPayload.customerEmail) {
+          console.log('⚠️ WARNING: Existing customer payload contains name/email fields!');
+        }
+      } else {
+        console.log('✅ EXTERNAL CUSTOMER PAYLOAD VALIDATION:');
+        console.log('- customerType:', bookingPayload.customerType);
+        console.log('- customerName:', bookingPayload.customerName);
+        console.log('- customerEmail:', bookingPayload.customerEmail);
+        console.log('- customerPhone:', bookingPayload.customerPhone);
+        console.log('- Has customerId (should be undefined):', bookingPayload.customerId);
+        
+        if (bookingPayload.customerId) {
+          console.log('⚠️ WARNING: External customer payload contains customerId field!');
+        }
+      }
+
       const response = await ApiService.createAdminBooking(bookingPayload);
+
+      console.log('🚨 BOOKING CREATION RESPONSE 🚨');
+      console.log('Response:', JSON.stringify(response, null, 2));
 
       if (response.success) {
         if (processPayment && response.data.booking.paymentLink) {
@@ -69,10 +135,12 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
           });
         }
       } else {
+        console.log('❌ BOOKING CREATION FAILED ❌');
+        console.log('Error message:', response.message);
         Alert.alert('Booking Failed', response.message || 'Failed to create booking');
       }
     } catch (error) {
-      console.error('Error creating booking:', error);
+      console.error('❌ BOOKING CREATION ERROR:', error);
       Alert.alert('Error', 'Failed to create booking. Please try again.');
     } finally {
       setLoading(false);

@@ -2554,7 +2554,17 @@ class ApiService {
   static async getAssignedServiceProviders() {
     console.log('🚨 FETCHING ASSIGNED SERVICE PROVIDERS WITH DETAILED INFO 🚨');
     
-    return this.apiCall('/service-provider-assignment/detailed');
+    const response = await this.apiCall('/service-provider-assignment/detailed');
+    
+    console.log('🚨 ASSIGNED SERVICE PROVIDERS RESPONSE 🚨');
+    console.log('Response success:', response.success);
+    console.log('Response data keys:', response.data ? Object.keys(response.data) : 'No data');
+    if (response.success && response.data?.serviceProviders) {
+      console.log('Service providers count:', response.data.serviceProviders.length);
+      console.log('Sample provider:', response.data.serviceProviders[0] ? JSON.stringify(response.data.serviceProviders[0], null, 2) : 'No providers');
+    }
+    
+    return response;
   }
 
   // Get Available Users for Assignment (not yet service providers)
@@ -3748,23 +3758,79 @@ class ApiService {
 
   // Step 3: Get Organization Users for Customer Selection
   static async getAdminBookingOrganizationUsers(search = '', page = 1, limit = 20) {
+    console.log('🚨 GET ADMIN BOOKING ORGANIZATION USERS API CALL 🚨');
+    console.log('Search:', search);
+    console.log('Page:', page);
+    console.log('Limit:', limit);
+    
     const params = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString()
     });
     if (search) params.append('search', search);
     
-    return this.apiCall(`/admin/booking/organization-users?${params}`);
+    const endpoint = `/admin/booking/organization-users?${params}`;
+    console.log('API endpoint:', endpoint);
+    console.log('Full URL:', `${BASE_URL}${endpoint}`);
+    
+    const response = await this.apiCall(endpoint);
+    
+    console.log('🚨 ORGANIZATION USERS API RESPONSE 🚨');
+    console.log('Response success:', response.success);
+    console.log('Response message:', response.message);
+    
+    if (response.success && response.data && response.data.users) {
+      console.log('Users count:', response.data.users.length);
+      if (response.data.users.length > 0) {
+        console.log('Sample user structure:', JSON.stringify(response.data.users[0], null, 2));
+        console.log('User ID fields in sample:');
+        const sampleUser = response.data.users[0];
+        console.log('- id:', sampleUser.id);
+        console.log('- _id:', sampleUser._id);
+        console.log('- userId:', sampleUser.userId);
+        console.log('- customUserId:', sampleUser.customUserId);
+      }
+    }
+    
+    console.log('Full response:', JSON.stringify(response, null, 2));
+    
+    return response;
   }
 
   // Step 3: Get Service Providers for Manual Assignment
   static async getAdminBookingServiceProviders(serviceId = null) {
+    console.log('🚨 GET ADMIN BOOKING SERVICE PROVIDERS API CALL 🚨');
+    console.log('Service ID parameter:', serviceId);
+    
     const params = new URLSearchParams();
     if (serviceId) params.append('serviceId', serviceId);
     
     const queryString = params.toString();
     const endpoint = `/admin/booking/service-providers${queryString ? '?' + queryString : ''}`;
-    return this.apiCall(endpoint);
+    
+    console.log('API endpoint:', endpoint);
+    console.log('Full URL:', `${BASE_URL}${endpoint}`);
+    
+    const response = await this.apiCall(endpoint);
+    
+    console.log('🚨 SERVICE PROVIDERS API RESPONSE 🚨');
+    console.log('Response success:', response.success);
+    console.log('Response message:', response.message);
+    console.log('Response data keys:', response.data ? Object.keys(response.data) : 'No data');
+    
+    if (response.success && response.data) {
+      console.log('Providers array:', response.data.providers);
+      console.log('Providers count:', response.data.providers?.length || 0);
+      console.log('Total providers:', response.data.total);
+      
+      if (response.data.providers && response.data.providers.length > 0) {
+        console.log('Sample provider structure:', JSON.stringify(response.data.providers[0], null, 2));
+      }
+    }
+    
+    console.log('Full response:', JSON.stringify(response, null, 2));
+    
+    return response;
   }
 
   // Step 4: Get Location Options for Admin Booking

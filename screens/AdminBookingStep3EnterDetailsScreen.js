@@ -65,15 +65,68 @@ const AdminBookingStep3EnterDetailsScreen = ({ navigation, route }) => {
 
   const loadServiceProviders = async () => {
     try {
+      console.log('🚨 LOADING SERVICE PROVIDERS DEBUG 🚨');
+      console.log('Service ID:', service._id);
+      console.log('Service object:', JSON.stringify(service, null, 2));
+      
+      // Call the correct admin booking service providers endpoint
       const response = await ApiService.getAdminBookingServiceProviders(
         service._id
       );
 
-      if (response.success) {
-        setServiceProviders(response.data.providers || []);
+      console.log('🚨 BOOKING SERVICE PROVIDERS RESPONSE 🚨');
+      console.log('Response:', JSON.stringify(response, null, 2));
+      
+      if (response.success && response.data && response.data.providers) {
+        console.log('🚨 SETTING SERVICE PROVIDERS FROM BACKEND 🚨');
+        console.log('Providers from backend:', response.data.providers);
+        console.log('Providers count:', response.data.providers.length);
+        console.log('Total from backend:', response.data.total);
+        
+        // The backend response structure matches exactly what we expect
+        // Each provider has: id, providerId, name, email, phoneNumber, specialties, rating, completedTasks, etc.
+        setServiceProviders(response.data.providers);
+      } else {
+        console.log('❌ SERVICE PROVIDERS LOAD FAILED ❌');
+        console.log('Error message:', response.message);
+        console.log('Response success:', response.success);
+        console.log('Response data:', response.data);
+        
+        // If the main endpoint fails, try the fallback
+        console.log('🚨 TRYING FALLBACK SERVICE PROVIDERS ENDPOINT 🚨');
+        const fallbackResponse = await ApiService.getAssignedServiceProviders();
+        console.log('Fallback response:', JSON.stringify(fallbackResponse, null, 2));
+        
+        if (fallbackResponse.success && fallbackResponse.data?.serviceProviders) {
+          // Transform the fallback data structure to match what the booking screen expects
+          const providers = fallbackResponse.data.serviceProviders.map(provider => ({
+            id: provider.userId,
+            providerId: provider.customUserId || provider.userId,
+            name: `${provider.firstName} ${provider.lastName}`,
+            email: provider.email,
+            phoneNumber: provider.phoneNumber || '',
+            specialties: provider.serviceProviderInfo?.specialties || [],
+            rating: provider.serviceProviderInfo?.rating || 0,
+            completedTasks: provider.serviceProviderInfo?.completedBookings || 0,
+            totalBookings: provider.serviceProviderInfo?.totalBookings || 0,
+            isAvailable: provider.serviceProviderInfo?.isAvailable || true,
+            availabilityHours: provider.serviceProviderInfo?.availabilityHours || '',
+            maxConcurrentBookings: provider.serviceProviderInfo?.maxConcurrentBookings || 1,
+            serviceProviderFee: provider.serviceProviderInfo?.serviceProviderFee || 0,
+            serviceProviderFeeCurrency: provider.serviceProviderInfo?.serviceProviderFeeCurrency || 'NGN',
+            serviceProviderFeeFrequency: provider.serviceProviderInfo?.serviceProviderFeeFrequency || 'per-service'
+          }));
+          
+          console.log('🚨 TRANSFORMED FALLBACK PROVIDERS 🚨');
+          console.log('Providers:', JSON.stringify(providers, null, 2));
+          setServiceProviders(providers);
+        } else {
+          setServiceProviders([]);
+        }
       }
     } catch (error) {
-      console.error('Error loading service providers:', error);
+      console.error('❌ SERVICE PROVIDERS LOAD ERROR:', error);
+      setServiceProviders([]);
     }
   };
 
@@ -140,24 +193,44 @@ const AdminBookingStep3EnterDetailsScreen = ({ navigation, route }) => {
     </TouchableOpacity>
   );
 
-  const renderProviderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.modalItem}
-      onPress={() => {
-        setSelectedProvider(item);
-        setShowProviderModal(false);
-      }}
-    >
-      <View style={styles.modalItemContent}>
-        <Text style={styles.modalItemName}>{item.name}</Text>
-        <Text style={styles.modalItemEmail}>{item.email}</Text>
-        <View style={styles.providerMeta}>
-          <Text style={styles.providerRating}>⭐ {item.rating || 'N/A'}</Text>
-          <Text style={styles.providerTasks}>{item.completedTasks || 0} tasks</Text>
+  const renderProviderItem = ({ item }) => {
+    console.log('🚨 RENDERING PROVIDER ITEM 🚨');
+    console.log('Provider item:', JSON.stringify(item, null, 2));
+    console.log('Provider name:', item.name);
+    console.log('Provider email:', item.email);
+    console.log('Provider ID:', item.id);
+    console.log('Provider providerId:', item.providerId);
+    
+    return (
+      <TouchableOpacity
+        style={styles.modalItem}
+        onPress={() => {
+          console.log('🚨 PROVIDER SELECTED 🚨');
+          console.log('Selected provider:', JSON.stringify(item, null, 2));
+          setSelectedProvider(item);
+          setShowProviderModal(false);
+        }}
+      >
+        <View style={styles.modalItemContent}>
+          <Text style={styles.modalItemName}>{item.name || 'No Name'}</Text>
+          <Text style={styles.modalItemEmail}>{item.email || 'No Email'}</Text>
+          {item.providerId && (
+            <Text style={styles.modalItemId}>ID: {item.providerId}</Text>
+          )}
+          {item.phoneNumber && (
+            <Text style={styles.modalItemEmail}>Phone: {item.phoneNumber}</Text>
+          )}
+          <View style={styles.providerMeta}>
+            <Text style={styles.providerRating}>⭐ {item.rating || 'N/A'}</Text>
+            <Text style={styles.providerTasks}>{item.completedTasks || 0} tasks</Text>
+          </View>
+          {item.specialties && item.specialties.length > 0 && (
+            <Text style={styles.modalItemEmail}>Specialties: {item.specialties.join(', ')}</Text>
+          )}
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -295,10 +368,22 @@ const AdminBookingStep3EnterDetailsScreen = ({ navigation, route }) => {
             <View style={styles.selectedProviderInfo}>
               <Text style={styles.selectedProviderName}>{selectedProvider.name}</Text>
               <Text style={styles.selectedProviderEmail}>{selectedProvider.email}</Text>
+              {selectedProvider.providerId && (
+                <Text style={styles.selectedProviderEmail}>ID: {selectedProvider.providerId}</Text>
+              )}
+              {selectedProvider.phoneNumber && (
+                <Text style={styles.selectedProviderEmail}>Phone: {selectedProvider.phoneNumber}</Text>
+              )}
               <View style={styles.providerMeta}>
                 <Text style={styles.providerRating}>⭐ {selectedProvider.rating || 'N/A'}</Text>
                 <Text style={styles.providerTasks}>{selectedProvider.completedTasks || 0} completed tasks</Text>
               </View>
+              {selectedProvider.specialties && selectedProvider.specialties.length > 0 && (
+                <Text style={styles.selectedProviderEmail}>Specialties: {selectedProvider.specialties.join(', ')}</Text>
+              )}
+              {selectedProvider.availabilityHours && (
+                <Text style={styles.selectedProviderEmail}>Hours: {selectedProvider.availabilityHours}</Text>
+              )}
             </View>
           )}
         </View>
@@ -377,11 +462,43 @@ const AdminBookingStep3EnterDetailsScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
           
+          {/* Debug Info */}
+          <View style={{ padding: 10, backgroundColor: '#f0f0f0' }}>
+            <Text style={{ fontSize: 12, color: '#666' }}>Debug: {serviceProviders.length} providers loaded</Text>
+            <Text style={{ fontSize: 12, color: '#666' }}>Service ID: {service._id}</Text>
+          </View>
+          
           <FlatList
             data={serviceProviders}
             renderItem={renderProviderItem}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.id || item._id || Math.random().toString()}
             style={styles.modalList}
+            ListEmptyComponent={() => (
+              <View style={{ padding: 20, alignItems: 'center' }}>
+                <Ionicons name="people-outline" size={48} color="#CCCCCC" style={{ marginBottom: 16 }} />
+                <Text style={{ color: '#666', fontSize: 16, textAlign: 'center', marginBottom: 8 }}>No service providers available</Text>
+                <Text style={{ color: '#999', fontSize: 14, textAlign: 'center', marginBottom: 16 }}>You need to assign service providers first before you can select them for bookings.</Text>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#7B2CBF',
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 8,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8
+                  }}
+                  onPress={() => {
+                    setShowProviderModal(false);
+                    // Navigate to service provider management
+                    navigation.navigate('ServiceProviderManagement');
+                  }}
+                >
+                  <Ionicons name="person-add" size={16} color="white" />
+                  <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>Setup Service Providers</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           />
         </SafeAreaView>
       </Modal>
