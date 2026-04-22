@@ -3,13 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  FlatList,
   TextInput,
-  Modal,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,46 +17,41 @@ import ApiService from '../services/api';
 const ServiceProviderListScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [providers, setProviders] = useState([]);
-  const [filteredProviders, setFilteredProviders] = useState([]);
+  const [serviceProviders, setServiceProviders] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'active', 'inactive'
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState(null);
-  const [showProviderModal, setShowProviderModal] = useState(false);
+  const [filteredProviders, setFilteredProviders] = useState([]);
 
   useEffect(() => {
-    loadProviders();
+    loadServiceProviders();
   }, []);
 
   useEffect(() => {
     filterProviders();
-  }, [providers, searchQuery, filterStatus]);
+  }, [searchQuery, serviceProviders]);
 
-  const loadProviders = async (isRefresh = false) => {
+  const loadServiceProviders = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
-      console.log('🚨 LOADING SERVICE PROVIDERS 🚨');
+      console.log('🚨 LOADING SERVICE PROVIDERS LIST WITH DETAILED INFO 🚨');
       
-      const response = await ApiService.getServiceProviderUsers();
+      const response = await ApiService.getAssignedServiceProviders();
       
       if (response.success) {
-        // Filter only service providers
-        const serviceProviders = response.data.users.filter(user => user.isServiceProvider);
-        setProviders(serviceProviders);
-        console.log('✅ Service providers loaded:', serviceProviders.length);
+        console.log('✅ Service providers loaded:', response.data.serviceProviders?.length || 0);
+        console.log('📊 Sample provider data:', response.data.serviceProviders?.[0] ? JSON.stringify(response.data.serviceProviders[0], null, 2) : 'No providers');
+        setServiceProviders(response.data.serviceProviders || []);
       } else {
-        console.log('❌ Failed to load providers:', response.message);
-        Alert.alert('Error', response.message || 'Failed to load service providers');
+        console.log('❌ Failed to load service providers:', response.message);
+        setServiceProviders([]);
       }
     } catch (error) {
-      console.error('Error loading providers:', error);
-      Alert.alert('Error', 'Failed to load service providers');
+      console.error('Error loading service providers:', error);
+      setServiceProviders([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -65,331 +59,160 @@ const ServiceProviderListScreen = ({ navigation }) => {
   };
 
   const filterProviders = () => {
-    let filtered = [...providers];
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(provider => 
-        provider.firstName.toLowerCase().includes(query) ||
-        provider.lastName.toLowerCase().includes(query) ||
-        provider.email.toLowerCase().includes(query) ||
-        (provider.customUserId && provider.customUserId.toLowerCase().includes(query)) ||
-        (provider.serviceProviderInfo?.specialties && 
-         provider.serviceProviderInfo.specialties.some(specialty => 
-           specialty.toLowerCase().includes(query)
-         ))
-      );
-    }
-
-    // Apply status filter
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(provider => {
-        const status = provider.serviceProviderInfo?.status || 'inactive';
-        return status === filterStatus;
+    if (!searchQuery.trim()) {
+      setFilteredProviders(serviceProviders);
+    } else {
+      const filtered = serviceProviders.filter(provider => {
+        const fullName = `${provider.firstName} ${provider.lastName}`.toLowerCase();
+        const email = provider.email.toLowerCase();
+        const specialties = provider.serviceProviderInfo?.specialties?.join(' ').toLowerCase() || '';
+        const query = searchQuery.toLowerCase();
+        
+        return fullName.includes(query) || 
+               email.includes(query) || 
+               specialties.includes(query);
       });
+      setFilteredProviders(filtered);
     }
-
-    setFilteredProviders(filtered);
   };
 
-  const handleProviderPress = (provider) => {
-    setSelectedProvider(provider);
-    setShowProviderModal(true);
+  const onRefresh = async () => {
+    await loadServiceProviders(true);
   };
 
-  const handleToggleProviderStatus = async (provider) => {
-    const currentStatus = provider.serviceProviderInfo?.status || 'inactive';
-    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-    
-    Alert.alert(
-      'Change Provider Status',
-      `Are you sure you want to ${newStatus === 'active' ? 'activate' : 'deactivate'} ${provider.firstName} ${provider.lastName}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: newStatus === 'active' ? 'Activate' : 'Deactivate',
-          style: newStatus === 'active' ? 'default' : 'destructive',
-          onPress: async () => {
-            try {
-              // This would be a new API endpoint to update provider status
-              // For now, we'll just show a success message and reload
-              Alert.alert('Success', `Provider status updated to ${newStatus}`);
-              loadProviders();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to update provider status');
-            }
-          }
-        }
-      ]
-    );
+  const getCurrencySymbol = (currency) => {
+    const symbols = {
+      'USD': '$',
+      'NGN': '₦',
+      'GBP': '£',
+      'EUR': '€',
+      'CAD': 'C$',
+      'AUD': 'A$',
+      'JPY': '¥',
+      'CHF': 'CHF',
+      'CNY': '¥',
+      'INR': '₹'
+    };
+    return symbols[currency] || currency;
   };
 
-  const renderProviderItem = ({ item }) => {
-    const providerInfo = item.serviceProviderInfo || {};
-    const isActive = providerInfo.status === 'active';
-    
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active': return '#10B981';
+      case 'inactive': return '#EF4444';
+      case 'busy': return '#F59E0B';
+      default: return '#6B7280';
+    }
+  };
+
+  const renderServiceProvider = ({ item }) => {
+    const fullName = `${item.firstName} ${item.lastName}`;
+    const info = item.serviceProviderInfo || {};
+    const totalBookings = info.totalBookings || 0;
+    const completedBookings = info.completedBookings || 0;
+    const completionRate = totalBookings > 0 ? ((completedBookings / totalBookings) * 100).toFixed(1) : 0;
+
     return (
-      <TouchableOpacity
+      <TouchableOpacity 
         style={styles.providerCard}
-        onPress={() => handleProviderPress(item)}
+        onPress={() => navigation.navigate('ServiceProviderProfile', { 
+          providerId: item.userId,
+          providerData: item 
+        })}
       >
+        {/* Header with name and status */}
         <View style={styles.providerHeader}>
-          <View style={styles.providerInfo}>
-            <Text style={styles.providerName}>
-              {item.firstName} {item.lastName}
-            </Text>
+          <View style={styles.providerNameSection}>
+            <Text style={styles.providerName}>{fullName}</Text>
             <Text style={styles.providerEmail}>{item.email}</Text>
-            {item.customUserId && (
-              <Text style={styles.customUserId}>ID: {item.customUserId}</Text>
-            )}
+            <Text style={styles.providerId}>ID: {info.providerId || item.customUserId}</Text>
           </View>
-          
-          <View style={styles.providerStatus}>
-            <View style={[
-              styles.statusBadge,
-              { backgroundColor: isActive ? '#10B981' : '#EF4444' }
-            ]}>
-              <Text style={styles.statusText}>
-                {isActive ? 'ACTIVE' : 'INACTIVE'}
-              </Text>
+          <View style={styles.statusSection}>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(info.status) }]}>
+              <Text style={styles.statusText}>{info.status || 'active'}</Text>
             </View>
-            
-            <TouchableOpacity
-              style={styles.statusToggle}
-              onPress={() => handleToggleProviderStatus(item)}
-            >
-              <Ionicons 
-                name={isActive ? 'toggle' : 'toggle-outline'} 
-                size={24} 
-                color={isActive ? '#10B981' : '#9CA3AF'} 
-              />
-            </TouchableOpacity>
+            {info.isAvailable && (
+              <View style={styles.availableBadge}>
+                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                <Text style={styles.availableText}>Available</Text>
+              </View>
+            )}
           </View>
         </View>
 
-        <View style={styles.providerDetails}>
-          {/* Statistics */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{providerInfo.totalBookings || 0}</Text>
-              <Text style={styles.statLabel}>Total Bookings</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{providerInfo.completedBookings || 0}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{providerInfo.rating || 0}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
+        {/* Specialties */}
+        {info.specialties && info.specialties.length > 0 && (
+          <View style={styles.specialtiesSection}>
+            <Text style={styles.sectionLabel}>Specialties:</Text>
+            <View style={styles.specialtiesList}>
+              {info.specialties.map((specialty, index) => (
+                <View key={index} style={styles.specialtyTag}>
+                  <Text style={styles.specialtyText}>{specialty}</Text>
+                </View>
+              ))}
             </View>
           </View>
+        )}
 
-          {/* Specialties */}
-          {providerInfo.specialties && providerInfo.specialties.length > 0 && (
-            <View style={styles.specialtiesContainer}>
-              <Text style={styles.specialtiesLabel}>Specialties:</Text>
-              <View style={styles.specialtiesList}>
-                {providerInfo.specialties.slice(0, 3).map((specialty, index) => (
-                  <View key={index} style={styles.specialtyTag}>
-                    <Text style={styles.specialtyText}>{specialty}</Text>
-                  </View>
-                ))}
-                {providerInfo.specialties.length > 3 && (
-                  <View style={styles.moreSpecialtiesTag}>
-                    <Text style={styles.moreSpecialtiesText}>
-                      +{providerInfo.specialties.length - 3} more
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
+        {/* Performance Metrics */}
+        <View style={styles.metricsSection}>
+          <View style={styles.metricItem}>
+            <Text style={styles.metricValue}>{totalBookings}</Text>
+            <Text style={styles.metricLabel}>Total Bookings</Text>
+          </View>
+          
+          <View style={styles.metricItem}>
+            <Text style={styles.metricValue}>{completedBookings}</Text>
+            <Text style={styles.metricLabel}>Completed</Text>
+          </View>
+          
+          <View style={styles.metricItem}>
+            <Text style={styles.metricValue}>{completionRate}%</Text>
+            <Text style={styles.metricLabel}>Completion</Text>
+          </View>
+        </View>
 
-          {/* Provider ID */}
-          {providerInfo.providerId && (
-            <View style={styles.providerIdContainer}>
-              <Text style={styles.providerIdLabel}>Provider ID:</Text>
-              <Text style={styles.providerIdValue}>{providerInfo.providerId}</Text>
+        {/* Fee Information */}
+        {info.serviceProviderFee && (
+          <View style={styles.feeSection}>
+            <View style={styles.feeHeader}>
+              <Text style={styles.feeName}>{info.serviceProviderFeeName}</Text>
+              <Text style={styles.feeAmount}>
+                {getCurrencySymbol(info.serviceProviderFeeCurrency)}{info.serviceProviderFee} 
+                <Text style={styles.feeFrequency}>/{info.serviceProviderFeeFrequency}</Text>
+              </Text>
             </View>
-          )}
+            {info.availabilityHours && (
+              <Text style={styles.availabilityHours}>
+                <Ionicons name="time" size={14} color="#6B7280" /> {info.availabilityHours}
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* Action Arrow */}
+        <View style={styles.actionArrow}>
+          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
         </View>
       </TouchableOpacity>
     );
   };
 
-  const renderFilterModal = () => (
-    <Modal
-      visible={showFilterModal}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={() => setShowFilterModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.filterModalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Filter Providers</Text>
-            <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-              <Ionicons name="close" size={24} color="#1F2937" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.filterOptions}>
-            <Text style={styles.filterSectionTitle}>Status</Text>
-            
-            {[
-              { key: 'all', label: 'All Providers', count: providers.length },
-              { key: 'active', label: 'Active', count: providers.filter(p => p.serviceProviderInfo?.status === 'active').length },
-              { key: 'inactive', label: 'Inactive', count: providers.filter(p => p.serviceProviderInfo?.status !== 'active').length },
-            ].map((option) => (
-              <TouchableOpacity
-                key={option.key}
-                style={[
-                  styles.filterOption,
-                  filterStatus === option.key && styles.selectedFilterOption
-                ]}
-                onPress={() => {
-                  setFilterStatus(option.key);
-                  setShowFilterModal(false);
-                }}
-              >
-                <Text style={[
-                  styles.filterOptionText,
-                  filterStatus === option.key && styles.selectedFilterOptionText
-                ]}>
-                  {option.label} ({option.count})
-                </Text>
-                {filterStatus === option.key && (
-                  <Ionicons name="checkmark" size={20} color="#7B2CBF" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const renderProviderModal = () => (
-    <Modal
-      visible={showProviderModal}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={() => setShowProviderModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.providerModalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Provider Details</Text>
-            <TouchableOpacity onPress={() => setShowProviderModal(false)}>
-              <Ionicons name="close" size={24} color="#1F2937" />
-            </TouchableOpacity>
-          </View>
-
-          {selectedProvider && (
-            <View style={styles.providerModalBody}>
-              <View style={styles.providerModalHeader}>
-                <Text style={styles.providerModalName}>
-                  {selectedProvider.firstName} {selectedProvider.lastName}
-                </Text>
-                <View style={[
-                  styles.statusBadge,
-                  { backgroundColor: selectedProvider.serviceProviderInfo?.status === 'active' ? '#10B981' : '#EF4444' }
-                ]}>
-                  <Text style={styles.statusText}>
-                    {selectedProvider.serviceProviderInfo?.status?.toUpperCase() || 'INACTIVE'}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.providerModalDetails}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Email:</Text>
-                  <Text style={styles.detailValue}>{selectedProvider.email}</Text>
-                </View>
-                
-                {selectedProvider.customUserId && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Custom ID:</Text>
-                    <Text style={styles.detailValue}>{selectedProvider.customUserId}</Text>
-                  </View>
-                )}
-                
-                {selectedProvider.serviceProviderInfo?.providerId && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Provider ID:</Text>
-                    <Text style={styles.detailValue}>{selectedProvider.serviceProviderInfo.providerId}</Text>
-                  </View>
-                )}
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>System Role:</Text>
-                  <Text style={styles.detailValue}>{selectedProvider.systemRole}</Text>
-                </View>
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Member Since:</Text>
-                  <Text style={styles.detailValue}>
-                    {new Date(selectedProvider.createdAt).toLocaleDateString()}
-                  </Text>
-                </View>
-              </View>
-
-              {selectedProvider.serviceProviderInfo?.specialties && (
-                <View style={styles.modalSpecialties}>
-                  <Text style={styles.modalSpecialtiesTitle}>Specialties</Text>
-                  <View style={styles.modalSpecialtiesList}>
-                    {selectedProvider.serviceProviderInfo.specialties.map((specialty, index) => (
-                      <View key={index} style={styles.modalSpecialtyTag}>
-                        <Text style={styles.modalSpecialtyText}>{specialty}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              <View style={styles.modalStats}>
-                <Text style={styles.modalStatsTitle}>Performance Statistics</Text>
-                <View style={styles.modalStatsGrid}>
-                  <View style={styles.modalStatItem}>
-                    <Text style={styles.modalStatValue}>
-                      {selectedProvider.serviceProviderInfo?.totalBookings || 0}
-                    </Text>
-                    <Text style={styles.modalStatLabel}>Total Bookings</Text>
-                  </View>
-                  <View style={styles.modalStatItem}>
-                    <Text style={styles.modalStatValue}>
-                      {selectedProvider.serviceProviderInfo?.completedBookings || 0}
-                    </Text>
-                    <Text style={styles.modalStatLabel}>Completed</Text>
-                  </View>
-                  <View style={styles.modalStatItem}>
-                    <Text style={styles.modalStatValue}>
-                      {selectedProvider.serviceProviderInfo?.rating || 0}
-                    </Text>
-                    <Text style={styles.modalStatLabel}>Rating</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
-
   const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="people-outline" size={64} color="#E5E7EB" />
-      <Text style={styles.emptyTitle}>No Service Providers</Text>
+    <View style={styles.emptyState}>
+      <Ionicons name="people-outline" size={64} color="#CCCCCC" />
+      <Text style={styles.emptyTitle}>No Service Providers Found</Text>
       <Text style={styles.emptyMessage}>
-        {searchQuery ? 'No providers match your search criteria.' : 'No service providers have been assigned yet.'}
+        {searchQuery 
+          ? 'No providers match your search criteria. Try adjusting your search terms.' 
+          : 'No service providers have been assigned yet. Get started by assigning your first service provider.'}
       </Text>
       {!searchQuery && (
         <TouchableOpacity
           style={styles.assignButton}
           onPress={() => navigation.navigate('ServiceProviderAssignment')}
         >
+          <Ionicons name="person-add" size={20} color="#FFFFFF" />
           <Text style={styles.assignButtonText}>Assign Service Providers</Text>
         </TouchableOpacity>
       )}
@@ -408,7 +231,7 @@ const ServiceProviderListScreen = ({ navigation }) => {
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#7B2CBF" />
-          <Text style={styles.loadingText}>Loading providers...</Text>
+          <Text style={styles.loadingText}>Loading service providers...</Text>
         </View>
       </SafeAreaView>
     );
@@ -421,64 +244,59 @@ const ServiceProviderListScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Service Providers</Text>
-        <TouchableOpacity onPress={() => loadProviders(true)}>
-          <Ionicons name="refresh" size={24} color="#7B2CBF" />
+        <TouchableOpacity onPress={() => navigation.navigate('ServiceProviderAssignment')}>
+          <Ionicons name="person-add" size={24} color="#7B2CBF" />
         </TouchableOpacity>
       </View>
 
-      {/* Search and Filter */}
+      {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color="#9CA3AF" />
-          <TextInput
-            style={styles.searchInput}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search providers..."
-            placeholderTextColor="#9CA3AF"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          )}
+        <Ionicons name="search" size={20} color="#9CA3AF" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name, email, or specialty..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Summary Stats */}
+      {serviceProviders.length > 0 && (
+        <View style={styles.summaryContainer}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryNumber}>{serviceProviders.length}</Text>
+            <Text style={styles.summaryLabel}>Total Providers</Text>
+          </View>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryNumber}>
+              {serviceProviders.filter(p => p.isServiceProvider).length}
+            </Text>
+            <Text style={styles.summaryLabel}>Active</Text>
+          </View>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryNumber}>
+              {serviceProviders.filter(p => p.systemRole === 'SERVICE_PROVIDER').length}
+            </Text>
+            <Text style={styles.summaryLabel}>Assigned</Text>
+          </View>
         </View>
-        
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setShowFilterModal(true)}
-        >
-          <Ionicons name="filter" size={20} color="#7B2CBF" />
-          {filterStatus !== 'all' && <View style={styles.filterIndicator} />}
-        </TouchableOpacity>
-      </View>
+      )}
 
-      {/* Results Summary */}
-      <View style={styles.summaryContainer}>
-        <Text style={styles.summaryText}>
-          {filteredProviders.length} of {providers.length} providers
-          {searchQuery && ` matching "${searchQuery}"`}
-          {filterStatus !== 'all' && ` (${filterStatus})`}
-        </Text>
-      </View>
-
+      {/* Service Providers List */}
       <FlatList
         data={filteredProviders}
-        renderItem={renderProviderItem}
+        renderItem={renderServiceProvider}
         keyExtractor={(item) => item.userId}
-        contentContainerStyle={styles.providersList}
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={() => loadProviders(true)} 
-          />
-        }
+        contentContainerStyle={styles.listContainer}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={renderEmptyState}
         showsVerticalScrollIndicator={false}
       />
-
-      {renderFilterModal()}
-      {renderProviderModal()}
     </SafeAreaView>
   );
 };
@@ -515,58 +333,47 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginTop: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    gap: 12,
-  },
-  searchInputContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 10,
+    marginLeft: 12,
     fontSize: 16,
     color: '#1F2937',
   },
-  filterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  filterIndicator: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#7B2CBF',
-  },
   summaryContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    flexDirection: 'row',
     backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  summaryText: {
-    fontSize: 14,
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#7B2CBF',
+  },
+  summaryLabel: {
+    fontSize: 12,
     color: '#6B7280',
+    marginTop: 4,
   },
-  providersList: {
+  listContainer: {
     padding: 16,
   },
   providerCard: {
@@ -574,6 +381,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -586,116 +395,137 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 12,
   },
-  providerInfo: {
+  providerNameSection: {
     flex: 1,
   },
   providerName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 4,
   },
   providerEmail: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 2,
+    marginTop: 2,
   },
-  customUserId: {
+  providerId: {
     fontSize: 12,
     color: '#9CA3AF',
+    marginTop: 2,
   },
-  providerStatus: {
+  statusSection: {
     alignItems: 'flex-end',
-    gap: 8,
   },
   statusBadge: {
-    borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 4,
   },
   statusText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '600',
     color: 'white',
+    textTransform: 'capitalize',
   },
-  statusToggle: {
-    padding: 4,
-  },
-  providerDetails: {
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    paddingTop: 12,
-  },
-  statsContainer: {
+  availableBadge: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    alignItems: 'center',
+    gap: 4,
+  },
+  availableText: {
+    fontSize: 12,
+    color: '#10B981',
+    fontWeight: '500',
+  },
+  specialtiesSection: {
     marginBottom: 12,
   },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  statLabel: {
-    fontSize: 10,
-    color: '#6B7280',
-  },
-  specialtiesContainer: {
-    marginBottom: 8,
-  },
-  specialtiesLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6B7280',
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
     marginBottom: 6,
   },
   specialtiesList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
+    gap: 6,
   },
   specialtyTag: {
     backgroundColor: '#F3E8FF',
-    borderRadius: 12,
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: '#7B2CBF',
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   specialtyText: {
-    fontSize: 10,
+    fontSize: 12,
     color: '#7B2CBF',
     fontWeight: '500',
   },
-  moreSpecialtiesTag: {
-    backgroundColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  moreSpecialtiesText: {
-    fontSize: 10,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  providerIdContainer: {
+  metricsSection: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#F3F4F6',
+    marginBottom: 12,
+  },
+  metricItem: {
     alignItems: 'center',
-    gap: 8,
   },
-  providerIdLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  providerIdValue: {
-    fontSize: 12,
+  metricValue: {
+    fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
   },
-  emptyContainer: {
+  metricLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  feeSection: {
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  feeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  feeName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    flex: 1,
+  },
+  feeAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#10B981',
+  },
+  feeFrequency: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#6B7280',
+  },
+  availabilityHours: {
+    fontSize: 12,
+    color: '#6B7280',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionArrow: {
+    position: 'absolute',
+    right: 16,
+    top: '50%',
+    marginTop: -10,
+  },
+  emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -704,178 +534,30 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#374151',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyMessage: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 32,
+    lineHeight: 24,
     marginBottom: 24,
   },
   assignButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#7B2CBF',
-    borderRadius: 8,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
   },
   assignButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: 'white',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  filterModalContent: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    width: '100%',
-    maxWidth: 400,
-  },
-  providerModalContent: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    width: '100%',
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  filterOptions: {
-    padding: 20,
-  },
-  filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 12,
-  },
-  filterOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  selectedFilterOption: {
-    backgroundColor: '#F3E8FF',
-  },
-  filterOptionText: {
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  selectedFilterOptionText: {
-    color: '#7B2CBF',
-    fontWeight: '500',
-  },
-  providerModalBody: {
-    padding: 20,
-  },
-  providerModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  providerModalName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  providerModalDetails: {
-    marginBottom: 20,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1F2937',
-  },
-  modalSpecialties: {
-    marginBottom: 20,
-  },
-  modalSpecialtiesTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 12,
-  },
-  modalSpecialtiesList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  modalSpecialtyTag: {
-    backgroundColor: '#F3E8FF',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#7B2CBF',
-  },
-  modalSpecialtyText: {
-    fontSize: 12,
-    color: '#7B2CBF',
-    fontWeight: '500',
-  },
-  modalStats: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 16,
-  },
-  modalStatsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 12,
-  },
-  modalStatsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  modalStatItem: {
-    alignItems: 'center',
-  },
-  modalStatValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  modalStatLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
   },
 });
 

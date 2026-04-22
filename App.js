@@ -129,6 +129,7 @@ import BookingConfirmationScreen from './screens/BookingConfirmationScreen';
 import ServiceProviderTaskDashboardScreen from './screens/ServiceProviderTaskDashboardScreen';
 import AdminTaskNotificationsScreen from './screens/AdminTaskNotificationsScreen';
 import ServiceProviderProfileScreen from './screens/ServiceProviderProfileScreen';
+import ServiceProviderDebugScreen from './screens/ServiceProviderDebugScreen';
 
 const Stack = createStackNavigator();
 
@@ -340,6 +341,7 @@ export default function App() {
         <Stack.Screen name="ServiceProviderTaskDashboard" component={ServiceProviderTaskDashboardScreen} />
         <Stack.Screen name="AdminTaskNotifications" component={AdminTaskNotificationsScreen} />
         <Stack.Screen name="ServiceProviderProfile" component={ServiceProviderProfileScreen} />
+        <Stack.Screen name="ServiceProviderDebug" component={ServiceProviderDebugScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

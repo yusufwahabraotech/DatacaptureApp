@@ -4,297 +4,523 @@ import {
   Text,
   StyleSheet,
   FlatList,
+  TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  TouchableOpacity,
+  TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
 
 const ServiceProviderHistoryScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [history, setHistory] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredHistory, setFilteredHistory] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     loadHistory();
   }, []);
 
-  const loadHistory = async (page = 1, append = false) => {
+  useEffect(() => {
+    filterHistory();
+  }, [searchQuery, history]);
+
+  const loadHistory = async (page = 1, isRefresh = false, isLoadMore = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else if (isLoadMore) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
-      if (!append) setLoading(true);
-
+      console.log('🚨 LOADING SERVICE PROVIDER HISTORY 🚨');
+      console.log('Page:', page);
+      
       const response = await ApiService.getServiceProviderHistory(page, 20);
-
-      if (response.success && response.data) {
-        const newHistory = response.data.history || [];
+      
+      if (response.success) {
+        console.log('✅ History loaded:', response.data.history?.length || 0);
         
-        if (append) {
-          setHistory(prev => [...prev, ...newHistory]);
+        if (page === 1 || isRefresh) {
+          setHistory(response.data.history || []);
         } else {
-          setHistory(newHistory);
+          setHistory(prev => [...prev, ...(response.data.history || [])]);
         }
-
-        setHasMore(newHistory.length === 20);
+        
+        setPagination(response.data.pagination);
         setCurrentPage(page);
+      } else {
+        console.log('❌ Failed to load history:', response.message);
+        if (page === 1 || isRefresh) {
+          setHistory([]);
+        }
       }
     } catch (error) {
-      console.log('Error loading history:', error);
+      console.error('Error loading history:', error);
+      if (page === 1 || isRefresh) {
+        setHistory([]);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const filterHistory = () => {
+    if (!searchQuery.trim()) {
+      setFilteredHistory(history);
+    } else {
+      const filtered = history.filter(item => {
+        const userName = item.userName?.toLowerCase() || '';
+        const userEmail = item.userEmail?.toLowerCase() || '';
+        const adminName = item.adminName?.toLowerCase() || '';
+        const action = item.action?.toLowerCase() || '';
+        const query = searchQuery.toLowerCase();
+        
+        return userName.includes(query) || 
+               userEmail.includes(query) || 
+               adminName.includes(query) ||
+               action.includes(query);
+      });
+      setFilteredHistory(filtered);
     }
   };
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await loadHistory(1, false);
-    setRefreshing(false);
+    setCurrentPage(1);
+    await loadHistory(1, true);
   };
 
-  const loadMore = () => {
-    if (hasMore && !loading) {
-      loadHistory(currentPage + 1, true);
+  const loadMoreHistory = async () => {
+    if (pagination && pagination.hasNext && !loadingMore) {
+      const nextPage = currentPage + 1;
+      await loadHistory(nextPage, false, true);
     }
   };
 
   const getActionIcon = (action) => {
     switch (action) {
-      case 'assigned':
-        return { name: 'add-circle', color: '#4CAF50' };
-      case 'removed':
-        return { name: 'remove-circle', color: '#FF6B6B' };
-      case 'created':
-        return { name: 'create', color: '#2196F3' };
-      default:
-        return { name: 'information-circle', color: '#666666' };
+      case 'assigned': return 'person-add';
+      case 'unassigned': return 'person-remove';
+      case 'updated': return 'create';
+      default: return 'information-circle';
+    }
+  };
+
+  const getActionColor = (action) => {
+    switch (action) {
+      case 'assigned': return '#10B981';
+      case 'unassigned': return '#EF4444';
+      case 'updated': return '#F59E0B';
+      default: return '#6B7280';
     }
   };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+    const now = new Date();
+    const diffInHours = (now - date) / (1000 * 60 * 60);
+
+    if (diffInHours < 1) {
+      const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+      return `${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''} ago`;
+    } else if (diffInHours < 24) {
+      const hours = Math.floor(diffInHours);
+      return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    } else if (diffInHours < 168) { // 7 days
+      const days = Math.floor(diffInHours / 24);
+      return `${days} day${days !== 1 ? 's' : ''} ago`;
+    } else {
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
   };
 
   const renderHistoryItem = ({ item }) => {
-    const icon = getActionIcon(item.action);
-    
+    const actionColor = getActionColor(item.action);
+    const actionIcon = getActionIcon(item.action);
+
     return (
-      <View style={styles.historyCard}>
-        <View style={styles.iconContainer}>
-          <Ionicons name={icon.name} size={24} color={icon.color} />
+      <View style={styles.historyItem}>
+        <View style={[styles.actionIcon, { backgroundColor: actionColor }]}>
+          <Ionicons name={actionIcon} size={20} color="white" />
         </View>
         
         <View style={styles.historyContent}>
-          <Text style={styles.historyTitle}>{item.description}</Text>
+          <View style={styles.historyHeader}>
+            <Text style={styles.historyTitle}>
+              <Text style={styles.userName}>{item.userName}</Text>
+              <Text style={styles.actionText}> was {item.action}</Text>
+              {item.action === 'assigned' && ' as service provider'}
+            </Text>
+            <Text style={styles.historyTime}>{formatDate(item.timestamp)}</Text>
+          </View>
           
-          {item.userDetails && (
-            <View style={styles.userDetails}>
-              <Text style={styles.userName}>{item.userDetails.fullName}</Text>
-              <Text style={styles.userEmail}>{item.userDetails.email}</Text>
+          <Text style={styles.userEmail}>{item.userEmail}</Text>
+          
+          {item.specialties && item.specialties.length > 0 && (
+            <View style={styles.specialtiesContainer}>
+              <Text style={styles.specialtiesLabel}>Specialties: </Text>
+              <Text style={styles.specialtiesText}>{item.specialties.join(', ')}</Text>
             </View>
           )}
           
-          <View style={styles.historyMeta}>
-            <Text style={styles.performedBy}>
-              By: {item.performedBy?.fullName || 'System'}
-            </Text>
-            <Text style={styles.timestamp}>{formatDate(item.createdAt)}</Text>
+          {item.previousRole && item.newRole && (
+            <View style={styles.roleChangeContainer}>
+              <Text style={styles.roleChangeText}>
+                Role changed from <Text style={styles.roleText}>{item.previousRole}</Text> to{' '}
+                <Text style={styles.roleText}>{item.newRole}</Text>
+              </Text>
+            </View>
+          )}
+          
+          <View style={styles.adminInfo}>
+            <Ionicons name="person" size={14} color="#6B7280" />
+            <Text style={styles.adminText}>by {item.adminName}</Text>
           </View>
         </View>
       </View>
     );
   };
 
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="time-outline" size={64} color="#CCCCCC" />
+      <Text style={styles.emptyTitle}>No Assignment History</Text>
+      <Text style={styles.emptyMessage}>
+        {searchQuery 
+          ? 'No history matches your search criteria.' 
+          : 'No service provider assignments have been made yet. Start by assigning your first service provider to see activity here.'}
+      </Text>
+      {!searchQuery && (
+        <TouchableOpacity
+          style={styles.getStartedButton}
+          onPress={() => navigation.navigate('ServiceProviderAssignment')}
+        >
+          <Ionicons name="person-add" size={20} color="#FFFFFF" />
+          <Text style={styles.getStartedButtonText}>Assign First Provider</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
   const renderFooter = () => {
-    if (!hasMore) return null;
+    if (!loadingMore) return null;
     
     return (
       <View style={styles.footerLoader}>
         <ActivityIndicator size="small" color="#7B2CBF" />
-        <Text style={styles.footerText}>Loading more...</Text>
+        <Text style={styles.footerLoaderText}>Loading more...</Text>
       </View>
     );
   };
 
-  if (loading && history.length === 0) {
+  if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#7B2CBF" />
-        <Text style={styles.loadingText}>Loading history...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Assignment History</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#7B2CBF" />
+          <Text style={styles.loadingText}>Loading history...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#333333" />
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Assignment History</Text>
-        <View style={styles.placeholder} />
+        <TouchableOpacity onPress={onRefresh}>
+          <Ionicons name="refresh" size={24} color="#7B2CBF" />
+        </TouchableOpacity>
       </View>
 
-      {history.length > 0 ? (
-        <FlatList
-          data={history}
-          renderItem={renderHistoryItem}
-          keyExtractor={(item) => item._id || item.id || `history-${Date.now()}-${Math.random()}`}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.1}
-          ListFooterComponent={renderFooter}
-          contentContainerStyle={styles.listContainer}
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#9CA3AF" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name, email, admin, or action..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
         />
-      ) : (
-        <View style={styles.emptyState}>
-          <Ionicons name="time-outline" size={64} color="#CCCCCC" />
-          <Text style={styles.emptyTitle}>No History Available</Text>
-          <Text style={styles.emptyText}>
-            Service provider assignment history will appear here
-          </Text>
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Summary Stats */}
+      {pagination && pagination.totalRecords > 0 && (
+        <View style={styles.summaryContainer}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryNumber}>{pagination.totalRecords}</Text>
+            <Text style={styles.summaryLabel}>Total Records</Text>
+          </View>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryNumber}>{pagination.currentPage}</Text>
+            <Text style={styles.summaryLabel}>Current Page</Text>
+          </View>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryNumber}>{pagination.totalPages}</Text>
+            <Text style={styles.summaryLabel}>Total Pages</Text>
+          </View>
         </View>
       )}
-    </View>
+
+      {/* History List */}
+      <FlatList
+        data={filteredHistory}
+        renderItem={renderHistoryItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContainer}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ListEmptyComponent={renderEmptyState}
+        ListFooterComponent={renderFooter}
+        onEndReached={loadMoreHistory}
+        onEndReachedThreshold={0.1}
+        showsVerticalScrollIndicator={false}
+      />
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8F9FA',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666666',
+    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  backButton: {
-    padding: 8,
+    borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333333',
+    fontWeight: '600',
+    color: '#1F2937',
   },
-  placeholder: {
-    width: 40,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  summaryContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#7B2CBF',
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
   },
   listContainer: {
     padding: 16,
   },
-  historyCard: {
+  historyItem: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'white',
+    borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    borderRadius: 12,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  iconContainer: {
-    marginRight: 12,
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 2,
+    marginRight: 12,
   },
   historyContent: {
     flex: 1,
   },
-  historyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 8,
-  },
-  userDetails: {
-    backgroundColor: '#F8F9FA',
-    padding: 8,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  userName: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333333',
-  },
-  userEmail: {
-    fontSize: 12,
-    color: '#666666',
-    marginTop: 2,
-  },
-  historyMeta: {
+  historyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    marginBottom: 4,
   },
-  performedBy: {
+  historyTitle: {
+    fontSize: 16,
+    color: '#1F2937',
+    flex: 1,
+    marginRight: 8,
+  },
+  userName: {
+    fontWeight: '600',
+    color: '#7B2CBF',
+  },
+  actionText: {
+    fontWeight: '400',
+    color: '#374151',
+  },
+  historyTime: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  userEmail: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  specialtiesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 8,
+  },
+  specialtiesLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  specialtiesText: {
     fontSize: 12,
     color: '#7B2CBF',
     fontWeight: '500',
   },
-  timestamp: {
+  roleChangeContainer: {
+    backgroundColor: '#F3F4F6',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  roleChangeText: {
     fontSize: 12,
-    color: '#999999',
+    color: '#374151',
+  },
+  roleText: {
+    fontWeight: '600',
+    color: '#7B2CBF',
+  },
+  adminInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  adminText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyMessage: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
   },
   footerLoader: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 20,
+    gap: 8,
   },
-  footerText: {
-    marginLeft: 8,
+  footerLoaderText: {
     fontSize: 14,
-    color: '#666666',
+    color: '#6B7280',
   },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
+  getStartedButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333333',
+    backgroundColor: '#7B2CBF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
     marginTop: 16,
-    marginBottom: 8,
+    gap: 8,
   },
-  emptyText: {
+  getStartedButtonText: {
     fontSize: 16,
-    color: '#666666',
-    textAlign: 'center',
-    lineHeight: 24,
+    fontWeight: '600',
+    color: 'white',
   },
 });
 

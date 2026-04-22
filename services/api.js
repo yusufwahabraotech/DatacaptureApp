@@ -2536,18 +2536,25 @@ class ApiService {
     });
   }
 
-  // Get Users for Service Provider Assignment
+  // Get Service Provider Module
+  static async getServiceProviderModule() {
+    console.log('🚨 FETCHING SERVICE PROVIDER MODULE 🚨');
+    
+    return this.apiCall('/service-provider-assignment/module');
+  }
+
+  // Get All Organization Users (with Service Provider Status)
   static async getServiceProviderUsers() {
-    console.log('🚨 FETCHING USERS FOR SERVICE PROVIDER ASSIGNMENT 🚨');
+    console.log('🚨 FETCHING ALL ORGANIZATION USERS WITH SERVICE PROVIDER STATUS 🚨');
     
     return this.apiCall('/service-provider-assignment/users');
   }
 
-  // Get Only Assigned Service Providers
+  // Get Only Assigned Service Providers with Detailed Information
   static async getAssignedServiceProviders() {
-    console.log('🚨 FETCHING ASSIGNED SERVICE PROVIDERS 🚨');
+    console.log('🚨 FETCHING ASSIGNED SERVICE PROVIDERS WITH DETAILED INFO 🚨');
     
-    return this.apiCall('/service-provider-assignment/users/service-providers');
+    return this.apiCall('/service-provider-assignment/detailed');
   }
 
   // Get Available Users for Assignment (not yet service providers)
@@ -2581,6 +2588,26 @@ class ApiService {
     console.log('Page:', page, 'Limit:', limit);
     
     return this.apiCall(`/service-provider-assignment/history?page=${page}&limit=${limit}`);
+  }
+
+  // Get Detailed Service Provider Information
+  static async getServiceProviderDetails(userId) {
+    console.log('🚨 FETCHING DETAILED SERVICE PROVIDER INFO 🚨');
+    console.log('User ID:', userId);
+    
+    return this.apiCall(`/service-provider-assignment/service-provider/${userId}`);
+  }
+
+  // Update Service Provider Details
+  static async updateServiceProviderDetails(userId, updateData) {
+    console.log('🚨 UPDATING SERVICE PROVIDER DETAILS 🚨');
+    console.log('User ID:', userId);
+    console.log('Update data:', JSON.stringify(updateData, null, 2));
+    
+    return this.apiCall(`/service-provider-assignment/service-provider/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updateData),
+    });
   }
 
   // LOCATION OPTIONS (New endpoints for city regions and hierarchy)

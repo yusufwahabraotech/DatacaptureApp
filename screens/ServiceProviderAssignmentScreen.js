@@ -13,6 +13,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import ApiService from '../services/api';
 
 const ServiceProviderAssignmentScreen = ({ navigation }) => {
@@ -24,6 +25,43 @@ const ServiceProviderAssignmentScreen = ({ navigation }) => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showServiceProviderModal, setShowServiceProviderModal] = useState(false);
+  const [serviceProviderData, setServiceProviderData] = useState({
+    specialties: [],
+    availabilityHours: '',
+    serviceProviderFeeName: '',
+    serviceProviderFeeDescription: '',
+    serviceProviderFee: '',
+    serviceProviderFeeCurrency: 'USD',
+    serviceProviderFeeFrequency: 'hourly'
+  });
+  const [currentSpecialty, setCurrentSpecialty] = useState('');
+
+  // Frequency options for the dropdown
+  const frequencyOptions = [
+    { label: 'Hourly', value: 'hourly' },
+    { label: 'Daily', value: 'daily' },
+    { label: 'Weekly', value: 'weekly' },
+    { label: 'Monthly', value: 'monthly' },
+    { label: 'Per Project', value: 'per project' },
+    { label: 'Per Task', value: 'per task' },
+    { label: 'Quarterly', value: 'quarterly' },
+    { label: 'Annually', value: 'annually' },
+  ];
+
+  // Currency options
+  const currencyOptions = [
+    { label: 'US Dollar ($)', value: 'USD' },
+    { label: 'Nigerian Naira (₦)', value: 'NGN' },
+    { label: 'British Pound (£)', value: 'GBP' },
+    { label: 'Euro (€)', value: 'EUR' },
+    { label: 'Canadian Dollar (C$)', value: 'CAD' },
+    { label: 'Australian Dollar (A$)', value: 'AUD' },
+    { label: 'Japanese Yen (¥)', value: 'JPY' },
+    { label: 'Swiss Franc (CHF)', value: 'CHF' },
+    { label: 'Chinese Yuan (¥)', value: 'CNY' },
+    { label: 'Indian Rupee (₹)', value: 'INR' },
+  ];
 
   useEffect(() => {
     loadData();
@@ -76,32 +114,92 @@ const ServiceProviderAssignmentScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const handleBulkAssignment = async () => {
+  const handleProceedToServiceProviderSetup = () => {
     if (selectedUsers.length === 0) {
       Alert.alert('Error', 'Please select at least one user to assign');
       return;
     }
+    setShowAssignModal(false);
+    setShowServiceProviderModal(true);
+  };
+
+  const addSpecialty = () => {
+    if (currentSpecialty.trim() && !serviceProviderData.specialties.includes(currentSpecialty.trim())) {
+      setServiceProviderData(prev => ({
+        ...prev,
+        specialties: [...prev.specialties, currentSpecialty.trim()]
+      }));
+      setCurrentSpecialty('');
+    }
+  };
+
+  const removeSpecialty = (specialty) => {
+    setServiceProviderData(prev => ({
+      ...prev,
+      specialties: prev.specialties.filter(s => s !== specialty)
+    }));
+  };
+
+  const handleBulkAssignment = async () => {
+    // Validate required fields
+    if (serviceProviderData.specialties.length === 0) {
+      Alert.alert('Error', 'Please add at least one specialty');
+      return;
+    }
+    if (!serviceProviderData.availabilityHours.trim()) {
+      Alert.alert('Error', 'Please enter availability hours');
+      return;
+    }
+    if (!serviceProviderData.serviceProviderFeeName.trim()) {
+      Alert.alert('Error', 'Please enter a fee name');
+      return;
+    }
+    if (!serviceProviderData.serviceProviderFeeDescription.trim()) {
+      Alert.alert('Error', 'Please enter a fee description');
+      return;
+    }
+    if (!serviceProviderData.serviceProviderFee.trim() || isNaN(parseFloat(serviceProviderData.serviceProviderFee))) {
+      Alert.alert('Error', 'Please enter a valid fee amount');
+      return;
+    }
 
     try {
-      console.log('🚨 BULK ASSIGNMENT DEBUG 🚨');
+      console.log('🚨 BULK SERVICE PROVIDER ASSIGNMENT DEBUG 🚨');
       console.log('Selected users:', selectedUsers);
+      console.log('Service provider data:', serviceProviderData);
       
-      // Backend expects userAssignments with userId and isServiceProvider
+      // Complete payload structure as per specification
       const assignmentData = {
         userAssignments: selectedUsers.map(userId => ({
           userId: userId,
-          isServiceProvider: true
+          isServiceProvider: true,
+          specialties: serviceProviderData.specialties,
+          availabilityHours: serviceProviderData.availabilityHours.trim(),
+          serviceProviderFeeName: serviceProviderData.serviceProviderFeeName.trim(),
+          serviceProviderFeeDescription: serviceProviderData.serviceProviderFeeDescription.trim(),
+          serviceProviderFee: parseFloat(serviceProviderData.serviceProviderFee),
+          serviceProviderFeeCurrency: serviceProviderData.serviceProviderFeeCurrency,
+          serviceProviderFeeFrequency: serviceProviderData.serviceProviderFeeFrequency
         }))
       };
       
-      console.log('Assignment data being sent:', JSON.stringify(assignmentData, null, 2));
+      console.log('Complete assignment payload:', JSON.stringify(assignmentData, null, 2));
 
       const response = await ApiService.bulkAssignServiceProviders(assignmentData);
 
       if (response.success) {
-        Alert.alert('Success', `Successfully assigned ${selectedUsers.length} service provider(s)`);
-        setShowAssignModal(false);
+        Alert.alert('Success', `Successfully assigned ${selectedUsers.length} service provider(s) with complete details`);
+        setShowServiceProviderModal(false);
         setSelectedUsers([]);
+        setServiceProviderData({
+          specialties: [],
+          availabilityHours: '',
+          serviceProviderFeeName: '',
+          serviceProviderFeeDescription: '',
+          serviceProviderFee: '',
+          serviceProviderFeeCurrency: 'USD',
+          serviceProviderFeeFrequency: 'hourly'
+        });
         await loadData(); // Refresh data
       } else {
         Alert.alert('Error', response.message || 'Failed to assign service providers');
@@ -345,11 +443,186 @@ const ServiceProviderAssignmentScreen = ({ navigation }) => {
             
             <TouchableOpacity
               style={[styles.assignButton, selectedUsers.length === 0 && styles.disabledButton]}
-              onPress={handleBulkAssignment}
+              onPress={handleProceedToServiceProviderSetup}
               disabled={selectedUsers.length === 0}
             >
               <Text style={styles.assignButtonText}>
-                Assign {selectedUsers.length > 0 ? `(${selectedUsers.length})` : ''}
+                Next: Setup Details {selectedUsers.length > 0 ? `(${selectedUsers.length})` : ''}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Service Provider Setup Modal */}
+      <Modal
+        visible={showServiceProviderModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => {
+              setShowServiceProviderModal(false);
+              setShowAssignModal(true);
+            }}>
+              <Ionicons name="arrow-back" size={24} color="#333333" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Service Provider Details</Text>
+            <TouchableOpacity onPress={() => {
+              setShowServiceProviderModal(false);
+              setShowAssignModal(false);
+              setSelectedUsers([]);
+              setServiceProviderData({
+                specialties: [],
+                availabilityHours: '',
+                serviceProviderFeeName: '',
+                serviceProviderFeeDescription: '',
+                serviceProviderFee: '',
+                serviceProviderFeeCurrency: 'USD',
+                serviceProviderFeeFrequency: 'hourly'
+              });
+            }}>
+              <Ionicons name="close" size={24} color="#333333" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.serviceProviderFormContainer}>
+            <Text style={styles.serviceProviderFormTitle}>
+              Setting up service provider details for {selectedUsers.length} selected user(s)
+            </Text>
+
+            {/* Specialties */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Specialties *</Text>
+              <View style={styles.specialtyInputContainer}>
+                <TextInput
+                  style={styles.specialtyInput}
+                  placeholder="Add a specialty (e.g., Hair Cutting)"
+                  value={currentSpecialty}
+                  onChangeText={setCurrentSpecialty}
+                />
+                <TouchableOpacity style={styles.addSpecialtyButton} onPress={addSpecialty}>
+                  <Ionicons name="add" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.specialtiesList}>
+                {serviceProviderData.specialties.map((specialty, index) => (
+                  <View key={index} style={styles.specialtyTag}>
+                    <Text style={styles.specialtyText}>{specialty}</Text>
+                    <TouchableOpacity onPress={() => removeSpecialty(specialty)}>
+                      <Ionicons name="close" size={16} color="#7B2CBF" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Availability Hours */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Availability Hours *</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g., 9 AM - 6 PM"
+                value={serviceProviderData.availabilityHours}
+                onChangeText={(text) => setServiceProviderData(prev => ({ ...prev, availabilityHours: text }))}
+              />
+            </View>
+
+            {/* Fee Name */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Fee Name *</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g., Premium Styling Package"
+                value={serviceProviderData.serviceProviderFeeName}
+                onChangeText={(text) => setServiceProviderData(prev => ({ ...prev, serviceProviderFeeName: text }))}
+              />
+            </View>
+
+            {/* Fee Description */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Fee Description *</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                placeholder="Describe the services and what the fee covers..."
+                value={serviceProviderData.serviceProviderFeeDescription}
+                onChangeText={(text) => setServiceProviderData(prev => ({ ...prev, serviceProviderFeeDescription: text }))}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            {/* Fee Amount */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Fee Amount *</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="0.00"
+                value={serviceProviderData.serviceProviderFee}
+                onChangeText={(text) => setServiceProviderData(prev => ({ ...prev, serviceProviderFee: text }))}
+                keyboardType="numeric"
+              />
+            </View>
+
+            {/* Currency */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Currency *</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={serviceProviderData.serviceProviderFeeCurrency}
+                  onValueChange={(value) => setServiceProviderData(prev => ({ ...prev, serviceProviderFeeCurrency: value }))}
+                  style={styles.picker}
+                >
+                  {currencyOptions.map((option) => (
+                    <Picker.Item
+                      key={option.value}
+                      label={option.label}
+                      value={option.value}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            {/* Fee Frequency */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Payment Frequency *</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={serviceProviderData.serviceProviderFeeFrequency}
+                  onValueChange={(value) => setServiceProviderData(prev => ({ ...prev, serviceProviderFeeFrequency: value }))}
+                  style={styles.picker}
+                >
+                  {frequencyOptions.map((option) => (
+                    <Picker.Item
+                      key={option.value}
+                      label={option.label}
+                      value={option.value}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => {
+                setShowServiceProviderModal(false);
+                setShowAssignModal(true);
+              }}
+            >
+              <Text style={styles.cancelButtonText}>Back</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.assignButton}
+              onPress={handleBulkAssignment}
+            >
+              <Text style={styles.assignButtonText}>
+                Assign ({selectedUsers.length})
               </Text>
             </TouchableOpacity>
           </View>
@@ -630,6 +903,90 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  serviceProviderFormContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  serviceProviderFormTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  picker: {
+    height: 50,
+  },
+  specialtyInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  specialtyInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  addSpecialtyButton: {
+    backgroundColor: '#7B2CBF',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  specialtiesList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+    gap: 8,
+  },
+  specialtyTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3E8FF',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  specialtyText: {
+    fontSize: 14,
+    color: '#7B2CBF',
+    fontWeight: '500',
   },
 });
 

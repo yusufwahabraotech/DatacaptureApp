@@ -209,6 +209,22 @@ const ServiceProviderManagementScreen = ({ navigation }) => {
           </View>
           <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionCard}
+          onPress={() => navigation.navigate('ServiceProviderDebug')}
+        >
+          <View style={styles.actionContent}>
+            <View style={styles.actionIcon}>
+              <Ionicons name="bug" size={24} color="#7B2CBF" />
+            </View>
+            <View style={styles.actionText}>
+              <Text style={styles.actionTitle}>Debug API Endpoints</Text>
+              <Text style={styles.actionSubtitle}>Test and debug service provider APIs</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+        </TouchableOpacity>
       </View>
 
       {/* Recent Activity */}
