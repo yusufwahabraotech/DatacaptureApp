@@ -4,143 +4,77 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
+  TouchableOpacity,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
 
 const PaymentVerificationScreen = ({ route, navigation }) => {
+  const { status, tx_ref, transaction_id, fromWebView } = route.params;
   const [verifying, setVerifying] = useState(true);
-  const [status, setStatus] = useState('verifying');
-  
-  const { transactionId, status: paymentStatus, paymentType } = route.params || {};
+  const [verificationResult, setVerificationResult] = useState(null);
 
   useEffect(() => {
-    verifyPayment();
+    if (fromWebView && status === 'successful') {
+      verifyPayment();
+    } else {
+      setVerifying(false);
+      setVerificationResult({ success: false, message: 'Payment was not successful' });
+    }
   }, []);
 
   const verifyPayment = async () => {
     try {
-      if (paymentStatus === 'successful' && transactionId) {
-        let response;
-        
-        // Use appropriate verification endpoint based on payment type
-        if (paymentType === 'combined') {
-          response = await ApiService.verifyCombinedPayment(transactionId);
-        } else {
-          response = await ApiService.verifyPayment(transactionId);
-        }
-        
-        if (response.success) {
-          setStatus('success');
-          setTimeout(() => {
-            const successMessage = paymentType === 'combined' 
-              ? 'Your subscription has been activated and verified badge is pending approval.'
-              : 'Your subscription has been activated successfully.';
-              
-            Alert.alert(
-              'Success!',
-              successMessage,
-              [
-                {
-                  text: 'View Organization Profile',
-                  onPress: () => navigation.replace('OrganizationProfile')
-                },
-                {
-                  text: 'Continue to Dashboard',
-                  onPress: () => navigation.replace('AdminDashboard')
-                }
-              ]
-            );
-          }, 2000);
-        } else {
-          setStatus('failed');
-          setTimeout(() => {
-            Alert.alert(
-              'Payment Failed',
-              response.message || 'Payment verification failed',
-              [
-                {
-                  text: 'Try Again',
-                  onPress: () => navigation.replace('SubscriptionSelection')
-                }
-              ]
-            );
-          }, 2000);
-        }
-      } else {
-        setStatus('failed');
-        setTimeout(() => {
-          Alert.alert(
-            'Payment Failed',
-            'Payment was not successful',
-            [
-              {
-                text: 'Try Again',
-                onPress: () => navigation.replace('SubscriptionSelection')
-              }
-            ]
-          );
-        }, 2000);
-      }
+      const response = await ApiService.verifyPayment(tx_ref);
+      setVerificationResult(response);
     } catch (error) {
-      setStatus('failed');
-      setTimeout(() => {
-        Alert.alert(
-          'Error',
-          'Failed to verify payment',
-          [
-            {
-              text: 'Try Again',
-              onPress: () => navigation.replace('SubscriptionSelection')
-            }
-          ]
-        );
-      }, 2000);
+      setVerificationResult({ 
+        success: false, 
+        message: 'Failed to verify payment' 
+      });
     } finally {
       setVerifying(false);
     }
   };
 
-  const renderContent = () => {
-    switch (status) {
-      case 'verifying':
-        return (
-          <>
-            <ActivityIndicator size="large" color="#7C3AED" />
-            <Text style={styles.title}>Verifying Payment</Text>
-            <Text style={styles.subtitle}>Please wait while we confirm your payment...</Text>
-          </>
-        );
-      case 'success':
-        return (
-          <>
-            <View style={styles.successIcon}>
-              <Ionicons name="checkmark-circle" size={80} color="#10B981" />
-            </View>
-            <Text style={styles.title}>Payment Successful!</Text>
-            <Text style={styles.subtitle}>Your subscription has been activated</Text>
-          </>
-        );
-      case 'failed':
-        return (
-          <>
-            <View style={styles.errorIcon}>
-              <Ionicons name="close-circle" size={80} color="#EF4444" />
-            </View>
-            <Text style={styles.title}>Payment Failed</Text>
-            <Text style={styles.subtitle}>There was an issue processing your payment</Text>
-          </>
-        );
-      default:
-        return null;
+  const handleContinue = () => {
+    if (verificationResult?.success) {
+      navigation.navigate('Home'); // or wherever you want to navigate after successful payment
+    } else {
+      navigation.goBack();
     }
   };
 
+  if (verifying) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#7B2CBF" />
+        <Text style={styles.verifyingText}>Verifying payment...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
-        {renderContent()}
+      <View style={styles.resultContainer}>
+        <Ionicons
+          name={verificationResult?.success ? 'checkmark-circle' : 'close-circle'}
+          size={80}
+          color={verificationResult?.success ? '#10B981' : '#EF4444'}
+        />
+        <Text style={styles.resultTitle}>
+          {verificationResult?.success ? 'Payment Successful!' : 'Payment Failed'}
+        </Text>
+        <Text style={styles.resultMessage}>
+          {verificationResult?.message || 'Unknown error occurred'}
+        </Text>
+        
+        <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
+          <Text style={styles.continueButtonText}>
+            {verificationResult?.success ? 'Continue' : 'Try Again'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -149,32 +83,42 @@ const PaymentVerificationScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  content: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    backgroundColor: '#FFFFFF',
+    padding: 20,
   },
-  successIcon: {
-    marginBottom: 24,
+  verifyingText: {
+    marginTop: 20,
+    fontSize: 16,
+    color: '#6B7280',
   },
-  errorIcon: {
-    marginBottom: 24,
+  resultContainer: {
+    alignItems: 'center',
   },
-  title: {
+  resultTitle: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 10,
     textAlign: 'center',
-    marginBottom: 12,
   },
-  subtitle: {
+  resultMessage: {
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 24,
+    marginBottom: 30,
+  },
+  continueButton: {
+    backgroundColor: '#7B2CBF',
+    paddingHorizontal: 40,
+    paddingVertical: 15,
+    borderRadius: 10,
+  },
+  continueButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

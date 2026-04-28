@@ -117,6 +117,7 @@ const ProductPaymentScreen = ({ navigation, route }) => {
         customerPhone: customerInfo.phone,
         paymentType: paymentType,
         itemType: product.itemType,
+        platform: 'mobile', // Add platform parameter for mobile payments
         ...(selectedSubServices.length > 0 && { subServices: selectedSubServices }),
         ...(product.itemType === 'service' && {
           bookingDate: bookingDate,

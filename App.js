@@ -61,6 +61,7 @@ import PackageDetailsScreen from './screens/PackageDetailsScreen';
 import ExportUsersScreen from './screens/ExportUsersScreen';
 import SubscriptionSelectionScreen from './screens/SubscriptionSelectionScreen';
 import PaymentVerificationScreen from './screens/PaymentVerificationScreen';
+import PaymentWebViewScreen from './screens/PaymentWebViewScreen';
 import PaidSubscriptionsScreen from './screens/PaidSubscriptionsScreen';
 import LocationManagementScreen from './screens/LocationManagementScreen';
 import CreateLocationScreen from './screens/CreateLocationScreen';
@@ -272,6 +273,7 @@ export default function App() {
         <Stack.Screen name="ExportUsers" component={ExportUsersScreen} />
         <Stack.Screen name="SubscriptionSelection" component={SubscriptionSelectionScreen} />
         <Stack.Screen name="PaymentVerification" component={PaymentVerificationScreen} />
+        <Stack.Screen name="PaymentWebView" component={PaymentWebViewScreen} />
         <Stack.Screen name="PaidSubscriptions" component={PaidSubscriptionsScreen} />
         <Stack.Screen name="LocationManagement" component={LocationManagementScreen} />
         <Stack.Screen name="CreateLocation" component={CreateLocationScreen} />

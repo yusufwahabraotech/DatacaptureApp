@@ -1743,7 +1743,7 @@ class ApiService {
     // Add platform parameter for mobile app
     const enhancedPaymentData = {
       ...paymentData,
-      platform: 'mobile'
+      platform: 'mobile' // Ensure platform is always set for mobile
     };
     
     console.log('🚨 ENHANCED PAYMENT DATA WITH PLATFORM 🚨');
@@ -2493,7 +2493,7 @@ class ApiService {
       ...paymentData,
       includeVerifiedBadge: paymentData.includeVerifiedBadge || paymentData.includeLocationVerification,
       locations: paymentData.locations || [],
-      platform: 'mobile' // Add platform parameter for mobile app
+      platform: 'mobile' // Ensure platform is always set for mobile
     };
     
     // Remove old field names if they exist
@@ -3208,7 +3208,7 @@ class ApiService {
     // Add platform parameter and userId for mobile app
     const enhancedPaymentData = {
       ...paymentData,
-      platform: 'mobile',
+      platform: 'mobile', // Ensure platform is always set for mobile
       ...(userId && { userId }) // Include userId if available
     };
     
@@ -3658,7 +3658,7 @@ class ApiService {
     // Add platform parameter and userId for mobile app
     const enhancedBookingData = {
       ...bookingData,
-      platform: 'mobile',
+      platform: 'mobile', // Ensure platform is always set for mobile
       ...(userId && { userId }) // Include userId if available
     };
     

@@ -209,10 +209,40 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
             console.log('🚨 PRODUCT WEBVIEW NAVIGATION 🚨');
             console.log('Current URL:', navState.url);
             
-            // Check for Flutterwave success indicators in URL (fallback)
+            // Check for mobile payment success URL from backend
+            if (navState.url.includes('/mobile-payment-success')) {
+              console.log('✅ MOBILE PAYMENT SUCCESS URL DETECTED');
+              
+              try {
+                const urlParams = new URLSearchParams(navState.url.split('?')[1]);
+                const status = urlParams.get('status');
+                const txRef = urlParams.get('tx_ref');
+                const transactionId = urlParams.get('transaction_id');
+                
+                console.log('💳 Payment success data:', { status, txRef, transactionId });
+                
+                setShowWebView(false);
+                
+                if (status === 'successful') {
+                  console.log('✅ PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                  handleVerifyPayment(txRef || transactionId);
+                } else {
+                  console.log('❌ PAYMENT FAILED/CANCELLED');
+                  setPaymentStatus('failed');
+                }
+              } catch (parseError) {
+                console.error('❌ Failed to parse payment success URL:', parseError);
+                setShowWebView(false);
+                setPaymentStatus('failed');
+              }
+              
+              return false; // Prevent WebView from navigating
+            }
+            
+            // Fallback: Check for Flutterwave success indicators in URL
             if (navState.url.includes('flutterwave') && 
                 (navState.url.includes('successful') || navState.url.includes('completed') || navState.url.includes('success'))) {
-              console.log('✅ FLUTTERWAVE SUCCESS DETECTED IN URL');
+              console.log('✅ FLUTTERWAVE SUCCESS DETECTED IN URL (FALLBACK)');
               setShowWebView(false);
               setTimeout(() => {
                 handleVerifyPayment(txRef);
@@ -232,11 +262,41 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
           onShouldStartLoadWithRequest={(request) => {
             console.log('🔗 Should start load with request:', request.url);
             
-            // Check if it's a deep link to your app
+            // Check for mobile payment success URL from backend
+            if (request.url.includes('/mobile-payment-success')) {
+              console.log('🔗 Mobile payment success URL detected, handling manually');
+              
+              try {
+                const urlParams = new URLSearchParams(request.url.split('?')[1]);
+                const status = urlParams.get('status');
+                const txRef = urlParams.get('tx_ref');
+                const transactionId = urlParams.get('transaction_id');
+                
+                console.log('💳 Payment success data:', { status, txRef, transactionId });
+                
+                setShowWebView(false);
+                
+                if (status === 'successful') {
+                  console.log('✅ PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                  handleVerifyPayment(txRef || transactionId);
+                } else {
+                  console.log('❌ PAYMENT FAILED/CANCELLED');
+                  setPaymentStatus('failed');
+                }
+              } catch (parseError) {
+                console.error('❌ Failed to parse payment success URL:', parseError);
+                setShowWebView(false);
+                setPaymentStatus('failed');
+              }
+              
+              // Prevent WebView from trying to load the URL
+              return false;
+            }
+            
+            // Legacy deep link handling (keep for backward compatibility)
             if (request.url.startsWith('vestradat://')) {
               console.log('🔗 Deep link detected, handling manually');
               
-              // Don't use Linking.openURL(), handle directly
               try {
                 const url = new URL(request.url);
                 const status = url.searchParams.get('status');
@@ -259,7 +319,6 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
                 setPaymentStatus('failed');
               }
               
-              // Prevent WebView from trying to load the deep link
               return false;
             }
             
