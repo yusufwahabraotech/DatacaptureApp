@@ -193,10 +193,57 @@ const AdminBookingPaymentScreen = ({ navigation, route }) => {
             console.log('🚨 ADMIN WEBVIEW NAVIGATION 🚨');
             console.log('Current URL:', navState.url);
             
-            // Check for Flutterwave success indicators in URL
+            // Check for mobile payment success URL from backend
+            if (navState.url.includes('frontend-datacap.vercel.app/mobile-payment-success')) {
+              console.log('✅ ADMIN MOBILE PAYMENT SUCCESS URL DETECTED');
+              
+              try {
+                const urlParams = new URLSearchParams(navState.url.split('?')[1]);
+                const platform = urlParams.get('platform');
+                const type = urlParams.get('type');
+                const status = urlParams.get('status');
+                const txRef = urlParams.get('tx_ref');
+                
+                console.log('💳 Admin booking payment success data:', { platform, type, status, txRef });
+                
+                if (platform === 'mobile' && status === 'successful') {
+                  console.log('✅ ADMIN BOOKING PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                  setTimeout(() => {
+                    verifyAdminBookingPayment(txRef || booking.transactionId || booking.tx_ref);
+                  }, 1000);
+                } else {
+                  console.log('❌ ADMIN BOOKING PAYMENT FAILED/CANCELLED');
+                  setTimeout(() => {
+                    Alert.alert(
+                      'Payment Failed',
+                      'The booking payment was cancelled or failed.',
+                      [
+                        {
+                          text: 'Try Again',
+                          onPress: () => {
+                            // Stay on payment screen
+                          }
+                        },
+                        {
+                          text: 'Go Back',
+                          onPress: () => navigation.goBack()
+                        }
+                      ]
+                    );
+                  }, 1000);
+                }
+              } catch (parseError) {
+                console.error('❌ Failed to parse admin booking payment success URL:', parseError);
+                Alert.alert('Error', 'Failed to process payment response');
+              }
+              
+              return false; // Prevent WebView from navigating
+            }
+            
+            // Fallback: Check for Flutterwave success indicators in URL
             if (navState.url.includes('flutterwave') && 
                 (navState.url.includes('successful') || navState.url.includes('completed') || navState.url.includes('success'))) {
-              console.log('✅ ADMIN FLUTTERWAVE SUCCESS DETECTED IN URL');
+              console.log('✅ ADMIN FLUTTERWAVE SUCCESS DETECTED IN URL (FALLBACK)');
               
               // Use the original transaction ID for verification
               setTimeout(() => {

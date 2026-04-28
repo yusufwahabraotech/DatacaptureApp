@@ -3699,6 +3699,34 @@ class ApiService {
     return response;
   }
 
+  // Step 5: Verify Booking Payment
+  static async verifyBookingPayment(transactionId) {
+    console.log('🚨 BOOKING PAYMENT VERIFICATION DEBUG 🚨');
+    console.log('Transaction ID:', transactionId);
+    
+    const response = await this.apiCall('/orders/public/verify', {
+      method: 'POST',
+      body: JSON.stringify({ transactionId }),
+    });
+    
+    console.log('🚨 BOOKING PAYMENT VERIFICATION RESPONSE 🚨');
+    console.log('Response:', JSON.stringify(response, null, 2));
+    
+    if (response.success && response.data) {
+      console.log('Order created successfully:', {
+        orderId: response.data.orderId,
+        orderStatus: response.data.orderStatus,
+        hasServiceBooking: !!response.data.serviceBooking,
+        bookingStatus: response.data.serviceBooking?.bookingStatus
+      });
+    } else {
+      console.log('❌ BOOKING PAYMENT VERIFICATION FAILED ❌');
+      console.log('Error:', response.message);
+    }
+    
+    return response;
+  }
+
   // REMITTANCE SYSTEM
   // Organization Bank Details
   static async registerBankDetails(bankData) {

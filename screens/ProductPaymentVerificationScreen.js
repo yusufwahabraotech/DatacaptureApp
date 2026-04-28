@@ -209,9 +209,9 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
             console.log('🚨 PRODUCT WEBVIEW NAVIGATION 🚨');
             console.log('Current URL:', navState.url);
             
-            // Check for mobile payment success URL from backend
-            if (navState.url.includes('/mobile-payment-success')) {
-              console.log('✅ MOBILE PAYMENT SUCCESS URL DETECTED');
+            // Check for product payment verification URL from backend
+            if (navState.url.includes('frontend-datacap.vercel.app/payment/verify')) {
+              console.log('✅ PRODUCT PAYMENT VERIFICATION URL DETECTED');
               
               try {
                 const urlParams = new URLSearchParams(navState.url.split('?')[1]);
@@ -219,19 +219,19 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
                 const txRef = urlParams.get('tx_ref');
                 const transactionId = urlParams.get('transaction_id');
                 
-                console.log('💳 Payment success data:', { status, txRef, transactionId });
+                console.log('💳 Product payment data:', { status, txRef, transactionId });
                 
                 setShowWebView(false);
                 
                 if (status === 'successful') {
-                  console.log('✅ PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                  console.log('✅ PRODUCT PAYMENT SUCCESSFUL - STARTING VERIFICATION');
                   handleVerifyPayment(txRef || transactionId);
                 } else {
-                  console.log('❌ PAYMENT FAILED/CANCELLED');
+                  console.log('❌ PRODUCT PAYMENT FAILED/CANCELLED');
                   setPaymentStatus('failed');
                 }
               } catch (parseError) {
-                console.error('❌ Failed to parse payment success URL:', parseError);
+                console.error('❌ Failed to parse product payment verification URL:', parseError);
                 setShowWebView(false);
                 setPaymentStatus('failed');
               }
@@ -262,9 +262,9 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
           onShouldStartLoadWithRequest={(request) => {
             console.log('🔗 Should start load with request:', request.url);
             
-            // Check for mobile payment success URL from backend
-            if (request.url.includes('/mobile-payment-success')) {
-              console.log('🔗 Mobile payment success URL detected, handling manually');
+            // Check for product payment verification URL from backend
+            if (request.url.includes('frontend-datacap.vercel.app/payment/verify')) {
+              console.log('🔗 Product payment verification URL detected, handling manually');
               
               try {
                 const urlParams = new URLSearchParams(request.url.split('?')[1]);
@@ -272,19 +272,19 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
                 const txRef = urlParams.get('tx_ref');
                 const transactionId = urlParams.get('transaction_id');
                 
-                console.log('💳 Payment success data:', { status, txRef, transactionId });
+                console.log('💳 Product payment data:', { status, txRef, transactionId });
                 
                 setShowWebView(false);
                 
                 if (status === 'successful') {
-                  console.log('✅ PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                  console.log('✅ PRODUCT PAYMENT SUCCESSFUL - STARTING VERIFICATION');
                   handleVerifyPayment(txRef || transactionId);
                 } else {
-                  console.log('❌ PAYMENT FAILED/CANCELLED');
+                  console.log('❌ PRODUCT PAYMENT FAILED/CANCELLED');
                   setPaymentStatus('failed');
                 }
               } catch (parseError) {
-                console.error('❌ Failed to parse payment success URL:', parseError);
+                console.error('❌ Failed to parse product payment verification URL:', parseError);
                 setShowWebView(false);
                 setPaymentStatus('failed');
               }

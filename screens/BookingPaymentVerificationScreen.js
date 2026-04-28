@@ -57,12 +57,56 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
 
   const handleWebViewNavigationStateChange = (navState) => {
     const { url } = navState;
-    console.log('🚨 WEBVIEW NAVIGATION 🚨');
+    console.log('🚨 BOOKING WEBVIEW NAVIGATION 🚨');
     console.log('Current URL:', url);
     
-    // Handle deep link redirect
+    // Check for service booking verification URL from backend
+    if (url.includes('frontend-datacap.vercel.app/order/verify')) {
+      console.log('✅ SERVICE BOOKING VERIFICATION URL DETECTED');
+      
+      try {
+        const urlParams = new URLSearchParams(url.split('?')[1]);
+        const status = urlParams.get('status');
+        const txRef = urlParams.get('tx_ref');
+        const transactionId = urlParams.get('transaction_id');
+        
+        console.log('💳 Service booking payment data:', { status, txRef, transactionId });
+        
+        setShowPaymentWebView(false);
+        
+        if (status === 'successful') {
+          console.log('✅ SERVICE BOOKING PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+          setStatus('verifying');
+          setVerifying(true);
+          verifyBookingPayment(txRef || transactionId);
+        } else {
+          console.log('❌ SERVICE BOOKING PAYMENT FAILED/CANCELLED');
+          setStatus('failed');
+          setTimeout(() => {
+            Alert.alert(
+              'Payment Failed', 
+              'Your booking payment was cancelled or failed.',
+              [
+                {
+                  text: 'Try Again',
+                  onPress: () => navigation.goBack()
+                }
+              ]
+            );
+          }, 1000);
+        }
+      } catch (parseError) {
+        console.error('❌ Failed to parse service booking verification URL:', parseError);
+        setShowPaymentWebView(false);
+        setStatus('failed');
+      }
+      
+      return false; // Prevent WebView from navigating
+    }
+    
+    // Legacy deep link handling (keep for backward compatibility)
     if (url.startsWith('vestradat://payment/verify-order')) {
-      console.log('✅ DEEP LINK DETECTED - PAYMENT SUCCESSFUL');
+      console.log('✅ DEEP LINK DETECTED - PAYMENT SUCCESSFUL (LEGACY)');
       
       // Extract parameters from deep link
       const urlParts = url.split('?');
@@ -103,22 +147,22 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
       return false; // Prevent WebView from navigating to deep link
     }
     
-    // Handle regular URL-based success/failure (fallback)
-    if (url.includes('status=successful')) {
-      const urlParams = new URLSearchParams(url.split('?')[1]);
-      const txRef = urlParams.get('transaction_id') || urlParams.get('tx_ref');
-      
-      console.log('✅ PAYMENT SUCCESSFUL (URL)');
-      console.log('Transaction reference:', txRef);
-      
+    // Fallback: Check for Flutterwave success indicators in URL
+    if (url.includes('flutterwave') && 
+        (url.includes('successful') || url.includes('completed') || url.includes('success'))) {
+      console.log('✅ FLUTTERWAVE SUCCESS DETECTED IN URL (FALLBACK)');
       setShowPaymentWebView(false);
       setStatus('verifying');
       setVerifying(true);
       
-      // Verify the booking payment
-      verifyBookingPayment(txRef || transactionId);
-    } else if (url.includes('status=cancelled') || url.includes('status=failed')) {
-      console.log('❌ PAYMENT CANCELLED/FAILED (URL)');
+      // Use the original transaction ID since we can't extract from URL
+      verifyBookingPayment(transactionId);
+    }
+    
+    // Check for Flutterwave failure/cancellation
+    if (url.includes('flutterwave') && 
+        (url.includes('cancelled') || url.includes('failed'))) {
+      console.log('❌ FLUTTERWAVE FAILURE DETECTED IN URL');
       setShowPaymentWebView(false);
       setStatus('failed');
       
@@ -134,17 +178,6 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
           ]
         );
       }, 1000);
-    }
-    
-    // FALLBACK: Check if URL contains Flutterwave success indicators
-    if (url.includes('flutterwave') && url.includes('successful')) {
-      console.log('✅ FLUTTERWAVE SUCCESS DETECTED IN URL');
-      setShowPaymentWebView(false);
-      setStatus('verifying');
-      setVerifying(true);
-      
-      // Use the original transaction ID since we can't extract from URL
-      verifyBookingPayment(transactionId);
     }
   };
 
@@ -328,7 +361,52 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
               onShouldStartLoadWithRequest={(request) => {
                 console.log('🔗 Should start load with request:', request.url);
                 
-                // Check if it's a deep link to your app
+                // Check for service booking verification URL from backend
+                if (request.url.includes('frontend-datacap.vercel.app/order/verify')) {
+                  console.log('🔗 Service booking verification URL detected, handling manually');
+                  
+                  try {
+                    const urlParams = new URLSearchParams(request.url.split('?')[1]);
+                    const status = urlParams.get('status');
+                    const txRef = urlParams.get('tx_ref');
+                    const transactionId = urlParams.get('transaction_id');
+                    
+                    console.log('💳 Service booking payment data:', { status, txRef, transactionId });
+                    
+                    setShowPaymentWebView(false);
+                    
+                    if (status === 'successful') {
+                      console.log('✅ SERVICE BOOKING PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                      setStatus('verifying');
+                      setVerifying(true);
+                      verifyBookingPayment(txRef || transactionId);
+                    } else {
+                      console.log('❌ SERVICE BOOKING PAYMENT FAILED/CANCELLED');
+                      setStatus('failed');
+                      setTimeout(() => {
+                        Alert.alert(
+                          'Payment Failed', 
+                          'Your booking payment was cancelled or failed.',
+                          [
+                            {
+                              text: 'Try Again',
+                              onPress: () => navigation.goBack()
+                            }
+                          ]
+                        );
+                      }, 1000);
+                    }
+                  } catch (parseError) {
+                    console.error('❌ Failed to parse service booking verification URL:', parseError);
+                    setShowPaymentWebView(false);
+                    setStatus('failed');
+                  }
+                  
+                  // Prevent WebView from trying to load the URL
+                  return false;
+                }
+                
+                // Legacy deep link handling (keep for backward compatibility)
                 if (request.url.startsWith('vestradat://')) {
                   console.log('🔗 Deep link detected, opening with Linking');
                   
