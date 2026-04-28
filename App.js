@@ -135,6 +135,7 @@ import AdminBookingStep2SelectTimeScreen from './screens/AdminBookingStep2Select
 import AdminBookingStep3EnterDetailsScreen from './screens/AdminBookingStep3EnterDetailsScreen';
 import AdminBookingStep4SelectLocationScreen from './screens/AdminBookingStep4SelectLocationScreen';
 import AdminBookingStep5ConfirmScheduleScreen from './screens/AdminBookingStep5ConfirmScheduleScreen';
+import AdminBookingPaymentScreen from './screens/AdminBookingPaymentScreen';
 import AdminBookingSuccessScreen from './screens/AdminBookingSuccessScreen';
 import AdminBookingManagementScreen from './screens/AdminBookingManagementScreen';
 import AdminGalleryItemsScreen from './screens/AdminGalleryItemsScreen';
@@ -361,6 +362,7 @@ export default function App() {
         <Stack.Screen name="AdminBookingStep3EnterDetails" component={AdminBookingStep3EnterDetailsScreen} />
         <Stack.Screen name="AdminBookingStep4SelectLocation" component={AdminBookingStep4SelectLocationScreen} />
         <Stack.Screen name="AdminBookingStep5ConfirmSchedule" component={AdminBookingStep5ConfirmScheduleScreen} />
+        <Stack.Screen name="AdminBookingPayment" component={AdminBookingPaymentScreen} />
         <Stack.Screen name="AdminBookingSuccess" component={AdminBookingSuccessScreen} />
         <Stack.Screen name="AdminBookingManagement" component={AdminBookingManagementScreen} />
         

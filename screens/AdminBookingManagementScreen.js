@@ -19,6 +19,7 @@ import ApiService from '../services/api';
 const AdminBookingManagementScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -27,9 +28,11 @@ const AdminBookingManagementScreen = ({ navigation }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, totalPages: 1, total: 0 });
 
   const statusOptions = [
     { label: 'All Bookings', value: 'all' },
+    { label: 'Scheduled', value: 'scheduled' },
     { label: 'Confirmed', value: 'confirmed' },
     { label: 'Pending', value: 'pending' },
     { label: 'Completed', value: 'completed' },
@@ -45,13 +48,31 @@ const AdminBookingManagementScreen = ({ navigation }) => {
     filterBookings();
   }, [bookings, selectedStatus, selectedDate, searchQuery]);
 
-  const loadBookings = async () => {
+  const loadBookings = async (page = 1, append = false) => {
     try {
-      setLoading(true);
-      const response = await ApiService.getAdminBookings(1, 50);
+      if (page === 1) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+      
+      const response = await ApiService.getAdminBookings(page, 20, selectedStatus !== 'all' ? selectedStatus : null, selectedDate || null);
       
       if (response.success) {
-        setBookings(response.data.bookings || []);
+        const newBookings = response.data.bookings || [];
+        
+        if (append && page > 1) {
+          setBookings(prev => [...prev, ...newBookings]);
+        } else {
+          setBookings(newBookings);
+        }
+        
+        setPagination({
+          page: response.data.pagination?.page || page,
+          limit: response.data.pagination?.limit || 20,
+          totalPages: response.data.pagination?.totalPages || 1,
+          total: response.data.total || newBookings.length
+        });
       } else {
         Alert.alert('Error', 'Failed to load bookings');
       }
@@ -60,13 +81,20 @@ const AdminBookingManagementScreen = ({ navigation }) => {
       Alert.alert('Error', 'Failed to load bookings');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadBookings();
+    await loadBookings(1, false);
     setRefreshing(false);
+  };
+
+  const loadMoreBookings = () => {
+    if (!loadingMore && pagination.page < pagination.totalPages) {
+      loadBookings(pagination.page + 1, true);
+    }
   };
 
   const filterBookings = () => {
@@ -74,13 +102,13 @@ const AdminBookingManagementScreen = ({ navigation }) => {
 
     // Filter by status
     if (selectedStatus !== 'all') {
-      filtered = filtered.filter(booking => booking.status === selectedStatus);
+      filtered = filtered.filter(booking => booking.bookingStatus === selectedStatus);
     }
 
     // Filter by date
     if (selectedDate) {
       filtered = filtered.filter(booking => {
-        const bookingDate = new Date(booking.slotDateTime).toISOString().split('T')[0];
+        const bookingDate = new Date(booking.bookingDate).toISOString().split('T')[0];
         return bookingDate === selectedDate;
       });
     }
@@ -89,7 +117,7 @@ const AdminBookingManagementScreen = ({ navigation }) => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(booking =>
-        booking.customerName?.toLowerCase().includes(query) ||
+        booking.customer?.name?.toLowerCase().includes(query) ||
         booking.serviceName?.toLowerCase().includes(query) ||
         booking.bookingId?.toLowerCase().includes(query)
       );
@@ -137,7 +165,8 @@ const AdminBookingManagementScreen = ({ navigation }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'confirmed': return '#10B981';
+      case 'scheduled': return '#10B981';
+      case 'confirmed': return '#059669';
       case 'pending': return '#F59E0B';
       case 'completed': return '#6366F1';
       case 'cancelled': return '#EF4444';
@@ -146,56 +175,79 @@ const AdminBookingManagementScreen = ({ navigation }) => {
     }
   };
 
-  const renderBookingItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.bookingItem}
-      onPress={() => handleBookingPress(item)}
-    >
-      <View style={styles.bookingHeader}>
-        <Text style={styles.bookingId}>#{item.bookingId}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-          <Text style={styles.statusText}>{item.status}</Text>
+  const renderBookingItem = ({ item }) => {
+    // Create combined date-time for display
+    const combinedDateTime = new Date(`${item.bookingDate.split('T')[0]}T${item.bookingTime}:00`);
+    
+    return (
+      <TouchableOpacity
+        style={styles.bookingItem}
+        onPress={() => handleBookingPress(item)}
+      >
+        <View style={styles.bookingHeader}>
+          <View style={styles.bookingIdContainer}>
+            <Text style={styles.bookingId}>#{item.bookingId}</Text>
+            {item.bookedByAdmin && (
+              <View style={styles.adminBadge}>
+                <Text style={styles.adminBadgeText}>Admin</Text>
+              </View>
+            )}
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.bookingStatus) }]}>
+            <Text style={styles.statusText}>{item.bookingStatus}</Text>
+          </View>
         </View>
-      </View>
-      
-      <Text style={styles.serviceName}>{item.serviceName}</Text>
-      <Text style={styles.customerName}>{item.customerName}</Text>
-      
-      <View style={styles.bookingMeta}>
-        <View style={styles.metaItem}>
-          <Ionicons name="calendar" size={14} color="#6B7280" />
-          <Text style={styles.metaText}>{formatDate(item.slotDateTime)}</Text>
-        </View>
-        <View style={styles.metaItem}>
-          <Ionicons name="time" size={14} color="#6B7280" />
-          <Text style={styles.metaText}>{formatTime(item.slotDateTime)}</Text>
-        </View>
-        {item.totalPersons > 1 && (
+        
+        <Text style={styles.serviceName}>{item.serviceName}</Text>
+        <Text style={styles.customerName}>{item.customer?.name}</Text>
+        
+        <View style={styles.bookingMeta}>
           <View style={styles.metaItem}>
-            <Ionicons name="people" size={14} color="#6B7280" />
-            <Text style={styles.metaText}>{item.totalPersons} persons</Text>
+            <Ionicons name="calendar" size={14} color="#6B7280" />
+            <Text style={styles.metaText}>{formatDate(item.bookingDate)}</Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Ionicons name="time" size={14} color="#6B7280" />
+            <Text style={styles.metaText}>{item.bookingTime}</Text>
+          </View>
+          {item.totalPersons > 1 && (
+            <View style={styles.metaItem}>
+              <Ionicons name="people" size={14} color="#6B7280" />
+              <Text style={styles.metaText}>{item.totalPersons} persons</Text>
+            </View>
+          )}
+          <View style={styles.metaItem}>
+            <Ionicons name="cash" size={14} color="#6B7280" />
+            <Text style={styles.metaText}>₦{item.totalAmount?.toLocaleString()}</Text>
+          </View>
+        </View>
+        
+        {item.assignedProviders && item.assignedProviders.length > 0 && (
+          <View style={styles.providerInfo}>
+            <Ionicons name="person-circle" size={14} color="#7B2CBF" />
+            <Text style={styles.providerText}>{item.assignedProviders[0].name}</Text>
           </View>
         )}
-      </View>
-      
-      {item.assignedProvider && (
-        <View style={styles.providerInfo}>
-          <Ionicons name="person-circle" size={14} color="#7B2CBF" />
-          <Text style={styles.providerText}>{item.assignedProvider}</Text>
+        
+        <View style={styles.locationInfo}>
+          <Ionicons name="location" size={14} color="#6B7280" />
+          <Text style={styles.locationText}>
+            {item.location?.type === 'merchant_location' ? 'Merchant Location' :
+             item.location?.type === 'customer_address' ? 'Customer Address' :
+             item.location?.type === 'new_address' ? 'Custom Address' :
+             item.location?.type === 'whatsapp_location' ? 'WhatsApp Location' : 'Unknown'}
+          </Text>
         </View>
-      )}
-      
-      <View style={styles.locationInfo}>
-        <Ionicons name="location" size={14} color="#6B7280" />
-        <Text style={styles.locationText}>
-          {item.location?.type === 'merchant_location' ? 'Merchant Location' :
-           item.location?.type === 'customer_address' ? 'Customer Address' :
-           item.location?.type === 'new_address' ? 'Custom Address' :
-           item.location?.type === 'whatsapp_location' ? 'WhatsApp Location' : 'Unknown'}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+        
+        {item.taskId && (
+          <View style={styles.taskInfo}>
+            <Ionicons name="clipboard" size={14} color="#6B7280" />
+            <Text style={styles.taskText}>Task: {item.taskId}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -280,6 +332,16 @@ const AdminBookingManagementScreen = ({ navigation }) => {
         </View>
       )}
 
+      {/* Pagination Info */}
+      {pagination.total > 0 && (
+        <View style={styles.paginationInfo}>
+          <Text style={styles.paginationText}>
+            Showing {filteredBookings.length} of {pagination.total} bookings
+            {pagination.totalPages > 1 && ` (Page ${pagination.page} of ${pagination.totalPages})`}
+          </Text>
+        </View>
+      )}
+
       {/* Bookings List */}
       <FlatList
         data={filteredBookings}
@@ -290,6 +352,19 @@ const AdminBookingManagementScreen = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListEmptyComponent={renderEmptyState}
+        onEndReached={loadMoreBookings}
+        onEndReachedThreshold={0.1}
+        ListFooterComponent={() => {
+          if (loadingMore) {
+            return (
+              <View style={styles.loadingMoreContainer}>
+                <ActivityIndicator size="small" color="#7B2CBF" />
+                <Text style={styles.loadingMoreText}>Loading more...</Text>
+              </View>
+            );
+          }
+          return null;
+        }}
       />
 
       {/* Filters Modal */}
@@ -389,27 +464,88 @@ const AdminBookingManagementScreen = ({ navigation }) => {
                 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Customer:</Text>
-                  <Text style={styles.detailValue}>{selectedBooking.customerName}</Text>
+                  <Text style={styles.detailValue}>{selectedBooking.customer?.name}</Text>
                 </View>
+                
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Email:</Text>
+                  <Text style={styles.detailValue}>{selectedBooking.customer?.email}</Text>
+                </View>
+                
+                {selectedBooking.customer?.phone && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Phone:</Text>
+                    <Text style={styles.detailValue}>{selectedBooking.customer.phone}</Text>
+                  </View>
+                )}
                 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Date & Time:</Text>
                   <Text style={styles.detailValue}>
-                    {formatDate(selectedBooking.slotDateTime)} at {formatTime(selectedBooking.slotDateTime)}
+                    {formatDate(selectedBooking.bookingDate)} at {selectedBooking.bookingTime}
                   </Text>
                 </View>
                 
                 <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Duration:</Text>
+                  <Text style={styles.detailValue}>{selectedBooking.duration} minutes</Text>
+                </View>
+                
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Total Persons:</Text>
+                  <Text style={styles.detailValue}>{selectedBooking.totalPersons}</Text>
+                </View>
+                
+                {selectedBooking.customer?.customUserId && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Customer ID:</Text>
+                    <Text style={styles.detailValue}>{selectedBooking.customer.customUserId}</Text>
+                  </View>
+                )}
+                
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Booked By:</Text>
+                  <Text style={styles.detailValue}>{selectedBooking.bookedByAdmin ? 'Admin' : 'Customer'}</Text>
+                </View>
+                
+                {selectedBooking.taskId && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Task ID:</Text>
+                    <Text style={styles.detailValue}>{selectedBooking.taskId}</Text>
+                  </View>
+                )}
+                
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Order Status:</Text>
+                  <Text style={styles.detailValue}>{selectedBooking.orderStatus}</Text>
+                </View>
+                
+                <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Status:</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedBooking.status) }]}>
-                    <Text style={styles.statusText}>{selectedBooking.status}</Text>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedBooking.bookingStatus) }]}>
+                    <Text style={styles.statusText}>{selectedBooking.bookingStatus}</Text>
                   </View>
                 </View>
                 
-                {selectedBooking.assignedProvider && (
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Payment Status:</Text>
+                  <Text style={styles.detailValue}>{selectedBooking.paymentStatus}</Text>
+                </View>
+                
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Total Amount:</Text>
+                  <Text style={styles.detailValue}>₦{selectedBooking.totalAmount?.toLocaleString()}</Text>
+                </View>
+                
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Amount Paid:</Text>
+                  <Text style={styles.detailValue}>₦{selectedBooking.amountPaid?.toLocaleString()}</Text>
+                </View>
+                
+                {selectedBooking.assignedProviders && selectedBooking.assignedProviders.length > 0 && (
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Provider:</Text>
-                    <Text style={styles.detailValue}>{selectedBooking.assignedProvider}</Text>
+                    <Text style={styles.detailValue}>{selectedBooking.assignedProviders[0].name}</Text>
                   </View>
                 )}
                 
@@ -429,25 +565,44 @@ const AdminBookingManagementScreen = ({ navigation }) => {
                     <Text style={styles.detailValue}>{selectedBooking.location.address}</Text>
                   </View>
                 )}
+                
+                {selectedBooking.notes && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Notes:</Text>
+                    <Text style={styles.detailValue}>{selectedBooking.notes}</Text>
+                  </View>
+                )}
+                
+                {selectedBooking.bookedForPersons && selectedBooking.bookedForPersons.length > 0 && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailSectionTitle}>Booked For Persons:</Text>
+                    {selectedBooking.bookedForPersons.map((person, index) => (
+                      <View key={index} style={styles.personCard}>
+                        <Text style={styles.personName}>{person.name}</Text>
+                        <Text style={styles.personEmail}>{person.email}</Text>
+                        {person.slotDateTime && (
+                          <Text style={styles.personSlot}>
+                            Slot: {formatDate(person.slotDateTime)} at {formatTime(person.slotDateTime)}
+                          </Text>
+                        )}
+                        {person.notes && (
+                          <Text style={styles.personNotes}>Notes: {person.notes}</Text>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
               
               {/* Action Buttons */}
               <View style={styles.actionButtons}>
-                {selectedBooking.status === 'confirmed' && (
-                  <>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleStatusUpdate(selectedBooking.bookingId, 'completed')}
-                    >
-                      <Text style={styles.actionButtonText}>Mark Completed</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.cancelButton]}
-                      onPress={() => handleStatusUpdate(selectedBooking.bookingId, 'cancelled')}
-                    >
-                      <Text style={[styles.actionButtonText, styles.cancelButtonText]}>Cancel Booking</Text>
-                    </TouchableOpacity>
-                  </>
+                {selectedBooking.bookingStatus === 'confirmed' && (
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleStatusUpdate(selectedBooking.bookingId, 'completed')}
+                  >
+                    <Text style={styles.actionButtonText}>Mark Completed</Text>
+                  </TouchableOpacity>
                 )}
               </View>
             </ScrollView>
@@ -776,6 +931,94 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: 'white',
+  },
+  bookingIdContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  adminBadge: {
+    backgroundColor: '#7B2CBF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  adminBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'white',
+  },
+  taskInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  taskText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  paginationInfo: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  paginationText: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  loadingMoreContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  loadingMoreText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  detailSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  detailSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  personCard: {
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  personName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  personEmail: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  personSlot: {
+    fontSize: 12,
+    color: '#7B2CBF',
+    marginBottom: 4,
+  },
+  personNotes: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
 });
 

@@ -124,7 +124,7 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
       if (response.success) {
         if (processPayment && response.data.booking.paymentLink) {
           // Navigate to payment screen
-          navigation.navigate('AdminBookingPaymentScreen', {
+          navigation.navigate('AdminBookingPayment', {
             booking: response.data.booking,
             paymentLink: response.data.booking.paymentLink,
           });
@@ -257,10 +257,10 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
           {renderSummarySection('Location', (
             <>
               {renderSummaryRow('Type', 
-                locationData.type === 'merchant_location' ? 'Merchant Location' :
-                locationData.type === 'customer_address' ? 'Customer Address' :
-                locationData.type === 'new_address' ? 'Custom Address' :
-                locationData.type === 'whatsapp_location' ? 'WhatsApp Location' : 'Unknown',
+                locationData.locationType === 'merchant_location' ? 'Merchant Location' :
+                locationData.locationType === 'customer_address' ? 'Customer Address' :
+                locationData.locationType === 'new_address' ? 'Custom Address' :
+                locationData.locationType === 'whatsapp_location' ? 'WhatsApp Location' : 'Unknown',
                 'location'
               )}
               {locationData.address && renderSummaryRow('Address', locationData.address, 'home')}

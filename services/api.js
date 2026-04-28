@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
 // Single base URL configuration - Updated to use local IP
-const BASE_URL = 'http://192.168.0.183:3000/api';
+const BASE_URL = 'http://10.162.69.84:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v15 - RENDER DEPLOYMENT UPDATE
 const FORCE_RELOAD_NOW = 'RENDER_DEPLOYMENT_UPDATE_' + Date.now();
@@ -3848,6 +3848,17 @@ class ApiService {
     return this.apiCall('/admin/booking/validate-location', {
       method: 'POST',
       body: JSON.stringify(locationData),
+    });
+  }
+
+  // Step 5: Create Admin Booking
+  static async createAdminBooking(bookingData) {
+    console.log('🚨 ADMIN BOOKING CREATION DEBUG 🚨');
+    console.log('Booking data:', JSON.stringify(bookingData, null, 2));
+    
+    return this.apiCall('/admin/booking/create', {
+      method: 'POST',
+      body: JSON.stringify(bookingData),
     });
   }
 

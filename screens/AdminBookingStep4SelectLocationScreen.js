@@ -87,7 +87,7 @@ const AdminBookingStep4SelectLocationScreen = ({ navigation, route }) => {
     }
 
     const locationData = {
-      type: selectedLocationType,
+      locationType: selectedLocationType,  // ✅ Changed from 'type' to 'locationType'
       address: selectedLocationType === 'new_address' ? customAddress : 
                selectedLocationType === 'merchant_location' ? locationOptions.merchantLocation?.address : '',
       whatsappLocationUrl: selectedLocationType === 'whatsapp_location' ? whatsappLocationUrl : '',
