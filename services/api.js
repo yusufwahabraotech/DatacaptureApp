@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
 // Single base URL configuration - Updated to use local IP
-const BASE_URL = 'http://10.162.69.84:3000/api';
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v15 - RENDER DEPLOYMENT UPDATE
 const FORCE_RELOAD_NOW = 'RENDER_DEPLOYMENT_UPDATE_' + Date.now();
@@ -2797,6 +2797,113 @@ class ApiService {
     return this.apiCall(`/service-provider-tasks/tasks/${taskId}/complete`, {
       method: 'POST',
     });
+  }
+
+  // Enhanced Task Completion with Rich Media
+  static async getCompletionTemplate(taskId) {
+    console.log('🚨 GETTING COMPLETION TEMPLATE 🚨');
+    console.log('Task ID:', taskId);
+    return this.apiCall(`/service-provider-tasks/tasks/${taskId}/completion-template`);
+  }
+
+  static async completeTaskWithConfirmation(taskId, formData) {
+    console.log('🚨 COMPLETING TASK WITH CONFIRMATION 🚨');
+    console.log('Task ID:', taskId);
+    console.log('FormData keys:', Array.from(formData.keys()));
+    
+    // Validate required field before sending
+    const declaration = formData.get('serviceCompletionDeclaration');
+    if (!declaration || declaration.trim() === '') {
+      return {
+        success: false,
+        message: 'Service completion declaration is required'
+      };
+    }
+    
+    const token = await this.getToken();
+    const response = await fetch(`${BASE_URL}/service-provider-tasks/tasks/${taskId}/complete`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // No Content-Type header - browser sets it automatically for FormData
+      },
+      body: formData,
+    });
+
+    console.log('🚨 TASK COMPLETION RESPONSE 🚨');
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.log('❌ TASK COMPLETION ERROR:', JSON.stringify(error, null, 2));
+      return {
+        success: false,
+        message: error.message || `HTTP ${response.status}: ${response.statusText}`,
+        data: error
+      };
+    }
+
+    const result = await response.json();
+    console.log('✅ TASK COMPLETION SUCCESS:', JSON.stringify(result, null, 2));
+    return result;
+  }
+
+  // Delivery Confirmation
+  static async getDeliveryTemplate(orderId) {
+    console.log('🚨 GETTING DELIVERY TEMPLATE 🚨');
+    console.log('Order ID:', orderId);
+    return this.apiCall(`/service-provider-tasks/orders/${orderId}/delivery-template`);
+  }
+
+  static async confirmServiceDelivery(orderId, formData) {
+    console.log('🚨 CONFIRMING SERVICE DELIVERY 🚨');
+    console.log('Order ID:', orderId);
+    
+    const token = await this.getToken();
+    const response = await fetch(`${BASE_URL}/service-provider-tasks/orders/${orderId}/confirm-delivery`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // No Content-Type header - browser sets it automatically for FormData
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      return {
+        success: false,
+        message: error.message || `HTTP ${response.status}: ${response.statusText}`,
+        data: error
+      };
+    }
+
+    return await response.json();
+  }
+
+  // Get completed tasks with delivery status
+  static async getCompletedTasksWithDetails() {
+    console.log('🚨 FETCHING COMPLETED TASKS WITH DETAILS 🚨');
+    return this.apiCall('/service-provider-tasks/tasks/completed-with-details');
+  }
+
+  // Admin endpoints for viewing completed tasks
+  static async getAdminCompletedTasks(params = {}) {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.includeConfirmation) queryParams.append('includeConfirmation', 'true');
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/service-provider-tasks/admin/report/completed${queryString ? '?' + queryString : ''}`;
+    return this.apiCall(endpoint);
+  }
+
+  static async getAdminTaskCompletionDetails(taskId) {
+    console.log('🚨 GETTING ADMIN TASK COMPLETION DETAILS 🚨');
+    console.log('Task ID:', taskId);
+    return this.apiCall(`/service-provider-tasks/admin/tasks/${taskId}/completion-details`);
   }
 
   // ADMIN NOTIFICATION SYSTEM

@@ -18,18 +18,55 @@ const ServiceProviderHistoryScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [history, setHistory] = useState([]);
+  const [completedTasks, setCompletedTasks] = useState([]);
+  const [activeTab, setActiveTab] = useState('history'); // 'history' or 'completed'
   const [pagination, setPagination] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredHistory, setFilteredHistory] = useState([]);
+  const [filteredTasks, setFilteredTasks] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    loadHistory();
-  }, []);
+    loadData();
+  }, [activeTab]);
 
   useEffect(() => {
-    filterHistory();
-  }, [searchQuery, history]);
+    if (activeTab === 'history') {
+      filterHistory();
+    } else {
+      filterTasks();
+    }
+  }, [searchQuery, history, completedTasks, activeTab]);
+
+  const loadData = async () => {
+    if (activeTab === 'history') {
+      await loadHistory();
+    } else {
+      await loadCompletedTasks();
+    }
+  };
+
+  const loadCompletedTasks = async () => {
+    setLoading(true);
+    try {
+      console.log('🚨 LOADING COMPLETED TASKS WITH DETAILS 🚨');
+      
+      const response = await ApiService.getCompletedTasksWithDetails();
+      
+      if (response.success) {
+        console.log('✅ Completed tasks loaded:', response.data.tasks?.length || 0);
+        setCompletedTasks(response.data.tasks || []);
+      } else {
+        console.log('❌ Failed to load completed tasks:', response.message);
+        setCompletedTasks([]);
+      }
+    } catch (error) {
+      console.error('Error loading completed tasks:', error);
+      setCompletedTasks([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadHistory = async (page = 1, isRefresh = false, isLoadMore = false) => {
     if (isRefresh) {
@@ -95,9 +132,30 @@ const ServiceProviderHistoryScreen = ({ navigation }) => {
     }
   };
 
+  const filterTasks = () => {
+    if (!searchQuery.trim()) {
+      setFilteredTasks(completedTasks);
+    } else {
+      const filtered = completedTasks.filter(item => {
+        const serviceName = item.serviceName?.toLowerCase() || '';
+        const customerName = item.customerFullName?.toLowerCase() || '';
+        const query = searchQuery.toLowerCase();
+        
+        return serviceName.includes(query) || customerName.includes(query);
+      });
+      setFilteredTasks(filtered);
+    }
+  };
+
   const onRefresh = async () => {
-    setCurrentPage(1);
-    await loadHistory(1, true);
+    setRefreshing(true);
+    if (activeTab === 'history') {
+      setCurrentPage(1);
+      await loadHistory(1, true);
+    } else {
+      await loadCompletedTasks();
+    }
+    setRefreshing(false);
   };
 
   const loadMoreHistory = async () => {
@@ -197,6 +255,86 @@ const ServiceProviderHistoryScreen = ({ navigation }) => {
     );
   };
 
+  const renderCompletedTaskItem = ({ item }) => {
+    const hasConfirmation = item.confirmationDetails;
+    const hasDeliveryConfirmation = item.canConfirmDelivery === false; // Already confirmed
+
+    return (
+      <View style={styles.taskItem}>
+        <View style={styles.taskHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.taskTitle}>{item.serviceName}</Text>
+            <Text style={styles.taskCustomer}>Customer: {item.customerFullName}</Text>
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={styles.taskId}>#{item.taskId?.slice(-6)}</Text>
+            <Text style={styles.taskDate}>{formatDate(item.completedAt)}</Text>
+          </View>
+        </View>
+
+        {/* Confirmation Status */}
+        <View style={styles.confirmationStatus}>
+          <View style={styles.statusRow}>
+            <View style={[styles.statusBadge, { backgroundColor: hasConfirmation ? '#10B981' : '#EF4444' }]}>
+              <Ionicons 
+                name={hasConfirmation ? "checkmark-circle" : "close-circle"} 
+                size={12} 
+                color="white" 
+              />
+            </View>
+            <Text style={styles.statusText}>
+              Task Confirmation: {hasConfirmation ? 'Complete' : 'Missing'}
+            </Text>
+          </View>
+          
+          <View style={styles.statusRow}>
+            <View style={[styles.statusBadge, { backgroundColor: hasDeliveryConfirmation ? '#10B981' : '#F59E0B' }]}>
+              <Ionicons 
+                name={hasDeliveryConfirmation ? "checkmark-circle" : "time"} 
+                size={12} 
+                color="white" 
+              />
+            </View>
+            <Text style={styles.statusText}>
+              Delivery Status: {hasDeliveryConfirmation ? 'Confirmed' : 'Pending'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Completion Details */}
+        {hasConfirmation && (
+          <View style={styles.completionDetails}>
+            <Text style={styles.completionLabel}>Completion Declaration:</Text>
+            <Text style={styles.completionText} numberOfLines={2}>
+              {item.confirmationDetails.serviceCompletionDeclaration}
+            </Text>
+            
+            {item.confirmationDetails.serviceImages?.length > 0 && (
+              <Text style={styles.mediaInfo}>
+                📷 {item.confirmationDetails.serviceImages.length} images attached
+              </Text>
+            )}
+            
+            {item.confirmationDetails.serviceVideoUrl && (
+              <Text style={styles.mediaInfo}>🎥 Video attached</Text>
+            )}
+          </View>
+        )}
+
+        {/* Action Button */}
+        {!hasDeliveryConfirmation && (
+          <TouchableOpacity 
+            style={styles.confirmDeliveryBtn}
+            onPress={() => navigation.navigate('DeliveryConfirmationForm', { orderId: item.orderId })}
+          >
+            <Ionicons name="checkmark-done" size={16} color="#7B2CBF" />
+            <Text style={styles.confirmDeliveryBtnText}>Confirm Delivery</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Ionicons name="time-outline" size={64} color="#CCCCCC" />
@@ -253,9 +391,40 @@ const ServiceProviderHistoryScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Assignment History</Text>
+        <Text style={styles.headerTitle}>Service Provider History</Text>
         <TouchableOpacity onPress={onRefresh}>
           <Ionicons name="refresh" size={24} color="#7B2CBF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Tab Bar */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'history' && styles.activeTab]}
+          onPress={() => setActiveTab('history')}
+        >
+          <Ionicons 
+            name="time" 
+            size={16} 
+            color={activeTab === 'history' ? '#7B2CBF' : '#9CA3AF'} 
+          />
+          <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>
+            Assignment History
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'completed' && styles.activeTab]}
+          onPress={() => setActiveTab('completed')}
+        >
+          <Ionicons 
+            name="checkmark-done" 
+            size={16} 
+            color={activeTab === 'completed' ? '#7B2CBF' : '#9CA3AF'} 
+          />
+          <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>
+            Completed Tasks
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -293,16 +462,16 @@ const ServiceProviderHistoryScreen = ({ navigation }) => {
         </View>
       )}
 
-      {/* History List */}
+      {/* Content List */}
       <FlatList
-        data={filteredHistory}
-        renderItem={renderHistoryItem}
-        keyExtractor={(item) => item.id}
+        data={activeTab === 'history' ? filteredHistory : filteredTasks}
+        renderItem={activeTab === 'history' ? renderHistoryItem : renderCompletedTaskItem}
+        keyExtractor={(item) => activeTab === 'history' ? item.id : item.taskId}
         contentContainerStyle={styles.listContainer}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={renderEmptyState}
-        ListFooterComponent={renderFooter}
-        onEndReached={loadMoreHistory}
+        ListFooterComponent={activeTab === 'history' ? renderFooter : null}
+        onEndReached={activeTab === 'history' ? loadMoreHistory : null}
         onEndReachedThreshold={0.1}
         showsVerticalScrollIndicator={false}
       />
@@ -329,6 +498,37 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 6,
+  },
+  activeTab: {
+    backgroundColor: '#F3E8FF',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#9CA3AF',
+  },
+  activeTabText: {
+    color: '#7B2CBF',
   },
   loadingContainer: {
     flex: 1,
@@ -476,6 +676,106 @@ const styles = StyleSheet.create({
   adminText: {
     fontSize: 12,
     color: '#6B7280',
+  },
+  // Completed Tasks Styles
+  taskItem: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  taskHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  taskTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  taskCustomer: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  taskId: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginBottom: 2,
+  },
+  taskDate: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  confirmationStatus: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    gap: 6,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#374151',
+    flex: 1,
+  },
+  completionDetails: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  completionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#15803D',
+    marginBottom: 4,
+  },
+  completionText: {
+    fontSize: 13,
+    color: '#1F2937',
+    lineHeight: 18,
+  },
+  mediaInfo: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  confirmDeliveryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3E8FF',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 6,
+  },
+  confirmDeliveryBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#7B2CBF',
   },
   emptyState: {
     flex: 1,

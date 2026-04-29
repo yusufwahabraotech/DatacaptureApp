@@ -115,26 +115,63 @@ const ServiceProviderTaskDashboardScreen = ({ navigation }) => {
     }
   };
 
-  const handleComplete = (task) => {
-    Alert.alert(
-      'Complete Task',
-      `Mark the ${task.serviceName} task as completed?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete',
-          onPress: async () => {
-            const res = await ApiService.completeTask(task.taskId);
-            if (res.success) {
-              Alert.alert('Success', 'Task marked as completed!');
-              loadData();
-            } else {
-              Alert.alert('Error', res.message || 'Failed to complete task');
-            }
+  const handleComplete = async (task) => {
+    try {
+      // Get completion template first
+      const templateResponse = await ApiService.getCompletionTemplate(task.taskId);
+      
+      if (templateResponse.success) {
+        // Navigate to enhanced completion form
+        navigation.navigate('TaskCompletionForm', {
+          taskId: task.taskId,
+          orderId: task.orderId,
+          template: templateResponse.data.template
+        });
+      } else {
+        // Fallback to simple completion
+        Alert.alert(
+          'Complete Task',
+          `Mark the ${task.serviceName} task as completed?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Complete',
+              onPress: async () => {
+                const res = await ApiService.completeTask(task.taskId);
+                if (res.success) {
+                  Alert.alert('Success', 'Task marked as completed!');
+                  loadData();
+                } else {
+                  Alert.alert('Error', res.message || 'Failed to complete task');
+                }
+              },
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error getting completion template:', error);
+      // Fallback to simple completion
+      Alert.alert(
+        'Complete Task',
+        `Mark the ${task.serviceName} task as completed?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Complete',
+            onPress: async () => {
+              const res = await ApiService.completeTask(task.taskId);
+              if (res.success) {
+                Alert.alert('Success', 'Task marked as completed!');
+                loadData();
+              } else {
+                Alert.alert('Error', res.message || 'Failed to complete task');
+              }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const formatDate = (d) =>
@@ -222,6 +259,24 @@ const ServiceProviderTaskDashboardScreen = ({ navigation }) => {
           </View>
         )}
 
+        {/* Completion Details */}
+        {status === 'completed' && item.confirmationDetails && (
+          <View style={styles.completionBox}>
+            <Text style={styles.completionTitle}>Completion Details</Text>
+            <Text style={styles.completionText} numberOfLines={2}>
+              {item.confirmationDetails.serviceCompletionDeclaration}
+            </Text>
+            {item.confirmationDetails.serviceImages?.length > 0 && (
+              <Text style={styles.mediaInfo}>
+                📷 {item.confirmationDetails.serviceImages.length} images attached
+              </Text>
+            )}
+            {item.confirmationDetails.serviceVideoUrl && (
+              <Text style={styles.mediaInfo}>🎥 Video attached</Text>
+            )}
+          </View>
+        )}
+
         {/* Actions */}
         <View style={styles.actions}>
           {(item.canAccept ?? status === 'assigned') && (
@@ -255,6 +310,9 @@ const ServiceProviderTaskDashboardScreen = ({ navigation }) => {
               </Text>
               {item.settlementStatus && (
                 <Text style={styles.settlementText}>Settlement: {item.settlementStatus}</Text>
+              )}
+              {item.deliveryConfirmation && (
+                <Text style={styles.deliveryConfirmedText}>🚚 Delivery Confirmed</Text>
               )}
             </View>
           )}
@@ -423,6 +481,10 @@ const styles = StyleSheet.create({
   detailText:     { fontSize: 13, color: '#6B7280', flex: 1 },
   contactBox:     { backgroundColor: '#F3E8FF', borderRadius: 8, padding: 12, marginBottom: 10, gap: 6 },
   contactTitle:   { fontSize: 13, fontWeight: '600', color: '#7B2CBF', marginBottom: 4 },
+  completionBox:  { backgroundColor: '#F0FDF4', borderRadius: 8, padding: 12, marginBottom: 10 },
+  completionTitle: { fontSize: 13, fontWeight: '600', color: '#15803D', marginBottom: 4 },
+  completionText: { fontSize: 13, color: '#1F2937', lineHeight: 18 },
+  mediaInfo:      { fontSize: 11, color: '#6B7280', marginTop: 4 },
   actions:        { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   btn:            { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, gap: 4, flex: 1, justifyContent: 'center' },
   acceptBtn:      { backgroundColor: '#10B981' },
@@ -435,6 +497,7 @@ const styles = StyleSheet.create({
   completedBox:   { flex: 1, backgroundColor: '#F0FDF4', borderRadius: 8, padding: 10 },
   completedText:  { fontSize: 13, fontWeight: '500', color: '#15803D', marginBottom: 3 },
   settlementText: { fontSize: 11, color: '#6B7280' },
+  deliveryConfirmedText: { fontSize: 11, color: '#10B981', marginTop: 2 },
   empty:          { alignItems: 'center', paddingVertical: 60 },
   emptyTitle:     { fontSize: 17, fontWeight: '600', color: '#1F2937', marginTop: 14, marginBottom: 6 },
   emptyMsg:       { fontSize: 13, color: '#6B7280', textAlign: 'center', paddingHorizontal: 32 },

@@ -144,6 +144,9 @@ import AdminGalleryItemDetailsScreen from './screens/AdminGalleryItemDetailsScre
 import AdminPurchaseFlowScreen from './screens/AdminPurchaseFlowScreen';
 import AdminPurchaseManagementScreen from './screens/AdminPurchaseManagementScreen';
 import AdminPurchaseSuccessScreen from './screens/AdminPurchaseSuccessScreen';
+import TaskCompletionFormScreen from './screens/TaskCompletionFormScreen';
+import DeliveryConfirmationFormScreen from './screens/DeliveryConfirmationFormScreen';
+import AdminCompletedTasksReportScreen from './screens/AdminCompletedTasksReportScreen';
 
 const Stack = createStackNavigator();
 
@@ -374,6 +377,11 @@ export default function App() {
         <Stack.Screen name="AdminPurchaseFlow" component={AdminPurchaseFlowScreen} />
         <Stack.Screen name="AdminPurchaseManagement" component={AdminPurchaseManagementScreen} />
         <Stack.Screen name="AdminPurchaseSuccess" component={AdminPurchaseSuccessScreen} />
+        
+        {/* Enhanced Task Completion Screens */}
+        <Stack.Screen name="TaskCompletionForm" component={TaskCompletionFormScreen} />
+        <Stack.Screen name="DeliveryConfirmationForm" component={DeliveryConfirmationFormScreen} />
+        <Stack.Screen name="AdminCompletedTasksReport" component={AdminCompletedTasksReportScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>
