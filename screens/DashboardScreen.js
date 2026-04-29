@@ -342,9 +342,6 @@ const DashboardScreen = ({ navigation, route }) => {
         <Text style={styles.greeting}>Hello, {user?.fullName || 'User'}</Text>
         <View style={styles.headerRight}>
           <TaskNotificationComponent navigation={navigation} user={user} />
-          <View style={styles.notificationContainer}>
-            <Ionicons name="notifications-outline" size={20} color="#9CA3AF" />
-          </View>
           <TouchableOpacity 
             style={styles.profileImage}
             onPress={() => navigation.navigate('Profile')}
@@ -646,17 +643,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  notificationContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 0.5,
-    borderColor: '#9CA3AF',
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
   },
   profileImage: {
     width: 40,
