@@ -636,7 +636,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
 
               {/* BOOKING AVAILABILITY CONFIGURATION */}
               <View style={styles.bookingSection}>
-                <Text style={styles.bookingSectionTitle}>🎯 Booking Availability Configuration</Text>
+                <Text style={styles.bookingSectionTitle}>Booking Availability Configuration</Text>
                 <Text style={styles.bookingSectionSubtitle}>Configure how customers can book this service</Text>
                 
                 {/* Slot Duration */}
