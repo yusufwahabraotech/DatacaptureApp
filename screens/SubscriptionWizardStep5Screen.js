@@ -57,42 +57,17 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
     console.log('Selected package:', selectedPackage.title);
     console.log('Selected duration:', selectedDuration);
     
-    let total = 0;
+    // Find the service for the selected duration directly from package services
+    const serviceForDuration = selectedPackage.services.find(service => service.duration === selectedDuration);
     
-    // Get unique service IDs from package
-    const serviceIds = [...new Set(selectedPackage.services.map(s => s.serviceId))];
-    console.log('Service IDs:', serviceIds);
-    
-    // Fetch each service's full pricing
-    for (const serviceId of serviceIds) {
-      try {
-        const response = await ApiService.getServiceById(serviceId);
-        if (response.success) {
-          const service = response.data.service;
-          
-          // Use service's price for requested duration
-          if (selectedDuration === 'monthly') {
-            total += service.monthlyPrice || 0;
-          } else if (selectedDuration === 'quarterly') {
-            total += service.quarterlyPrice || 0;
-          } else if (selectedDuration === 'yearly') {
-            total += service.yearlyPrice || 0;
-          }
-          console.log(`Service ${service.serviceName} ${selectedDuration} price:`, service[selectedDuration + 'Price'] || 0);
-        }
-      } catch (error) {
-        console.log('Error fetching service:', serviceId, error);
-      }
+    if (!serviceForDuration) {
+      console.log('No service found for duration:', selectedDuration);
+      return 0;
     }
     
-    console.log('Calculated total before discount:', total);
-    
-    // Apply package discount if exists
-    if (selectedPackage.discountPercentage && selectedPackage.discountPercentage > 0) {
-      const packageDiscount = (total * selectedPackage.discountPercentage) / 100;
-      total = total - packageDiscount;
-      console.log('Applied package discount:', selectedPackage.discountPercentage + '%', 'New total:', total);
-    }
+    let total = serviceForDuration.price || 0;
+    console.log(`Service ${serviceForDuration.serviceName} ${selectedDuration} price:`, total);
+    console.log('Base price (no automatic discounts):', total);
     
     // Apply promo discount if valid and requested
     if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {
@@ -202,6 +177,8 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
         phone: userProfile.phone || userProfile.phoneNumber,
         totalAmount: locationData ? paymentSummary.totalAmount : packagePrice,
         promoCode: promoValidation.isValid ? promoCode : undefined,
+        platform: 'mobile',
+        redirectUrl: locationData ? 'https://frontend-datacap.vercel.app/payment/verify-combined' : 'https://frontend-datacap.vercel.app/payment/verify',
         services: selectedPackage.services.map(service => ({
           ...service,
           duration: selectedDuration // Override with selected duration
@@ -255,32 +232,74 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
   const handleWebViewNavigationStateChange = (navState) => {
     const { url } = navState;
     
-    if (url.includes('status=successful')) {
-      const urlParams = new URLSearchParams(url.split('?')[1]);
-      // Flutterwave sends tx_ref, not transaction_id
-      const transactionId = urlParams.get('tx_ref') || urlParams.get('transaction_id');
-      
+    console.log('🚨 STEP5 WEBVIEW NAVIGATION 🚨');
+    console.log('Current URL:', url);
+    
+    // Check for backend's actual redirect URL patterns
+    if (url.includes('frontend-datacap.vercel.app/payment/verify-combined') || 
+        url.includes('frontend-datacap.vercel.app/payment/verify-verified-badge') ||
+        url.includes('frontend-datacap.vercel.app/payment/verify')) {
       console.log('🚨 PAYMENT SUCCESS REDIRECT DEBUG 🚨');
       console.log('Full URL:', url);
-      console.log('Extracted tx_ref:', transactionId);
+      
+      try {
+        const urlParams = new URLSearchParams(url.split('?')[1]);
+        const status = urlParams.get('status');
+        const txRef = urlParams.get('tx_ref');
+        const transactionId = urlParams.get('transaction_id');
+        
+        console.log('Extracted status:', status);
+        console.log('Extracted tx_ref:', txRef);
+        console.log('Extracted transaction_id:', transactionId);
+        
+        if (status === 'successful') {
+          setShowPaymentWebView(false);
+          navigation.navigate('PaymentVerification', {
+            status: 'successful',
+            tx_ref: txRef,
+            transaction_id: transactionId,
+            paymentType: locationData ? 'combined' : 'regular',
+            fromWebView: true
+          });
+        } else {
+          setShowPaymentWebView(false);
+          Alert.alert(
+            'Payment Failed',
+            'Your payment was cancelled or failed. Please try again.',
+            [{ text: 'OK', onPress: () => {} }]
+          );
+        }
+      } catch (parseError) {
+        console.error('❌ Failed to parse payment URL:', parseError);
+        setShowPaymentWebView(false);
+        Alert.alert(
+          'Payment Error',
+          'There was an error processing your payment. Please try again.',
+          [{ text: 'OK', onPress: () => {} }]
+        );
+      }
+      
+      return false; // Prevent WebView from navigating
+    }
+    
+    // Legacy handling for old URL patterns
+    if (url.includes('status=successful')) {
+      const urlParams = new URLSearchParams(url.split('?')[1]);
+      const transactionId = urlParams.get('tx_ref') || urlParams.get('transaction_id');
       
       setShowPaymentWebView(false);
       navigation.navigate('PaymentVerification', {
         transactionId,
         status: 'successful',
-        paymentType: locationData ? 'combined' : 'regular'
+        paymentType: locationData ? 'combined' : 'regular',
+        fromWebView: true
       });
     } else if (url.includes('status=cancelled') || url.includes('status=failed')) {
       setShowPaymentWebView(false);
       Alert.alert(
         'Payment Failed',
         'Your payment was cancelled or failed. Please try again.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {}
-          }
-        ]
+        [{ text: 'OK', onPress: () => {} }]
       );
     }
   };
@@ -373,9 +392,9 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
             <Text style={styles.summaryLabel}>Package Subscription</Text>
             {promoValidation.isValid && promoValidation.discount > 0 ? (
               <View style={styles.discountPricing}>
-                <Text style={styles.originalPrice}>{formatPrice(calculatedPrice)}</Text>
+                <Text style={styles.originalPrice}>{formatPrice(calculatedPrice / (1 - promoValidation.discount / 100))}</Text>
                 <Text style={styles.discountLabel}>-{promoValidation.discount}%</Text>
-                <Text style={styles.summaryValue}>{formatPrice(calculatedPrice * (1 - promoValidation.discount / 100))}</Text>
+                <Text style={styles.summaryValue}>{formatPrice(calculatedPrice)}</Text>
               </View>
             ) : (
               <Text style={styles.summaryValue}>{calculatedPrice !== null ? formatPrice(calculatedPrice) : 'Calculating...'}</Text>
@@ -484,12 +503,69 @@ const SubscriptionWizardStep5Screen = ({ navigation, route }) => {
               source={{ uri: paymentUrl }}
               onNavigationStateChange={handleWebViewNavigationStateChange}
               startInLoadingState={true}
+              onError={(syntheticEvent) => {
+                const { nativeEvent } = syntheticEvent;
+                console.log('🚨 WEBVIEW ERROR 🚨');
+                console.log('Error details:', nativeEvent);
+                
+                Alert.alert(
+                  'Network Error',
+                  `Unable to load payment page. Please check your internet connection and try again.\n\nError: ${nativeEvent.description}`,
+                  [
+                    {
+                      text: 'Retry',
+                      onPress: () => {
+                        // Force reload the WebView
+                        setShowPaymentWebView(false);
+                        setTimeout(() => setShowPaymentWebView(true), 100);
+                      }
+                    },
+                    {
+                      text: 'Cancel',
+                      onPress: () => setShowPaymentWebView(false)
+                    }
+                  ]
+                );
+              }}
+              onHttpError={(syntheticEvent) => {
+                const { nativeEvent } = syntheticEvent;
+                console.log('🚨 WEBVIEW HTTP ERROR 🚨');
+                console.log('HTTP Error details:', nativeEvent);
+              }}
+              onLoadStart={() => {
+                console.log('🔄 WebView started loading payment URL:', paymentUrl);
+              }}
+              onLoadEnd={() => {
+                console.log('✅ WebView finished loading');
+              }}
+              onShouldStartLoadWithRequest={(request) => {
+                console.log('🔗 Step5 Should start load with request:', request.url);
+                
+                // Handle backend's actual redirect URL
+                if (request.url.includes('frontend-datacap.vercel.app/payment/verify-combined') ||
+                    request.url.includes('frontend-datacap.vercel.app/payment/verify-verified-badge') ||
+                    request.url.includes('frontend-datacap.vercel.app/payment/verify')) {
+                  console.log('🔗 Backend payment URL detected in Step5, handling manually');
+                  handleWebViewNavigationStateChange({ url: request.url });
+                  return false; // Prevent WebView from loading the URL
+                }
+                
+                // Allow all other URLs to load normally
+                return true;
+              }}
               renderLoading={() => (
                 <View style={styles.webViewLoading}>
                   <ActivityIndicator size="large" color="#7C3AED" />
                   <Text style={styles.webViewLoadingText}>Loading payment page...</Text>
+                  <Text style={styles.webViewLoadingSubtext}>Please ensure you have a stable internet connection</Text>
                 </View>
               )}
+              // Add these props to help with network issues
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              allowsInlineMediaPlayback={true}
+              mediaPlaybackRequiresUserAction={false}
+              mixedContentMode="compatibility"
             />
           )}
         </View>
@@ -795,6 +871,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#6B7280',
+  },
+  webViewLoadingSubtext: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
   },
 });
 

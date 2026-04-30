@@ -14,8 +14,10 @@ const PaymentVerificationScreen = ({ route, navigation }) => {
   const { status, tx_ref, transaction_id, fromWebView } = route.params;
   const [verifying, setVerifying] = useState(true);
   const [verificationResult, setVerificationResult] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
+    fetchUserProfile();
     if (fromWebView && status === 'successful') {
       verifyPayment();
     } else {
@@ -23,6 +25,17 @@ const PaymentVerificationScreen = ({ route, navigation }) => {
       setVerificationResult({ success: false, message: 'Payment was not successful' });
     }
   }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await ApiService.getUserProfile();
+      if (response.success) {
+        setUserProfile(response.data.user);
+      }
+    } catch (error) {
+      console.log('Error fetching user profile:', error);
+    }
+  };
 
   const verifyPayment = async () => {
     try {
@@ -40,7 +53,71 @@ const PaymentVerificationScreen = ({ route, navigation }) => {
 
   const handleContinue = () => {
     if (verificationResult?.success) {
-      navigation.navigate('Home'); // or wherever you want to navigate after successful payment
+      // Navigate to appropriate dashboard based on user role
+      let dashboardScreen = 'Dashboard'; // Default fallback
+      
+      console.log('🚨 USER PROFILE DEBUG 🚨');
+      console.log('Full user profile:', JSON.stringify(userProfile, null, 2));
+      console.log('User role:', userProfile?.role);
+      console.log('User type:', userProfile?.userType);
+      
+      if (userProfile?.role) {
+        const role = userProfile.role.toLowerCase();
+        console.log('Role (lowercase):', role);
+        
+        switch (role) {
+          case 'super_admin':
+          case 'superadmin':
+          case 'super admin':
+            dashboardScreen = 'SuperAdminDashboard';
+            break;
+          case 'admin':
+          case 'organization_admin':
+          case 'organization admin':
+          case 'org_admin':
+            dashboardScreen = 'AdminDashboard';
+            break;
+          case 'user':
+          case 'individual':
+          case 'organization_user':
+          case 'organization user':
+          case 'org_user':
+            dashboardScreen = 'UserDashboard';
+            break;
+          default:
+            console.log('⚠️ Unknown role, checking userType...');
+            // Fallback to userType if role doesn't match
+            if (userProfile?.userType) {
+              const userType = userProfile.userType.toLowerCase();
+              console.log('UserType (lowercase):', userType);
+              
+              if (userType === 'organization') {
+                dashboardScreen = 'AdminDashboard';
+              } else if (userType === 'individual') {
+                dashboardScreen = 'UserDashboard';
+              } else {
+                dashboardScreen = 'Dashboard';
+              }
+            }
+        }
+      } else if (userProfile?.userType) {
+        // If no role, use userType
+        const userType = userProfile.userType.toLowerCase();
+        console.log('No role found, using userType:', userType);
+        
+        if (userType === 'organization') {
+          dashboardScreen = 'AdminDashboard';
+        } else if (userType === 'individual') {
+          dashboardScreen = 'UserDashboard';
+        }
+      }
+      
+      console.log('🏠 Final dashboard decision:', dashboardScreen);
+      
+      navigation.reset({
+        index: 0,
+        routes: [{ name: dashboardScreen }],
+      });
     } else {
       navigation.goBack();
     }

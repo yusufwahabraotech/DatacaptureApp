@@ -347,7 +347,8 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
   };
 
   const calculateTotalFees = () => {
-    const subscriptionAmount = calculatePackagePrice();
+    // Let backend handle subscription pricing
+    const subscriptionAmount = 0; // Backend will calculate this
     // Only include locations that are not paid for and not rejected+paid
     const eligibleLocations = savedLocations.filter(location => 
       !location.isPaidFor || location.verificationStatus !== 'rejected'
@@ -363,50 +364,10 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
     };
   };
 
-  const calculatePackagePrice = async () => {
-    console.log('🚨 CALCULATE PACKAGE PRICE DEBUG 🚨');
-    console.log('Selected package:', selectedPackage.title);
-    console.log('Selected duration:', selectedDuration);
-    
-    let total = 0;
-    
-    // Get unique service IDs from package
-    const serviceIds = [...new Set(selectedPackage.services?.map(s => s.serviceId) || [])];
-    console.log('Service IDs:', serviceIds);
-    
-    // Fetch each service's full pricing
-    for (const serviceId of serviceIds) {
-      try {
-        const response = await ApiService.getServiceById(serviceId);
-        if (response.success) {
-          const service = response.data.service;
-          
-          // Use service's price for requested duration
-          if (selectedDuration === 'monthly') {
-            total += service.monthlyPrice || 0;
-          } else if (selectedDuration === 'quarterly') {
-            total += service.quarterlyPrice || 0;
-          } else if (selectedDuration === 'yearly') {
-            total += service.yearlyPrice || 0;
-          }
-          console.log(`Service ${service.serviceName} ${selectedDuration} price:`, service[selectedDuration + 'Price'] || 0);
-        }
-      } catch (error) {
-        console.log('Error fetching service:', serviceId, error);
-      }
-    }
-    
-    console.log('Calculated total before discount:', total);
-    
-    // Apply package discount
-    if (selectedPackage.discountPercentage) {
-      const discountAmount = (total * selectedPackage.discountPercentage) / 100;
-      total = total - discountAmount;
-      console.log('Applied package discount:', selectedPackage.discountPercentage + '%', 'Final total:', total);
-    }
-    
-    console.log('Final calculated price:', total);
-    return total;
+  const calculatePackagePrice = () => {
+    // Let backend handle all price calculations
+    // Return a placeholder that will be replaced by backend response
+    return 0;
   };
 
   const handleCombinedPayment = async () => {
@@ -425,7 +386,11 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
         phone: userProfile.phone || userProfile.phoneNumber,
         includeVerifiedBadge: true,
         locations: savedLocations
+        // Remove totalAmount - let backend calculate
       };
+
+      console.log('🚨 COMBINED PAYMENT DATA (NO FRONTEND CALCULATION) 🚨');
+      console.log('Payment data:', JSON.stringify(paymentData, null, 2));
 
       const response = await ApiService.initializeCombinedPayment(paymentData);
       
@@ -452,6 +417,53 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
   const handleWebViewNavigationStateChange = (navState) => {
     const { url } = navState;
     
+    console.log('🚨 COMBINED PAYMENT WEBVIEW NAVIGATION 🚨');
+    console.log('Current URL:', url);
+    
+    // Check for mobile payment success/failure URLs (WebView compatible)
+    if (url.includes('frontend-datacap.vercel.app/mobile-payment-success')) {
+      console.log('✅ MOBILE COMBINED PAYMENT SUCCESS URL DETECTED');
+      
+      try {
+        const urlParams = new URLSearchParams(url.split('?')[1]);
+        const status = urlParams.get('status') || 'successful';
+        const txRef = urlParams.get('tx_ref');
+        const transactionId = urlParams.get('transaction_id');
+        
+        console.log('💳 Mobile combined payment data:', { status, txRef, transactionId });
+        
+        setShowPaymentWebView(false);
+        
+        if (status === 'successful') {
+          navigation.navigate('PaymentVerification', {
+            transactionId: txRef || transactionId,
+            status: 'successful',
+            paymentType: 'combined',
+            fromWebView: true
+          });
+        } else {
+          Alert.alert('Payment Failed', 'Your combined payment was cancelled or failed.');
+        }
+      } catch (parseError) {
+        console.error('❌ Failed to parse mobile combined payment URL:', parseError);
+        setShowPaymentWebView(false);
+        Alert.alert('Payment Error', 'There was an error processing your payment.');
+      }
+      
+      return false; // Prevent WebView from navigating
+    }
+    
+    // Check for mobile payment cancel URLs
+    if (url.includes('frontend-datacap.vercel.app/mobile-payment-cancel')) {
+      console.log('❌ MOBILE COMBINED PAYMENT CANCEL URL DETECTED');
+      
+      setShowPaymentWebView(false);
+      Alert.alert('Payment Cancelled', 'Your combined payment was cancelled.');
+      
+      return false; // Prevent WebView from navigating
+    }
+    
+    // Legacy handling for old URLs
     if (url.includes('status=successful')) {
       const urlParams = new URLSearchParams(url.split('?')[1]);
       const transactionId = urlParams.get('transaction_id');
@@ -466,6 +478,8 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
       setShowPaymentWebView(false);
       Alert.alert('Payment Cancelled', 'Your payment was cancelled or failed.');
     }
+    
+    return true;
   };
 
   const formatPrice = (price) => `₦${price.toLocaleString()}`;
@@ -501,7 +515,7 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
         <View style={styles.packageSummary}>
           <Text style={styles.sectionTitle}>Selected Package</Text>
           <Text style={styles.packageTitle}>{selectedPackage.title}</Text>
-          <Text style={styles.packageDuration}>{selectedDuration} - {formatPrice(calculatePackagePrice())}</Text>
+          <Text style={styles.packageDuration}>{selectedDuration} - Backend will calculate price</Text>
         </View>
 
         {/* Locations Section */}

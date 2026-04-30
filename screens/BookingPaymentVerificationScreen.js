@@ -60,27 +60,27 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
     console.log('🚨 BOOKING WEBVIEW NAVIGATION 🚨');
     console.log('Current URL:', url);
     
-    // Check for service booking verification URL from backend
-    if (url.includes('frontend-datacap.vercel.app/order/verify')) {
-      console.log('✅ SERVICE BOOKING VERIFICATION URL DETECTED');
+    // Check for mobile payment success/failure URLs (WebView compatible)
+    if (url.includes('frontend-datacap.vercel.app/mobile-payment-success')) {
+      console.log('✅ MOBILE BOOKING PAYMENT SUCCESS URL DETECTED');
       
       try {
         const urlParams = new URLSearchParams(url.split('?')[1]);
-        const status = urlParams.get('status');
+        const status = urlParams.get('status') || 'successful';
         const txRef = urlParams.get('tx_ref');
         const transactionId = urlParams.get('transaction_id');
         
-        console.log('💳 Service booking payment data:', { status, txRef, transactionId });
+        console.log('💳 Mobile booking payment data:', { status, txRef, transactionId });
         
         setShowPaymentWebView(false);
         
         if (status === 'successful') {
-          console.log('✅ SERVICE BOOKING PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+          console.log('✅ MOBILE BOOKING PAYMENT SUCCESSFUL - STARTING VERIFICATION');
           setStatus('verifying');
           setVerifying(true);
           verifyBookingPayment(txRef || transactionId);
         } else {
-          console.log('❌ SERVICE BOOKING PAYMENT FAILED/CANCELLED');
+          console.log('❌ MOBILE BOOKING PAYMENT FAILED/CANCELLED');
           setStatus('failed');
           setTimeout(() => {
             Alert.alert(
@@ -96,7 +96,73 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
           }, 1000);
         }
       } catch (parseError) {
-        console.error('❌ Failed to parse service booking verification URL:', parseError);
+        console.error('❌ Failed to parse mobile booking payment URL:', parseError);
+        setShowPaymentWebView(false);
+        setStatus('failed');
+      }
+      
+      return false; // Prevent WebView from navigating
+    }
+    
+    // Check for mobile payment cancel URLs
+    if (url.includes('frontend-datacap.vercel.app/mobile-payment-cancel')) {
+      console.log('❌ MOBILE BOOKING PAYMENT CANCEL URL DETECTED');
+      
+      setShowPaymentWebView(false);
+      setStatus('failed');
+      setTimeout(() => {
+        Alert.alert(
+          'Payment Cancelled', 
+          'Your booking payment was cancelled.',
+          [
+            {
+              text: 'Try Again',
+              onPress: () => navigation.goBack()
+            }
+          ]
+        );
+      }, 1000);
+      
+      return false; // Prevent WebView from navigating
+    }
+    
+    // Legacy: Check for service booking verification URL from backend
+    if (url.includes('frontend-datacap.vercel.app/order/verify')) {
+      console.log('✅ LEGACY SERVICE BOOKING VERIFICATION URL DETECTED');
+      
+      try {
+        const urlParams = new URLSearchParams(url.split('?')[1]);
+        const status = urlParams.get('status');
+        const txRef = urlParams.get('tx_ref');
+        const transactionId = urlParams.get('transaction_id');
+        
+        console.log('💳 Legacy service booking payment data:', { status, txRef, transactionId });
+        
+        setShowPaymentWebView(false);
+        
+        if (status === 'successful') {
+          console.log('✅ LEGACY SERVICE BOOKING PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+          setStatus('verifying');
+          setVerifying(true);
+          verifyBookingPayment(txRef || transactionId);
+        } else {
+          console.log('❌ LEGACY SERVICE BOOKING PAYMENT FAILED/CANCELLED');
+          setStatus('failed');
+          setTimeout(() => {
+            Alert.alert(
+              'Payment Failed', 
+              'Your booking payment was cancelled or failed.',
+              [
+                {
+                  text: 'Try Again',
+                  onPress: () => navigation.goBack()
+                }
+              ]
+            );
+          }, 1000);
+        }
+      } catch (parseError) {
+        console.error('❌ Failed to parse legacy service booking verification URL:', parseError);
         setShowPaymentWebView(false);
         setStatus('failed');
       }
@@ -106,7 +172,7 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
     
     // Legacy deep link handling (keep for backward compatibility)
     if (url.startsWith('vestradat://payment/verify-order')) {
-      console.log('✅ DEEP LINK DETECTED - PAYMENT SUCCESSFUL (LEGACY)');
+      console.log('✅ LEGACY DEEP LINK DETECTED - PAYMENT SUCCESSFUL');
       
       // Extract parameters from deep link
       const urlParts = url.split('?');
@@ -115,8 +181,8 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
         const status = params.get('status');
         const txRef = params.get('tx_ref') || params.get('transaction_id');
         
-        console.log('Deep link status:', status);
-        console.log('Deep link tx_ref:', txRef);
+        console.log('Legacy deep link status:', status);
+        console.log('Legacy deep link tx_ref:', txRef);
         
         if (status === 'successful') {
           setShowPaymentWebView(false);
@@ -126,7 +192,7 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
           // Verify the booking payment
           verifyBookingPayment(txRef || transactionId);
         } else {
-          console.log('❌ PAYMENT FAILED/CANCELLED FROM DEEP LINK');
+          console.log('❌ LEGACY PAYMENT FAILED/CANCELLED FROM DEEP LINK');
           setShowPaymentWebView(false);
           setStatus('failed');
           
@@ -361,27 +427,28 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
               onShouldStartLoadWithRequest={(request) => {
                 console.log('🔗 Should start load with request:', request.url);
                 
-                // Check for service booking verification URL from backend
-                if (request.url.includes('frontend-datacap.vercel.app/order/verify')) {
-                  console.log('🔗 Service booking verification URL detected, handling manually');
+                // Check for mobile payment success/failure URLs
+                if (request.url.includes('frontend-datacap.vercel.app/mobile-payment-success') ||
+                    request.url.includes('frontend-datacap.vercel.app/mobile-payment-cancel')) {
+                  console.log('🔗 Mobile booking payment URL detected, handling manually');
                   
                   try {
                     const urlParams = new URLSearchParams(request.url.split('?')[1]);
-                    const status = urlParams.get('status');
+                    const status = request.url.includes('mobile-payment-success') ? 'successful' : 'failed';
                     const txRef = urlParams.get('tx_ref');
                     const transactionId = urlParams.get('transaction_id');
                     
-                    console.log('💳 Service booking payment data:', { status, txRef, transactionId });
+                    console.log('💳 Mobile booking payment data:', { status, txRef, transactionId });
                     
                     setShowPaymentWebView(false);
                     
                     if (status === 'successful') {
-                      console.log('✅ SERVICE BOOKING PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                      console.log('✅ MOBILE BOOKING PAYMENT SUCCESSFUL - STARTING VERIFICATION');
                       setStatus('verifying');
                       setVerifying(true);
                       verifyBookingPayment(txRef || transactionId);
                     } else {
-                      console.log('❌ SERVICE BOOKING PAYMENT FAILED/CANCELLED');
+                      console.log('❌ MOBILE BOOKING PAYMENT FAILED/CANCELLED');
                       setStatus('failed');
                       setTimeout(() => {
                         Alert.alert(
@@ -397,7 +464,52 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
                       }, 1000);
                     }
                   } catch (parseError) {
-                    console.error('❌ Failed to parse service booking verification URL:', parseError);
+                    console.error('❌ Failed to parse mobile booking payment URL:', parseError);
+                    setShowPaymentWebView(false);
+                    setStatus('failed');
+                  }
+                  
+                  // Prevent WebView from trying to load the URL
+                  return false;
+                }
+                
+                // Legacy: Check for service booking verification URL from backend
+                if (request.url.includes('frontend-datacap.vercel.app/order/verify')) {
+                  console.log('🔗 Legacy service booking verification URL detected, handling manually');
+                  
+                  try {
+                    const urlParams = new URLSearchParams(request.url.split('?')[1]);
+                    const status = urlParams.get('status');
+                    const txRef = urlParams.get('tx_ref');
+                    const transactionId = urlParams.get('transaction_id');
+                    
+                    console.log('💳 Legacy service booking payment data:', { status, txRef, transactionId });
+                    
+                    setShowPaymentWebView(false);
+                    
+                    if (status === 'successful') {
+                      console.log('✅ LEGACY SERVICE BOOKING PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                      setStatus('verifying');
+                      setVerifying(true);
+                      verifyBookingPayment(txRef || transactionId);
+                    } else {
+                      console.log('❌ LEGACY SERVICE BOOKING PAYMENT FAILED/CANCELLED');
+                      setStatus('failed');
+                      setTimeout(() => {
+                        Alert.alert(
+                          'Payment Failed', 
+                          'Your booking payment was cancelled or failed.',
+                          [
+                            {
+                              text: 'Try Again',
+                              onPress: () => navigation.goBack()
+                            }
+                          ]
+                        );
+                      }, 1000);
+                    }
+                  } catch (parseError) {
+                    console.error('❌ Failed to parse legacy service booking verification URL:', parseError);
                     setShowPaymentWebView(false);
                     setStatus('failed');
                   }
@@ -408,17 +520,17 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
                 
                 // Legacy deep link handling (keep for backward compatibility)
                 if (request.url.startsWith('vestradat://')) {
-                  console.log('🔗 Deep link detected, opening with Linking');
+                  console.log('🔗 Legacy deep link detected, opening with Linking');
                   
                   // Use React Native Linking to handle the deep link
                   Linking.openURL(request.url)
                     .then(() => {
-                      console.log('✅ Deep link opened successfully');
+                      console.log('✅ Legacy deep link opened successfully');
                       // Close the WebView
                       setShowPaymentWebView(false);
                     })
                     .catch((error) => {
-                      console.error('❌ Failed to open deep link:', error);
+                      console.error('❌ Failed to open legacy deep link:', error);
                       
                       // Fallback: manually parse and navigate
                       try {
@@ -426,17 +538,17 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
                         const status = url.searchParams.get('status');
                         const txRef = url.searchParams.get('tx_ref') || url.searchParams.get('transaction_id');
                         
-                        console.log('💳 Fallback - Deep link payment data:', { status, txRef });
+                        console.log('💳 Fallback - Legacy deep link payment data:', { status, txRef });
                         
                         setShowPaymentWebView(false);
                         
                         if (status === 'successful') {
-                          console.log('✅ PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                          console.log('✅ LEGACY PAYMENT SUCCESSFUL - STARTING VERIFICATION');
                           setStatus('verifying');
                           setVerifying(true);
                           verifyBookingPayment(txRef || transactionId);
                         } else {
-                          console.log('❌ PAYMENT FAILED/CANCELLED');
+                          console.log('❌ LEGACY PAYMENT FAILED/CANCELLED');
                           setStatus('failed');
                           setTimeout(() => {
                             Alert.alert(
@@ -452,7 +564,7 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
                           }, 1000);
                         }
                       } catch (parseError) {
-                        console.error('❌ Failed to parse deep link:', parseError);
+                        console.error('❌ Failed to parse legacy deep link:', parseError);
                         setShowPaymentWebView(false);
                         setStatus('failed');
                       }

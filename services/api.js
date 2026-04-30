@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
 // Single base URL configuration - Updated to use Render deployment
-const BASE_URL = 'https://datacapture-backend.onrender.com/api';
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v15 - RENDER DEPLOYMENT UPDATE
 const FORCE_RELOAD_NOW = 'RENDER_DEPLOYMENT_UPDATE_' + Date.now();
@@ -1737,21 +1737,12 @@ class ApiService {
 
   // PAYMENT METHODS
   static async initializePayment(paymentData) {
-    console.log('🚨 PAYMENT INITIALIZATION DEBUG 🚨');
-    console.log('Payment data being sent:', JSON.stringify(paymentData, null, 2));
-    
-    // Add platform parameter for mobile app
-    const enhancedPaymentData = {
-      ...paymentData,
-      platform: 'mobile' // Ensure platform is always set for mobile
-    };
-    
-    console.log('🚨 ENHANCED PAYMENT DATA WITH PLATFORM 🚨');
-    console.log('Enhanced data:', JSON.stringify(enhancedPaymentData, null, 2));
+    console.log('🚨 PAYMENT DATA FOR BACKEND 🚨');
+    console.log('Payment data:', JSON.stringify(paymentData, null, 2));
     
     return this.apiCall('/payment/initialize', {
       method: 'POST',
-      body: JSON.stringify(enhancedPaymentData),
+      body: JSON.stringify(paymentData),
     });
   }
 
@@ -2492,15 +2483,14 @@ class ApiService {
     const correctedPaymentData = {
       ...paymentData,
       includeVerifiedBadge: paymentData.includeVerifiedBadge || paymentData.includeLocationVerification,
-      locations: paymentData.locations || [],
-      platform: 'mobile' // Ensure platform is always set for mobile
+      locations: paymentData.locations || []
     };
     
     // Remove old field names if they exist
     delete correctedPaymentData.includeLocationVerification;
     delete correctedPaymentData.locationVerificationAmount;
     
-    console.log('🚨 CORRECTED PAYMENT DATA WITH PLATFORM 🚨');
+    console.log('🚨 CORRECTED PAYMENT DATA 🚨');
     console.log('Final payload:', JSON.stringify(correctedPaymentData, null, 2));
     
     return this.apiCall('/payment/combined/initialize', {
@@ -3312,15 +3302,11 @@ class ApiService {
       console.log('User ID:', userId);
     }
     
-    // Add platform parameter and userId for mobile app
+    // Add userId to payment data
     const enhancedPaymentData = {
       ...paymentData,
-      platform: 'mobile', // Ensure platform is always set for mobile
       ...(userId && { userId }) // Include userId if available
     };
-    
-    console.log('🚨 ENHANCED PAYMENT DATA WITH PLATFORM & USER ID 🚨');
-    console.log('Enhanced data:', JSON.stringify(enhancedPaymentData, null, 2));
     
     return this.apiCall('/orders/public/initiate', {
       method: 'POST',
@@ -3762,15 +3748,11 @@ class ApiService {
       console.log('User ID:', userId);
     }
     
-    // Add platform parameter and userId for mobile app
+    // Add userId to booking data
     const enhancedBookingData = {
       ...bookingData,
-      platform: 'mobile', // Ensure platform is always set for mobile
       ...(userId && { userId }) // Include userId if available
     };
-    
-    console.log('🚨 ENHANCED BOOKING DATA WITH PLATFORM & USER ID 🚨');
-    console.log('Enhanced data:', JSON.stringify(enhancedBookingData, null, 2));
     
     return this.apiCall('/orders/public/initiate', {
       method: 'POST',

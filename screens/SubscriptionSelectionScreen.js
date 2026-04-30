@@ -84,18 +84,7 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
         
         // Fetch original service data for each package
         const servicesCache = {};
-        for (const pkg of activePackages) {
-          const serviceIds = [...new Set(pkg.services.map(s => s.serviceId))];
-          for (const serviceId of serviceIds) {
-            if (!servicesCache[serviceId]) {
-              const serviceResponse = await ApiService.getServiceById(serviceId);
-              if (serviceResponse.success) {
-                servicesCache[serviceId] = serviceResponse.data.service;
-              }
-            }
-          }
-        }
-        setServicesData(servicesCache);
+        // No need to fetch individual services since we use package service prices directly
         
         // Calculate prices for all packages and durations
         const pricesCache = {};
@@ -120,48 +109,17 @@ const SubscriptionSelectionScreen = ({ navigation }) => {
     console.log('Package:', pkg.title);
     console.log('Duration:', duration);
     
-    let total = 0;
+    // Find the service for the selected duration directly from package services
+    const serviceForDuration = pkg.services.find(service => service.duration === duration);
     
-    // Get unique service IDs from package
-    const serviceIds = [...new Set(pkg.services.map(s => s.serviceId))];
-    console.log('Service IDs:', serviceIds);
-    
-    // Use provided cache or fetch each service's full pricing
-    for (const serviceId of serviceIds) {
-      try {
-        let service;
-        if (servicesCache && servicesCache[serviceId]) {
-          service = servicesCache[serviceId];
-        } else {
-          const response = await ApiService.getServiceById(serviceId);
-          if (response.success) {
-            service = response.data.service;
-          }
-        }
-        
-        if (service) {
-          // Use service's price for requested duration
-          if (duration === 'monthly') {
-            total += service.monthlyPrice || 0;
-          } else if (duration === 'quarterly') {
-            total += service.quarterlyPrice || 0;
-          } else if (duration === 'yearly') {
-            total += service.yearlyPrice || 0;
-          }
-          console.log(`Service ${service.serviceName} ${duration} price:`, service[duration + 'Price'] || 0);
-        }
-      } catch (error) {
-        console.log('Error fetching service:', serviceId, error);
-      }
+    if (!serviceForDuration) {
+      console.log('No service found for duration:', duration);
+      return 0;
     }
     
-    console.log('Calculated total before discount:', total);
-    
-    // Apply package discount
-    if (pkg.discountPercentage) {
-      total = total - (total * pkg.discountPercentage / 100);
-      console.log('Applied package discount:', pkg.discountPercentage + '%', 'New total:', total);
-    }
+    let total = serviceForDuration.price || 0;
+    console.log(`Service ${serviceForDuration.serviceName} ${duration} price:`, total);
+    console.log('Base price (no automatic discounts):', total);
     
     // Apply promo discount if valid
     if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {

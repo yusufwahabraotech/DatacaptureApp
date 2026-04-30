@@ -209,9 +209,47 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
             console.log('🚨 PRODUCT WEBVIEW NAVIGATION 🚨');
             console.log('Current URL:', navState.url);
             
-            // Check for product payment verification URL from backend
+            // Check for mobile payment success/failure URLs (WebView compatible)
+            if (navState.url.includes('frontend-datacap.vercel.app/mobile-payment-success')) {
+              console.log('✅ MOBILE PRODUCT PAYMENT SUCCESS URL DETECTED');
+              
+              try {
+                const urlParams = new URLSearchParams(navState.url.split('?')[1]);
+                const status = urlParams.get('status') || 'successful';
+                const txRef = urlParams.get('tx_ref');
+                const transactionId = urlParams.get('transaction_id');
+                
+                console.log('💳 Mobile product payment data:', { status, txRef, transactionId });
+                
+                setShowWebView(false);
+                
+                if (status === 'successful') {
+                  console.log('✅ MOBILE PRODUCT PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                  handleVerifyPayment(txRef || transactionId);
+                } else {
+                  console.log('❌ MOBILE PRODUCT PAYMENT FAILED/CANCELLED');
+                  setPaymentStatus('failed');
+                }
+              } catch (parseError) {
+                console.error('❌ Failed to parse mobile product payment URL:', parseError);
+                setShowWebView(false);
+                setPaymentStatus('failed');
+              }
+              
+              return false; // Prevent WebView from navigating
+            }
+            
+            // Check for mobile payment cancel URLs
+            if (navState.url.includes('frontend-datacap.vercel.app/mobile-payment-cancel')) {
+              console.log('❌ MOBILE PRODUCT PAYMENT CANCEL URL DETECTED');
+              setShowWebView(false);
+              setPaymentStatus('failed');
+              return false; // Prevent WebView from navigating
+            }
+            
+            // Legacy: Check for product payment verification URL from backend
             if (navState.url.includes('frontend-datacap.vercel.app/payment/verify')) {
-              console.log('✅ PRODUCT PAYMENT VERIFICATION URL DETECTED');
+              console.log('✅ LEGACY PRODUCT PAYMENT VERIFICATION URL DETECTED');
               
               try {
                 const urlParams = new URLSearchParams(navState.url.split('?')[1]);
@@ -219,19 +257,19 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
                 const txRef = urlParams.get('tx_ref');
                 const transactionId = urlParams.get('transaction_id');
                 
-                console.log('💳 Product payment data:', { status, txRef, transactionId });
+                console.log('💳 Legacy product payment data:', { status, txRef, transactionId });
                 
                 setShowWebView(false);
                 
                 if (status === 'successful') {
-                  console.log('✅ PRODUCT PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                  console.log('✅ LEGACY PRODUCT PAYMENT SUCCESSFUL - STARTING VERIFICATION');
                   handleVerifyPayment(txRef || transactionId);
                 } else {
-                  console.log('❌ PRODUCT PAYMENT FAILED/CANCELLED');
+                  console.log('❌ LEGACY PRODUCT PAYMENT FAILED/CANCELLED');
                   setPaymentStatus('failed');
                 }
               } catch (parseError) {
-                console.error('❌ Failed to parse product payment verification URL:', parseError);
+                console.error('❌ Failed to parse legacy product payment verification URL:', parseError);
                 setShowWebView(false);
                 setPaymentStatus('failed');
               }
@@ -262,9 +300,41 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
           onShouldStartLoadWithRequest={(request) => {
             console.log('🔗 Should start load with request:', request.url);
             
-            // Check for product payment verification URL from backend
+            // Check for mobile payment success/failure URLs
+            if (request.url.includes('frontend-datacap.vercel.app/mobile-payment-success') ||
+                request.url.includes('frontend-datacap.vercel.app/mobile-payment-cancel')) {
+              console.log('🔗 Mobile product payment URL detected, handling manually');
+              
+              try {
+                const urlParams = new URLSearchParams(request.url.split('?')[1]);
+                const status = request.url.includes('mobile-payment-success') ? 'successful' : 'failed';
+                const txRef = urlParams.get('tx_ref');
+                const transactionId = urlParams.get('transaction_id');
+                
+                console.log('💳 Mobile product payment data:', { status, txRef, transactionId });
+                
+                setShowWebView(false);
+                
+                if (status === 'successful') {
+                  console.log('✅ MOBILE PRODUCT PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                  handleVerifyPayment(txRef || transactionId);
+                } else {
+                  console.log('❌ MOBILE PRODUCT PAYMENT FAILED/CANCELLED');
+                  setPaymentStatus('failed');
+                }
+              } catch (parseError) {
+                console.error('❌ Failed to parse mobile product payment URL:', parseError);
+                setShowWebView(false);
+                setPaymentStatus('failed');
+              }
+              
+              // Prevent WebView from trying to load the URL
+              return false;
+            }
+            
+            // Legacy: Check for product payment verification URL from backend
             if (request.url.includes('frontend-datacap.vercel.app/payment/verify')) {
-              console.log('🔗 Product payment verification URL detected, handling manually');
+              console.log('🔗 Legacy product payment verification URL detected, handling manually');
               
               try {
                 const urlParams = new URLSearchParams(request.url.split('?')[1]);
@@ -272,19 +342,19 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
                 const txRef = urlParams.get('tx_ref');
                 const transactionId = urlParams.get('transaction_id');
                 
-                console.log('💳 Product payment data:', { status, txRef, transactionId });
+                console.log('💳 Legacy product payment data:', { status, txRef, transactionId });
                 
                 setShowWebView(false);
                 
                 if (status === 'successful') {
-                  console.log('✅ PRODUCT PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                  console.log('✅ LEGACY PRODUCT PAYMENT SUCCESSFUL - STARTING VERIFICATION');
                   handleVerifyPayment(txRef || transactionId);
                 } else {
-                  console.log('❌ PRODUCT PAYMENT FAILED/CANCELLED');
+                  console.log('❌ LEGACY PRODUCT PAYMENT FAILED/CANCELLED');
                   setPaymentStatus('failed');
                 }
               } catch (parseError) {
-                console.error('❌ Failed to parse product payment verification URL:', parseError);
+                console.error('❌ Failed to parse legacy product payment verification URL:', parseError);
                 setShowWebView(false);
                 setPaymentStatus('failed');
               }
@@ -295,26 +365,26 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
             
             // Legacy deep link handling (keep for backward compatibility)
             if (request.url.startsWith('vestradat://')) {
-              console.log('🔗 Deep link detected, handling manually');
+              console.log('🔗 Legacy deep link detected, handling manually');
               
               try {
                 const url = new URL(request.url);
                 const status = url.searchParams.get('status');
                 const txRef = url.searchParams.get('tx_ref') || url.searchParams.get('transaction_id');
                 
-                console.log('💳 Deep link payment data:', { status, txRef });
+                console.log('💳 Legacy deep link payment data:', { status, txRef });
                 
                 setShowWebView(false);
                 
                 if (status === 'successful') {
-                  console.log('✅ PAYMENT SUCCESSFUL - STARTING VERIFICATION');
+                  console.log('✅ LEGACY PAYMENT SUCCESSFUL - STARTING VERIFICATION');
                   handleVerifyPayment(txRef);
                 } else {
-                  console.log('❌ PAYMENT FAILED/CANCELLED');
+                  console.log('❌ LEGACY PAYMENT FAILED/CANCELLED');
                   setPaymentStatus('failed');
                 }
               } catch (parseError) {
-                console.error('❌ Failed to parse deep link:', parseError);
+                console.error('❌ Failed to parse legacy deep link:', parseError);
                 setShowWebView(false);
                 setPaymentStatus('failed');
               }

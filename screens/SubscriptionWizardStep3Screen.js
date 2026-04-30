@@ -42,37 +42,12 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
   const getPackagePrice = async (applyPromoDiscount = true) => {
     if (!selectedPackage?.services) return 0;
     
-    let total = 0;
+    // Find the service for the selected duration directly from package services
+    const serviceForDuration = selectedPackage.services.find(service => service.duration === selectedDuration);
     
-    // Get unique service IDs from package
-    const serviceIds = [...new Set(selectedPackage.services.map(s => s.serviceId))];
+    if (!serviceForDuration) return 0;
     
-    // Fetch each service's full pricing
-    for (const serviceId of serviceIds) {
-      try {
-        const response = await ApiService.getServiceById(serviceId);
-        if (response.success) {
-          const service = response.data.service;
-          
-          // Use service's price for requested duration
-          if (selectedDuration === 'monthly') {
-            total += service.monthlyPrice || 0;
-          } else if (selectedDuration === 'quarterly') {
-            total += service.quarterlyPrice || 0;
-          } else if (selectedDuration === 'yearly') {
-            total += service.yearlyPrice || 0;
-          }
-        }
-      } catch (error) {
-        console.log('Error fetching service:', serviceId, error);
-      }
-    }
-    
-    // Apply package discount if exists
-    if (selectedPackage.discountPercentage && selectedPackage.discountPercentage > 0) {
-      const packageDiscount = (total * selectedPackage.discountPercentage) / 100;
-      total = total - packageDiscount;
-    }
+    let total = serviceForDuration.price || 0;
     
     // Apply promo discount if valid and requested
     if (applyPromoDiscount && promoValidation.isValid && promoValidation.discount > 0) {
@@ -461,9 +436,9 @@ const SubscriptionWizardStep3Screen = ({ navigation, route }) => {
           <View style={styles.packagePriceContainer}>
             {promoValidation.isValid && promoValidation.discount > 0 ? (
               <View style={styles.discountPricing}>
-                <Text style={styles.originalPrice}>{formatPrice(calculatedPrice)}</Text>
+                <Text style={styles.originalPrice}>{formatPrice(calculatedPrice / (1 - promoValidation.discount / 100))}</Text>
                 <Text style={styles.discountLabel}>-{promoValidation.discount}%</Text>
-                <Text style={styles.packagePrice}>{formatPrice(calculatedPrice * (1 - promoValidation.discount / 100))}</Text>
+                <Text style={styles.packagePrice}>{formatPrice(calculatedPrice)}</Text>
               </View>
             ) : (
               <Text style={styles.packagePrice}>{calculatedPrice !== null ? formatPrice(calculatedPrice) : 'Calculating...'}</Text>

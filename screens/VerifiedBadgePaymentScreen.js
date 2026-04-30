@@ -154,11 +154,57 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
     const { url } = navState;
     console.log('🌐 WebView navigation to:', url);
     
-    // Check if the URL contains success parameters from Flutterwave
+    // Check for mobile payment success/failure URLs (WebView compatible)
+    if (url.includes('frontend-datacap.vercel.app/mobile-payment-success')) {
+      console.log('✅ MOBILE VERIFIED BADGE PAYMENT SUCCESS URL DETECTED');
+      
+      try {
+        const urlParams = new URLSearchParams(url.split('?')[1]);
+        const status = urlParams.get('status') || 'successful';
+        const txRef = urlParams.get('tx_ref');
+        const transactionId = urlParams.get('transaction_id');
+        
+        console.log('💳 Mobile verified badge payment data:', { status, txRef, transactionId });
+        
+        setShowPaymentModal(false);
+        
+        if (status === 'successful') {
+          const verificationId = txRef || transactionId;
+          console.log('🔍 Using tx_ref for verification:', verificationId);
+          
+          if (verificationId) {
+            await verifyPaymentWithId(verificationId);
+          } else {
+            console.log('❌ No tx_ref found in URL');
+            Alert.alert('Error', 'Could not extract transaction reference from payment response');
+          }
+        } else {
+          Alert.alert('Payment Failed', 'Your verified badge payment was cancelled or failed.');
+        }
+      } catch (parseError) {
+        console.error('❌ Failed to parse mobile verified badge payment URL:', parseError);
+        setShowPaymentModal(false);
+        Alert.alert('Payment Error', 'There was an error processing your payment.');
+      }
+      
+      return false; // Prevent WebView from navigating
+    }
+    
+    // Check for mobile payment cancel URLs
+    if (url.includes('frontend-datacap.vercel.app/mobile-payment-cancel')) {
+      console.log('❌ MOBILE VERIFIED BADGE PAYMENT CANCEL URL DETECTED');
+      
+      setShowPaymentModal(false);
+      Alert.alert('Payment Cancelled', 'Your verified badge payment was cancelled.');
+      
+      return false; // Prevent WebView from navigating
+    }
+    
+    // Legacy: Check if the URL contains success parameters from Flutterwave
     if (url.includes('frontend-datacap.vercel.app/payment/verify-verified-badge') || 
         url.includes('status=successful') || 
         url.includes('successful')) {
-      console.log('✅ Payment successful, extracting transaction ID from URL');
+      console.log('✅ LEGACY Payment successful, extracting transaction ID from URL');
       
       // Fix HTML entities in URL (convert &amp; to &)
       const cleanUrl = url.replace(/&amp;/g, '&');
