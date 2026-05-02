@@ -251,11 +251,18 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
     try {
       console.log('🚨 VERIFYING BOOKING PAYMENT 🚨');
       console.log('Using transaction reference:', txRef);
+      console.log('Order ID (temporary):', orderId); // This will be 'pending_payment'
       
       const response = await ApiService.verifyBookingPayment(txRef);
       console.log('Verification response:', JSON.stringify(response, null, 2));
       
       if (response.success) {
+        console.log('✅ BOOKING PAYMENT VERIFIED SUCCESSFULLY');
+        
+        // Get the real order ID from verification response
+        const realOrderId = response.data?.order?._id || response.data?.orderId;
+        console.log('Real Order ID after verification:', realOrderId);
+        
         setStatus('success');
         setTimeout(() => {
           Alert.alert(
@@ -274,11 +281,78 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
           );
         }, 2000);
       } else {
+        console.log('❌ BOOKING VERIFICATION FAILED:', response.message);
+        
+        // Handle different types of failures
+        if (response.message && response.message.includes('Payment was not successful')) {
+          // Payment failed - no booking was created
+          console.log('❌ BOOKING PAYMENT WAS NOT SUCCESSFUL - NO BOOKING CREATED');
+          setStatus('failed');
+          setTimeout(() => {
+            Alert.alert(
+              'Payment Failed',
+              'Your payment was not successful. No booking has been created. Please try again.',
+              [
+                {
+                  text: 'Try Again',
+                  onPress: () => navigation.goBack()
+                },
+                {
+                  text: 'Contact Support',
+                  onPress: () => navigation.navigate('Help')
+                }
+              ]
+            );
+          }, 2000);
+        } else {
+          setStatus('failed');
+          setTimeout(() => {
+            Alert.alert(
+              'Verification Failed',
+              response.message || 'Failed to verify booking payment',
+              [
+                {
+                  text: 'Contact Support',
+                  onPress: () => navigation.navigate('Help')
+                },
+                {
+                  text: 'Try Again',
+                  onPress: () => navigation.goBack()
+                }
+              ]
+            );
+          }, 2000);
+        }
+      }
+    } catch (error) {
+      console.error('Booking payment verification error:', error);
+      
+      // Handle specific error types
+      if (error.message && error.message.includes('Payment was not successful')) {
+        console.log('❌ BOOKING PAYMENT FAILED - NO BOOKING CREATED');
         setStatus('failed');
         setTimeout(() => {
           Alert.alert(
-            'Verification Failed',
-            response.message || 'Failed to verify booking payment',
+            'Payment Failed',
+            'Payment failed. No booking was created. Please try booking again.',
+            [
+              {
+                text: 'Try Again',
+                onPress: () => navigation.goBack()
+              },
+              {
+                text: 'Contact Support',
+                onPress: () => navigation.navigate('Help')
+              }
+            ]
+          );
+        }, 2000);
+      } else {
+        setStatus('failed');
+        setTimeout(() => {
+          Alert.alert(
+            'Verification Error',
+            'Failed to verify booking payment. Please contact support.',
             [
               {
                 text: 'Contact Support',
@@ -292,25 +366,6 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
           );
         }, 2000);
       }
-    } catch (error) {
-      console.error('Booking payment verification error:', error);
-      setStatus('failed');
-      setTimeout(() => {
-        Alert.alert(
-          'Verification Error',
-          'Failed to verify booking payment. Please contact support.',
-          [
-            {
-              text: 'Contact Support',
-              onPress: () => navigation.navigate('Help')
-            },
-            {
-              text: 'Try Again',
-              onPress: () => navigation.goBack()
-            }
-          ]
-        );
-      }, 2000);
     } finally {
       setVerifying(false);
     }

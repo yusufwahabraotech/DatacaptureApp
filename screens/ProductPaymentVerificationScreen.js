@@ -34,13 +34,12 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
     setVerificationAttempts(prev => prev + 1);
 
     try {
-      // Extract transaction ID from txRef or use orderId
-      const transactionId = txRefParam || txRef || orderId;
+      // Use transaction reference (tx_ref) for verification, not orderId
+      const transactionId = txRefParam || txRef;
       
       console.log('🚨 VERIFYING PAYMENT 🚨');
-      console.log('Transaction ID:', transactionId);
-      console.log('Order ID:', orderId);
-      console.log('TxRef:', txRef);
+      console.log('Transaction ID (tx_ref):', transactionId);
+      console.log('Order ID (temporary):', orderId); // This will be 'pending_payment'
       console.log('Verification attempt:', verificationAttempts + 1);
 
       const response = await ApiService.verifyProductPayment(transactionId);
@@ -51,6 +50,10 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
       if (response.success) {
         console.log('✅ PAYMENT VERIFIED SUCCESSFULLY');
         setPaymentStatus('success');
+        
+        // Get the real order ID from verification response
+        const realOrderId = response.data?.order?._id || response.data?.orderId;
+        console.log('Real Order ID after verification:', realOrderId);
         
         // Show success message and navigate
         Alert.alert(
@@ -70,8 +73,20 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
       } else {
         console.log('❌ VERIFICATION FAILED:', response.message);
         
-        // Don't show success UI if verification actually failed
-        if (verificationAttempts < 4) {
+        // Handle different types of failures
+        if (response.message && response.message.includes('Payment was not successful')) {
+          // Payment failed - no order was created
+          console.log('❌ PAYMENT WAS NOT SUCCESSFUL - NO ORDER CREATED');
+          setPaymentStatus('failed');
+          Alert.alert(
+            'Payment Failed',
+            'Your payment was not successful. No order has been created. Please try again.',
+            [
+              { text: 'Try Again', onPress: () => navigation.goBack() },
+              { text: 'Contact Support', onPress: () => {} }
+            ]
+          );
+        } else if (verificationAttempts < 4) {
           console.log('Retrying verification in 5 seconds...');
           // Retry verification with longer delay for backend processing
           setTimeout(() => handleVerifyPayment(), 5000);
@@ -93,7 +108,20 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.error('Payment verification error:', error);
-      if (verificationAttempts < 4) {
+      
+      // Handle specific error types
+      if (error.message && error.message.includes('Payment was not successful')) {
+        console.log('❌ PAYMENT FAILED - NO ORDER CREATED');
+        setPaymentStatus('failed');
+        Alert.alert(
+          'Payment Failed',
+          'Payment failed. No order was created. Please try booking again.',
+          [
+            { text: 'Try Again', onPress: () => navigation.goBack() },
+            { text: 'Contact Support', onPress: () => {} }
+          ]
+        );
+      } else if (verificationAttempts < 4) {
         console.log('Retrying verification due to error in 5 seconds...');
         setTimeout(() => handleVerifyPayment(), 5000);
       } else {
@@ -132,10 +160,13 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
             Your {paymentType} payment of ₦{paymentAmount.toLocaleString()} has been processed successfully.
           </Text>
           
-          <View style={styles.orderInfo}>
-            <Text style={styles.orderLabel}>Order ID:</Text>
-            <Text style={styles.orderValue}>{orderId}</Text>
-          </View>
+          {/* Only show order info if we have a real order ID (not 'pending_payment') */}
+          {orderId && orderId !== 'pending_payment' && (
+            <View style={styles.orderInfo}>
+              <Text style={styles.orderLabel}>Order ID:</Text>
+              <Text style={styles.orderValue}>{orderId}</Text>
+            </View>
+          )}
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity
@@ -521,8 +552,8 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
           
           {/* Debug info */}
           <View style={styles.debugInfo}>
-            <Text style={styles.debugText}>Order ID: {orderId}</Text>
-            <Text style={styles.debugText}>Transaction Ref: {txRef}</Text>
+            <Text style={styles.debugText}>Order ID (temporary): {orderId}</Text>
+            <Text style={styles.debugText}>Transaction Ref (for verification): {txRef}</Text>
           </View>
 
           <TouchableOpacity

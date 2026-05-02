@@ -264,10 +264,14 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
           setPricingBreakdown(response.data.pricingBreakdown);
         }
 
+        // Don't use orderId until after verification - it will be 'pending_payment'
+        console.log('Temporary Order ID:', response.data.orderId); // Will be 'pending_payment'
+        console.log('Transaction Reference for verification:', response.data.tx_ref);
+
         // Store booking order data and show payment WebView
         setBookingOrderData({
-          orderId: response.data.orderId,
-          transactionId: response.data.tx_ref,
+          orderId: response.data.orderId, // This will be 'pending_payment'
+          transactionId: response.data.tx_ref, // Use this for verification
           service: service,
           bookingData: bookingData,
           pricingBreakdown: response.data.pricingBreakdown,

@@ -131,11 +131,15 @@ const ProductPaymentScreen = ({ navigation, route }) => {
       const response = await ApiService.initiateProductPayment(paymentData);
       
       if (response.success) {
+        // Don't use orderId until after verification - it will be 'pending_payment'
+        console.log('Temporary Order ID:', response.data.orderId); // Will be 'pending_payment'
+        console.log('Transaction Reference for verification:', response.data.tx_ref);
+        
         // Navigate to payment verification screen with payment link
         navigation.navigate('ProductPaymentVerification', {
           paymentLink: response.data.link,
-          orderId: response.data.orderId,
-          txRef: response.data.tx_ref,
+          orderId: response.data.orderId, // This will be 'pending_payment'
+          txRef: response.data.tx_ref, // Use this for verification
           product: product,
           paymentAmount: calculatePaymentAmount(),
           paymentType: paymentType,
