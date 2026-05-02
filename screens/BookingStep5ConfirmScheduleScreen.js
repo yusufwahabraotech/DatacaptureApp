@@ -158,12 +158,19 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
         return;
       }
 
+      // Get the base price (not multiplied by persons)
+      const basePrice = service.pricing?.discountedPrice || 
+                       service.pricing?.originalPrice || 
+                       service.actualAmount || 
+                       service.priceInDollars || 
+                       service.price || 0;
+
       // Prepare booking data with updated structure
       const bookingData = {
         serviceId: service.id || service._id,
         productId: service.id || service._id,
         productName: service.name,
-        productPrice: calculateTotalAmount(),
+        productPrice: basePrice, // Send base price, let backend multiply by numberOfPersons
         upfrontPercentage: getUpfrontPercentage(), // Backend expects this field name
         customerName: customerInfo.name,
         customerEmail: customerInfo.email,
