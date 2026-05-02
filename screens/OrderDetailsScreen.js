@@ -354,6 +354,32 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                           })}
                         </Text>
                       )}
+                      
+                      {/* Sub-Services for this person */}
+                      {person.selectedSubServices && person.selectedSubServices.length > 0 && (
+                        <View style={styles.subServicesSection}>
+                          <Text style={styles.subServicesTitle}>🔧 Selected Sub-Services:</Text>
+                          {person.selectedSubServices.map((subService, subIndex) => (
+                            <View key={subIndex} style={styles.subServiceItem}>
+                              <View style={styles.subServiceHeader}>
+                                <Text style={styles.subServiceName}>{subService.name}</Text>
+                                <Text style={styles.subServicePrice}>₦{subService.price?.toLocaleString()}</Text>
+                              </View>
+                              {subService.code && (
+                                <Text style={styles.subServiceCode}>Code: {subService.code}</Text>
+                              )}
+                            </View>
+                          ))}
+                          
+                          {/* Individual total for this person */}
+                          {person.individualTotal && (
+                            <View style={styles.individualTotalContainer}>
+                              <Text style={styles.individualTotalLabel}>Individual Total:</Text>
+                              <Text style={styles.individualTotalValue}>₦{person.individualTotal.toLocaleString()}</Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
                     </View>
                   ))}
                 </View>
@@ -396,11 +422,115 @@ const OrderDetailsScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Payment Summary */}
+        {/* Sub-Services Summary */}
+        {order.serviceBooking && order.serviceBooking.bookedForPersons && 
+         order.serviceBooking.bookedForPersons.some(person => person.selectedSubServices && person.selectedSubServices.length > 0) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Sub-Services Summary</Text>
+            
+            <View style={styles.subServicesSummaryCard}>
+              {order.serviceBooking.bookedForPersons.map((person, personIndex) => {
+                if (!person.selectedSubServices || person.selectedSubServices.length === 0) return null;
+                
+                return (
+                  <View key={personIndex} style={styles.personSubServicesSummary}>
+                    <Text style={styles.personSummaryName}>{person.name}</Text>
+                    {person.selectedSubServices.map((subService, subIndex) => (
+                      <View key={subIndex} style={styles.subServiceSummaryItem}>
+                        <Text style={styles.subServiceSummaryName}>{subService.name}</Text>
+                        <Text style={styles.subServiceSummaryPrice}>₦{subService.price?.toLocaleString()}</Text>
+                      </View>
+                    ))}
+                    <View style={styles.personSubServicesTotal}>
+                      <Text style={styles.personSubServicesTotalLabel}>Person Total:</Text>
+                      <Text style={styles.personSubServicesTotalValue}>
+                        ₦{person.selectedSubServices.reduce((total, sub) => total + (sub.price || 0), 0).toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              }).filter(Boolean)}
+              
+              <View style={styles.allSubServicesTotal}>
+                <Text style={styles.allSubServicesTotalLabel}>All Sub-Services Total:</Text>
+                <Text style={styles.allSubServicesTotalValue}>
+                  ₦{order.serviceBooking.bookedForPersons.reduce((total, person) => {
+                    if (person.selectedSubServices) {
+                      return total + person.selectedSubServices.reduce((subTotal, subService) => subTotal + (subService.price || 0), 0);
+                    }
+                    return total;
+                  }, 0).toLocaleString()}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Enhanced Payment Summary with Sub-Services */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Summary</Text>
           
           <View style={styles.paymentSummary}>
+            {/* Base Service Pricing */}
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Base Service Price:</Text>
+              <Text style={styles.summaryValue}>₦{order.productPrice?.toLocaleString()}</Text>
+            </View>
+            
+            {/* Number of Persons */}
+            {order.serviceBooking && order.serviceBooking.bookedForPersons && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Number of Persons:</Text>
+                <Text style={styles.summaryValue}>{order.serviceBooking.bookedForPersons.length}</Text>
+              </View>
+            )}
+            
+            {/* Total Service Price */}
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total Service Price:</Text>
+              <Text style={styles.summaryValue}>₦{(order.productPrice * (order.serviceBooking?.bookedForPersons?.length || 1))?.toLocaleString()}</Text>
+            </View>
+            
+            {/* Sub-Services Total */}
+            {order.serviceBooking && order.serviceBooking.bookedForPersons && 
+             order.serviceBooking.bookedForPersons.some(person => person.selectedSubServices && person.selectedSubServices.length > 0) && (
+              <>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Sub-Services Total:</Text>
+                  <Text style={styles.summaryValue}>
+                    ₦{order.serviceBooking.bookedForPersons.reduce((total, person) => {
+                      if (person.selectedSubServices) {
+                        return total + person.selectedSubServices.reduce((subTotal, subService) => subTotal + (subService.price || 0), 0);
+                      }
+                      return total;
+                    }, 0).toLocaleString()}
+                  </Text>
+                </View>
+              </>
+            )}
+            
+            <View style={styles.summaryDivider} />
+            
+            {/* Grand Total */}
+            <View style={styles.summaryRow}>
+              <Text style={styles.grandTotalLabel}>Grand Total:</Text>
+              <Text style={styles.grandTotalValue}>
+                ₦{(
+                  (order.productPrice * (order.serviceBooking?.bookedForPersons?.length || 1)) +
+                  (order.serviceBooking?.bookedForPersons?.reduce((total, person) => {
+                    if (person.selectedSubServices) {
+                      return total + person.selectedSubServices.reduce((subTotal, subService) => subTotal + (subService.price || 0), 0);
+                    }
+                    return total;
+                  }, 0) || 0)
+                )?.toLocaleString()}
+              </Text>
+            </View>
+            
+            <View style={styles.summaryDivider} />
+            
+            {/* Payment Information */}
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Total Amount Paid:</Text>
               <Text style={styles.summaryPaid}>₦{order.totalAmountPaid?.toLocaleString()}</Text>
@@ -956,6 +1086,171 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#7B2CBF',
     fontWeight: '500',
+  },
+  // Sub-services styles
+  subServicesSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  subServicesTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  subServiceItem: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#7B2CBF',
+  },
+  subServiceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  subServiceName: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#1F2937',
+    flex: 1,
+  },
+  subServicePrice: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7B2CBF',
+  },
+  subServiceCode: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  individualTotalContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#D1D5DB',
+  },
+  individualTotalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  individualTotalValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#7B2CBF',
+  },
+  // Enhanced payment summary styles
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 8,
+  },
+  grandTotalLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  grandTotalValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#7B2CBF',
+  },
+  // Sub-services summary styles
+  subServicesSummaryCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  personSubServicesSummary: {
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  personSummaryName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  subServiceSummaryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: 'white',
+    borderRadius: 4,
+    marginBottom: 4,
+  },
+  subServiceSummaryName: {
+    fontSize: 14,
+    color: '#374151',
+    flex: 1,
+  },
+  subServiceSummaryPrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7B2CBF',
+  },
+  personSubServicesTotal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#D1D5DB',
+  },
+  personSubServicesTotalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  personSubServicesTotalValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#7B2CBF',
+  },
+  allSubServicesTotal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 2,
+    borderTopColor: '#7B2CBF',
+    backgroundColor: '#F3E8FF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  allSubServicesTotalLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  allSubServicesTotalValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#7B2CBF',
   },
   notesSection: {
     marginTop: 16,

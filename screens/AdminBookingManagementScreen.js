@@ -30,6 +30,27 @@ const AdminBookingManagementScreen = ({ navigation }) => {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, totalPages: 1, total: 0 });
 
+  // Helper function to determine booking source
+  const getBookingSource = (booking) => {
+    // Check multiple indicators to determine booking source
+    if (booking.bookedByAdmin === true) {
+      return 'admin';
+    }
+    if (booking.bookedByAdmin === false) {
+      return 'customer';
+    }
+    // Fallback: check if there's a userId (customer booking) vs no userId (admin booking)
+    if (booking.userId) {
+      return 'customer';
+    }
+    // Another fallback: check booking method or source
+    if (booking.bookingSource === 'admin' || booking.createdBy === 'admin') {
+      return 'admin';
+    }
+    // Default to customer if uncertain
+    return 'customer';
+  };
+
   const statusOptions = [
     { label: 'All Bookings', value: 'all' },
     { label: 'Scheduled', value: 'scheduled' },
@@ -176,6 +197,13 @@ const AdminBookingManagementScreen = ({ navigation }) => {
   };
 
   const renderBookingItem = ({ item }) => {
+    // Debug: Log booking data to understand the structure
+    console.log('🚨 BOOKING ITEM DEBUG 🚨');
+    console.log('Booking ID:', item.bookingId);
+    console.log('bookedByAdmin field:', item.bookedByAdmin);
+    console.log('bookedByAdmin type:', typeof item.bookedByAdmin);
+    console.log('Full item keys:', Object.keys(item));
+    
     // Create combined date-time for display
     const combinedDateTime = new Date(`${item.bookingDate.split('T')[0]}T${item.bookingTime}:00`);
     
@@ -187,9 +215,15 @@ const AdminBookingManagementScreen = ({ navigation }) => {
         <View style={styles.bookingHeader}>
           <View style={styles.bookingIdContainer}>
             <Text style={styles.bookingId}>#{item.bookingId}</Text>
-            {item.bookedByAdmin && (
+            {/* Show badge based on booking source */}
+            {getBookingSource(item) === 'admin' && (
               <View style={styles.adminBadge}>
                 <Text style={styles.adminBadgeText}>Admin</Text>
+              </View>
+            )}
+            {getBookingSource(item) === 'customer' && (
+              <View style={styles.customerBadge}>
+                <Text style={styles.customerBadgeText}>Customer</Text>
               </View>
             )}
           </View>
@@ -505,7 +539,9 @@ const AdminBookingManagementScreen = ({ navigation }) => {
                 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Booked By:</Text>
-                  <Text style={styles.detailValue}>{selectedBooking.bookedByAdmin ? 'Admin' : 'Customer'}</Text>
+                  <Text style={styles.detailValue}>
+                    {getBookingSource(selectedBooking) === 'admin' ? 'Admin' : 'Customer'}
+                  </Text>
                 </View>
                 
                 {selectedBooking.taskId && (
@@ -944,6 +980,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   adminBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'white',
+  },
+  customerBadge: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  customerBadgeText: {
     fontSize: 10,
     fontWeight: '600',
     color: 'white',
