@@ -33,6 +33,117 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
   const [paymentLink, setPaymentLink] = useState(null);
   const [bookingOrderData, setBookingOrderData] = useState(null);
   const [paymentTimeout, setPaymentTimeout] = useState(null);
+  
+  // Sub-service selection state
+  const [availableSubServices, setAvailableSubServices] = useState([]);
+  const [subServiceSelections, setSubServiceSelections] = useState({});
+  const [loadingSubServices, setLoadingSubServices] = useState(true);
+  const [loadingPricing, setLoadingPricing] = useState(false);
+  const [realTimePricing, setRealTimePricing] = useState(null);
+
+  // Initialize sub-service selections for all persons
+  const initializeSubServiceSelections = () => {
+    const selections = {};
+    // Customer
+    selections[customerInfo.name] = [];
+    // Guests
+    guests.forEach(guest => {
+      selections[guest.name] = [];
+    });
+    setSubServiceSelections(selections);
+  };
+
+  // Fetch available sub-services
+  const fetchSubServices = async () => {
+    try {
+      setLoadingSubServices(true);
+      const serviceId = service.id || service._id;
+      const response = await ApiService.getServiceSubServices(serviceId);
+      
+      if (response.success && response.data) {
+        setAvailableSubServices(response.data.subServices || []);
+      } else {
+        console.log('No sub-services available or error:', response.message);
+        setAvailableSubServices([]);
+      }
+    } catch (error) {
+      console.error('Error fetching sub-services:', error);
+      setAvailableSubServices([]);
+    } finally {
+      setLoadingSubServices(false);
+    }
+  };
+
+  // Calculate real-time pricing with sub-services
+  const calculateRealTimePricing = async () => {
+    try {
+      setLoadingPricing(true);
+      
+      // Prepare persons with their selected sub-services
+      const bookedForPersons = [
+        {
+          name: customerInfo.name,
+          selectedSubServices: subServiceSelections[customerInfo.name] || []
+        },
+        ...guests.map(guest => ({
+          name: guest.name,
+          selectedSubServices: subServiceSelections[guest.name] || []
+        }))
+      ];
+
+      const pricingData = {
+        serviceId: service.id || service._id,
+        organizationId: service.organizationId,
+        paymentType: paymentType,
+        bookedForPersons: bookedForPersons
+      };
+
+      const response = await ApiService.calculateBookingPricing(pricingData);
+      
+      if (response.success && response.data) {
+        setRealTimePricing(response.data);
+      } else {
+        console.log('Pricing calculation failed:', response.message);
+      }
+    } catch (error) {
+      console.error('Error calculating pricing:', error);
+    } finally {
+      setLoadingPricing(false);
+    }
+  };
+
+  // Toggle sub-service selection for a person
+  const toggleSubServiceSelection = (personName, subService) => {
+    setSubServiceSelections(prev => {
+      const personSelections = prev[personName] || [];
+      const isSelected = personSelections.some(s => s.subServiceId === subService.subServiceId);
+      
+      let newSelections;
+      if (isSelected) {
+        // Remove sub-service
+        newSelections = personSelections.filter(s => s.subServiceId !== subService.subServiceId);
+      } else {
+        // Add sub-service
+        newSelections = [...personSelections, {
+          subServiceId: subService.subServiceId,
+          name: subService.name,
+          code: subService.code,
+          price: subService.price
+        }];
+      }
+      
+      return {
+        ...prev,
+        [personName]: newSelections
+      };
+    });
+  };
+
+  // Check if sub-service is selected for a person
+  const isSubServiceSelected = (personName, subService) => {
+    const personSelections = subServiceSelections[personName] || [];
+    return personSelections.some(s => s.subServiceId === subService.subServiceId);
+  };
 
   useEffect(() => {
     console.log('🚨 SERVICE DATA DEBUG 🚨');
@@ -43,81 +154,92 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
     console.log('- price:', service.price);
     console.log('- upfrontPaymentPercentage:', service.upfrontPaymentPercentage);
     console.log('- bookingAvailability:', service.bookingAvailability);
+    
+    // Initialize sub-service selections and fetch available sub-services
+    initializeSubServiceSelections();
+    fetchSubServices();
   }, [service]);
 
+  // Recalculate pricing when sub-service selections or payment type changes
+  useEffect(() => {
+    if (!loadingSubServices && availableSubServices.length > 0) {
+      calculateRealTimePricing();
+    }
+  }, [subServiceSelections, paymentType, loadingSubServices]);
+
   const calculateTotalAmount = () => {
-    // Updated price field detection based on actual service structure
+    if (realTimePricing) {
+      return realTimePricing.totalServicePrice;
+    }
+    
+    // Fallback calculation
     const baseAmount = service.pricing?.discountedPrice || 
                       service.pricing?.originalPrice || 
                       service.actualAmount || 
                       service.priceInDollars || 
                       service.price || 0;
-    const numberOfPersons = 1 + guests.length; // Customer + guests
-    const totalServicePrice = baseAmount * numberOfPersons;
-    
-    console.log('💰 PRICING CALCULATION:');
-    console.log('- service.pricing:', service.pricing);
-    console.log('- discountedPrice:', service.pricing?.discountedPrice);
-    console.log('- originalPrice:', service.pricing?.originalPrice);
-    console.log('- baseProductPrice:', baseAmount);
-    console.log('- numberOfPersons:', numberOfPersons);
-    console.log('- totalServicePrice:', totalServicePrice);
-    
-    return totalServicePrice;
-  };
-
-  const calculateSubServicesTotal = () => {
-    if (!service.subServices || service.subServices.length === 0) return 0;
-    return service.subServices.reduce((total, sub) => total + (sub.price || 0), 0);
+    const numberOfPersons = 1 + guests.length;
+    return baseAmount * numberOfPersons;
   };
 
   const getUpfrontPercentage = () => {
-    // Updated upfront percentage detection
+    if (realTimePricing && realTimePricing.upfrontPercentage) {
+      return realTimePricing.upfrontPercentage;
+    }
     return service.pricing?.upfrontPaymentPercentage || 
-           service.upfrontPaymentPercentage || 50; // Default to 50% if not set
+           service.upfrontPaymentPercentage || 50;
   };
 
   const calculateUpfrontAmount = () => {
+    if (realTimePricing && realTimePricing.paymentOptions) {
+      return realTimePricing.paymentOptions.upfront.amount;
+    }
+    
     const totalAmount = calculateTotalAmount();
     const upfrontPercentage = getUpfrontPercentage();
     return Math.round(totalAmount * (upfrontPercentage / 100));
   };
 
   const calculateRemainingBalance = () => {
+    if (realTimePricing && realTimePricing.paymentOptions) {
+      return realTimePricing.paymentOptions.upfront.remainingBalance;
+    }
+    
     return calculateTotalAmount() - calculateUpfrontAmount();
   };
 
   const getPaymentAmount = () => {
-    const mainServiceAmount = paymentType === 'full' ? calculateTotalAmount() : calculateUpfrontAmount();
-    const subServicesTotal = calculateSubServicesTotal();
-    const totalPaymentAmount = mainServiceAmount + subServicesTotal;
+    if (realTimePricing && realTimePricing.paymentOptions) {
+      return paymentType === 'full' 
+        ? realTimePricing.paymentOptions.full.amount
+        : realTimePricing.paymentOptions.upfront.amount;
+    }
     
-    console.log('💰 FINAL PRICING:');
-    console.log('- paymentType:', paymentType);
-    console.log('- mainServiceAmount:', mainServiceAmount);
-    console.log('- subServicesTotal:', subServicesTotal);
-    console.log('- totalPaymentAmount:', totalPaymentAmount);
-    console.log('- upfrontPercentage:', getUpfrontPercentage());
-    
-    return totalPaymentAmount;
+    // Fallback calculation
+    const totalAmount = calculateTotalAmount();
+    return paymentType === 'full' ? totalAmount : calculateUpfrontAmount();
   };
 
   const getPaymentOptions = () => {
-    const totalServicePrice = calculateTotalAmount();
-    const subServicesTotal = calculateSubServicesTotal();
+    if (realTimePricing && realTimePricing.paymentOptions) {
+      return realTimePricing.paymentOptions;
+    }
+    
+    // Fallback options
+    const totalAmount = calculateTotalAmount();
     const upfrontPercentage = getUpfrontPercentage();
     const upfrontAmount = calculateUpfrontAmount();
     
     return {
       upfront: {
         available: upfrontPercentage > 0 && upfrontPercentage < 100,
-        amount: upfrontAmount + subServicesTotal,
+        amount: upfrontAmount,
         percentage: upfrontPercentage,
         remainingBalance: calculateRemainingBalance()
       },
       full: {
         available: true,
-        amount: totalServicePrice + subServicesTotal,
+        amount: totalAmount,
         percentage: 100,
         remainingBalance: 0
       }
@@ -193,35 +315,39 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
           whatsappLocationUrl: bookingLocation.whatsappLocationUrl
         },
 
-        // Persons data
+        // Persons data with sub-service selections
         bookedForPersons: [
           {
             name: customerInfo.name,
             email: customerInfo.email,
             slotDateTime: selectedSlot.datetime,
             isMainBooker: true,
+            selectedSubServices: subServiceSelections[customerInfo.name] || [],
+            individualTotal: realTimePricing?.individualBreakdowns?.find(b => b.personName === customerInfo.name)?.individualTotal || 0
           },
           ...guests.map(guest => ({
             name: guest.name,
             email: guest.email || '',
             slotDateTime: guest.selectedSlot.datetime,
             isMainBooker: false,
+            selectedSubServices: subServiceSelections[guest.name] || [],
+            individualTotal: realTimePricing?.individualBreakdowns?.find(b => b.personName === guest.name)?.individualTotal || 0
           })),
         ],
 
-        // Sub-services
-        selectedSubServices: service.subServices || [],
+        // Sub-services - Remove old static approach
+        // selectedSubServices: service.subServices || [],
         
-        // Pricing breakdown
-        pricingBreakdown: {
+        // Pricing breakdown - Use real-time pricing if available
+        pricingBreakdown: realTimePricing || {
           baseProductPrice: service.pricing?.discountedPrice || service.pricing?.originalPrice || 0,
           numberOfPersons: 1 + guests.length,
           totalServicePrice: calculateTotalAmount(),
           upfrontPercentage: getUpfrontPercentage(),
           upfrontAmount: calculateUpfrontAmount(),
           remainingBalance: calculateRemainingBalance(),
-          subServices: service.subServices || [],
-          subServicesTotal: calculateSubServicesTotal(),
+          subServices: [],
+          subServicesTotal: 0,
           paymentType: paymentType,
           totalPaymentAmount: getPaymentAmount()
         }
@@ -536,6 +662,117 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
           </View>
         )}
 
+        {/* Sub-Service Selection */}
+        {!loadingSubServices && availableSubServices.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Additional Services</Text>
+            <Text style={styles.sectionSubtitle}>
+              Select additional services for each person (optional)
+            </Text>
+            
+            {/* Customer Sub-Services */}
+            <View style={styles.personSubServices}>
+              <Text style={styles.personName}>{customerInfo.name} (You)</Text>
+              {availableSubServices.map((subService, index) => {
+                const isSelected = isSubServiceSelected(customerInfo.name, subService);
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.subServiceOption,
+                      isSelected && styles.selectedSubServiceOption
+                    ]}
+                    onPress={() => toggleSubServiceSelection(customerInfo.name, subService)}
+                  >
+                    <View style={styles.subServiceContent}>
+                      <View style={styles.subServiceHeader}>
+                        <Text style={[
+                          styles.subServiceName,
+                          isSelected && styles.selectedSubServiceName
+                        ]}>
+                          {subService.name}
+                        </Text>
+                        <Text style={[
+                          styles.subServicePrice,
+                          isSelected && styles.selectedSubServicePrice
+                        ]}>
+                          ₦{subService.price.toLocaleString()}
+                        </Text>
+                      </View>
+                      {subService.description && (
+                        <Text style={styles.subServiceDescription}>
+                          {subService.description}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={[
+                      styles.checkbox,
+                      isSelected && styles.checkedCheckbox
+                    ]}>
+                      {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            
+            {/* Guest Sub-Services */}
+            {guests.map((guest, guestIndex) => (
+              <View key={guestIndex} style={styles.personSubServices}>
+                <Text style={styles.personName}>{guest.name} (Guest {guestIndex + 1})</Text>
+                {availableSubServices.map((subService, index) => {
+                  const isSelected = isSubServiceSelected(guest.name, subService);
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.subServiceOption,
+                        isSelected && styles.selectedSubServiceOption
+                      ]}
+                      onPress={() => toggleSubServiceSelection(guest.name, subService)}
+                    >
+                      <View style={styles.subServiceContent}>
+                        <View style={styles.subServiceHeader}>
+                          <Text style={[
+                            styles.subServiceName,
+                            isSelected && styles.selectedSubServiceName
+                          ]}>
+                            {subService.name}
+                          </Text>
+                          <Text style={[
+                            styles.subServicePrice,
+                            isSelected && styles.selectedSubServicePrice
+                          ]}>
+                            ₦{subService.price.toLocaleString()}
+                          </Text>
+                        </View>
+                        {subService.description && (
+                          <Text style={styles.subServiceDescription}>
+                            {subService.description}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={[
+                        styles.checkbox,
+                        isSelected && styles.checkedCheckbox
+                      ]}>
+                        {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
+            
+            {loadingPricing && (
+              <View style={styles.pricingLoader}>
+                <ActivityIndicator size="small" color="#7B2CBF" />
+                <Text style={styles.pricingLoaderText}>Updating pricing...</Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Payment Options */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Options</Text>
@@ -573,7 +810,7 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
             <View style={styles.pricingRow}>
               <Text style={styles.pricingLabel}>Base Service Price</Text>
               <Text style={styles.pricingValue}>
-                ₦{(service.pricing?.discountedPrice || service.pricing?.originalPrice || 0).toLocaleString()}
+                ₦{(realTimePricing?.baseServicePrice || service.pricing?.discountedPrice || service.pricing?.originalPrice || 0).toLocaleString()}
               </Text>
             </View>
 
@@ -607,27 +844,63 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
               </Text>
             </View>
 
-            {/* Sub-Services - Show if they exist */}
-            {service.subServices && service.subServices.length > 0 && (
+            {/* Individual Breakdowns - Show if available from real-time pricing */}
+            {realTimePricing && realTimePricing.individualBreakdowns && realTimePricing.individualBreakdowns.length > 0 && (
               <>
                 <View style={styles.pricingDivider} />
                 <View style={styles.subServicesHeader}>
-                  <Text style={styles.subServicesTitle}>Sub-Services</Text>
+                  <Text style={styles.subServicesTitle}>Individual Breakdowns</Text>
                 </View>
-                {service.subServices.map((subService, index) => (
-                  <View key={index} style={styles.pricingRow}>
-                    <Text style={styles.subServiceLabel}>
-                      {subService.name} ({subService.code || `SUB${index + 1}`})
-                    </Text>
-                    <Text style={styles.pricingValue}>
-                      ₦{(subService.price || 0).toLocaleString()}
-                    </Text>
+                {realTimePricing.individualBreakdowns.map((breakdown, index) => (
+                  <View key={index} style={styles.individualBreakdown}>
+                    <Text style={styles.individualPersonName}>{breakdown.personName}</Text>
+                    <View style={styles.individualDetails}>
+                      <View style={styles.pricingRow}>
+                        <Text style={styles.subServiceLabel}>Base Service</Text>
+                        <Text style={styles.pricingValue}>
+                          ₦{breakdown.basePrice.toLocaleString()}
+                        </Text>
+                      </View>
+                      {breakdown.subServices && breakdown.subServices.length > 0 && (
+                        <>
+                          {breakdown.subServices.map((subService, subIndex) => (
+                            <View key={subIndex} style={styles.pricingRow}>
+                              <Text style={styles.subServiceLabel}>
+                                + {subService.name} ({subService.code})
+                              </Text>
+                              <Text style={styles.pricingValue}>
+                                ₦{subService.price.toLocaleString()}
+                              </Text>
+                            </View>
+                          ))}
+                          <View style={styles.pricingRow}>
+                            <Text style={styles.subServiceLabel}>Sub-Services Total</Text>
+                            <Text style={styles.pricingValue}>
+                              ₦{breakdown.subServicesTotal.toLocaleString()}
+                            </Text>
+                          </View>
+                        </>
+                      )}
+                      <View style={styles.pricingRow}>
+                        <Text style={styles.individualTotalLabel}>Individual Total</Text>
+                        <Text style={styles.individualTotalValue}>
+                          ₦{breakdown.individualTotal.toLocaleString()}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
                 ))}
+              </>
+            )}
+
+            {/* Total Sub-Services Amount */}
+            {realTimePricing && realTimePricing.totalSubServicesAmount > 0 && (
+              <>
+                <View style={styles.pricingDivider} />
                 <View style={styles.pricingRow}>
-                  <Text style={styles.pricingLabel}>Sub-Services Total</Text>
+                  <Text style={styles.pricingLabel}>Total Sub-Services</Text>
                   <Text style={styles.pricingValue}>
-                    ₦{calculateSubServicesTotal().toLocaleString()}
+                    ₦{realTimePricing.totalSubServicesAmount.toLocaleString()}
                   </Text>
                 </View>
               </>
@@ -643,13 +916,7 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
                     Upfront Payment ({getUpfrontPercentage()}% of service)
                   </Text>
                   <Text style={styles.pricingValue}>
-                    ₦{calculateUpfrontAmount().toLocaleString()}
-                  </Text>
-                </View>
-                <View style={styles.pricingRow}>
-                  <Text style={styles.pricingLabel}>Sub-Services (pay now)</Text>
-                  <Text style={styles.pricingValue}>
-                    ₦{calculateSubServicesTotal().toLocaleString()}
+                    ₦{(realTimePricing?.paymentOptions?.upfront?.amount || calculateUpfrontAmount()).toLocaleString()}
                   </Text>
                 </View>
                 <View style={styles.pricingRow}>
@@ -660,20 +927,12 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
                 </View>
               </>
             ) : (
-              <>
-                <View style={styles.pricingRow}>
-                  <Text style={styles.pricingLabel}>Full Service Payment</Text>
-                  <Text style={styles.pricingValue}>
-                    ₦{calculateTotalAmount().toLocaleString()}
-                  </Text>
-                </View>
-                <View style={styles.pricingRow}>
-                  <Text style={styles.pricingLabel}>Sub-Services</Text>
-                  <Text style={styles.pricingValue}>
-                    ₦{calculateSubServicesTotal().toLocaleString()}
-                  </Text>
-                </View>
-              </>
+              <View style={styles.pricingRow}>
+                <Text style={styles.pricingLabel}>Full Payment</Text>
+                <Text style={styles.pricingValue}>
+                  ₦{(realTimePricing?.grandTotal || calculateTotalAmount()).toLocaleString()}
+                </Text>
+              </View>
             )}
 
             <View style={styles.pricingDivider} />
@@ -1371,6 +1630,115 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: 'white',
+  },
+  // Sub-service selection styles
+  personSubServices: {
+    marginBottom: 20,
+  },
+  personName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  subServiceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    backgroundColor: 'white',
+  },
+  selectedSubServiceOption: {
+    borderColor: '#7B2CBF',
+    backgroundColor: '#F3E8FF',
+  },
+  subServiceContent: {
+    flex: 1,
+  },
+  subServiceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  subServiceName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1F2937',
+  },
+  selectedSubServiceName: {
+    color: '#7B2CBF',
+  },
+  subServicePrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  selectedSubServicePrice: {
+    color: '#7B2CBF',
+  },
+  subServiceDescription: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  checkedCheckbox: {
+    backgroundColor: '#7B2CBF',
+    borderColor: '#7B2CBF',
+  },
+  pricingLoader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  pricingLoaderText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  // Individual breakdown styles
+  individualBreakdown: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 6,
+    padding: 12,
+    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  individualPersonName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7B2CBF',
+    marginBottom: 8,
+  },
+  individualDetails: {
+    paddingLeft: 8,
+  },
+  individualTotalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  individualTotalValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#7B2CBF',
   },
 });
 

@@ -4104,6 +4104,26 @@ class ApiService {
     });
   }
 
+  // SUB-SERVICE SELECTION ENDPOINTS
+  // Get available sub-services for a service
+  static async getServiceSubServices(serviceId) {
+    console.log('🚨 FETCHING SERVICE SUB-SERVICES 🚨');
+    console.log('Service ID:', serviceId);
+    
+    return this.apiCall(`/orders/public/services/${serviceId}/sub-services`);
+  }
+
+  // Calculate pricing with sub-services
+  static async calculateBookingPricing(pricingData) {
+    console.log('🚨 CALCULATING BOOKING PRICING WITH SUB-SERVICES 🚨');
+    console.log('Pricing data:', JSON.stringify(pricingData, null, 2));
+    
+    return this.apiCall('/orders/public/calculate-pricing', {
+      method: 'POST',
+      body: JSON.stringify(pricingData),
+    });
+  }
+
 }
 
 export default ApiService;
