@@ -196,6 +196,12 @@ const TaskCompletionFormScreen = ({ route, navigation }) => {
       return;
     }
 
+    // Validate at least one image is required
+    if (!formData.deliveryImages || formData.deliveryImages.length === 0) {
+      Alert.alert('Images Required', 'Please add at least one image as evidence of service completion');
+      return;
+    }
+
     setSubmitting(true);
     try {
       // Create FormData for file upload
@@ -327,9 +333,9 @@ const TaskCompletionFormScreen = ({ route, navigation }) => {
 
         {/* Delivery Evidence Images */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Delivery Evidence Images</Text>
+          <Text style={styles.sectionTitle}>Delivery Evidence Images *</Text>
           <Text style={styles.sectionSubtitle}>
-            Add photos showing the delivered service (Max 5 images)
+            Add photos showing the delivered service (Required - Max 5 images)
           </Text>
           
           <TouchableOpacity 
@@ -403,9 +409,9 @@ const TaskCompletionFormScreen = ({ route, navigation }) => {
 
         {/* Submit Button */}
         <TouchableOpacity 
-          style={[styles.submitButton, submitting && styles.disabledButton]} 
+          style={[styles.submitButton, (submitting || !formData.satisfactionDeclaration.trim() || formData.deliveryImages.length === 0) && styles.disabledButton]} 
           onPress={handleSubmit}
-          disabled={submitting || !formData.satisfactionDeclaration.trim()}
+          disabled={submitting || !formData.satisfactionDeclaration.trim() || formData.deliveryImages.length === 0}
         >
           {submitting ? (
             <ActivityIndicator size="small" color="white" />

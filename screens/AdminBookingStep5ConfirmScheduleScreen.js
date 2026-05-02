@@ -186,9 +186,13 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
 
   const calculateAmount = () => {
     if (pricingBreakdown) {
-      return paymentType === 'upfront' 
-        ? pricingBreakdown.upfrontAmount 
-        : pricingBreakdown.grandTotal;
+      if (paymentType === 'upfront') {
+        // Use the paymentOptions.upfront.amount from backend
+        return pricingBreakdown.paymentOptions?.upfront?.amount || pricingBreakdown.upfrontAmount;
+      } else {
+        // Use the paymentOptions.full.amount from backend
+        return pricingBreakdown.paymentOptions?.full?.amount || pricingBreakdown.grandTotal;
+      }
     }
     const totalAmount = service.actualAmount || service.priceInDollars || 0;
     if (paymentType === 'upfront' && upfrontPercentage) {
