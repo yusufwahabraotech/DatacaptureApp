@@ -256,15 +256,16 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
   };
 
   const getLocationDisplayText = () => {
-    switch (bookingLocation.type) {
+    const locationType = bookingLocation.locationType || bookingLocation.type;
+    switch (locationType) {
       case 'merchant_location':
         return 'Service provider\'s location';
       case 'customer_address':
-        return 'Your registered address';
+        return bookingLocation.address || 'Your registered address';
       case 'new_address':
-        return bookingLocation.address;
+        return bookingLocation.address || 'Custom address';
       case 'whatsapp_location':
-        return 'WhatsApp shared location';
+        return bookingLocation.whatsappLocationUrl ? 'WhatsApp shared location' : 'WhatsApp location';
       default:
         return 'Location to be confirmed';
     }

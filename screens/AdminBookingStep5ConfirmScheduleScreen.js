@@ -201,6 +201,22 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
     return totalAmount;
   };
 
+  const getLocationDisplayText = () => {
+    const locationType = locationData.locationType || locationData.type;
+    switch (locationType) {
+      case 'merchant_location':
+        return 'Service provider\'s location';
+      case 'customer_address':
+        return locationData.address || 'Customer\'s registered address';
+      case 'new_address':
+        return locationData.address || 'Custom address';
+      case 'whatsapp_location':
+        return locationData.whatsappLocationUrl || 'WhatsApp shared location';
+      default:
+        return 'Location to be confirmed';
+    }
+  };
+
   const renderSummarySection = (title, children) => (
     <View style={styles.summarySection}>
       <Text style={styles.summarySectionTitle}>{title}</Text>
@@ -398,7 +414,7 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
                 locationData.locationType === 'whatsapp_location' ? 'WhatsApp Location' : 'Unknown',
                 'location'
               )}
-              {locationData.address && renderSummaryRow('Address', locationData.address, 'home')}
+              {renderSummaryRow('Details', getLocationDisplayText(), 'navigate')}
             </>
           ))}
 
