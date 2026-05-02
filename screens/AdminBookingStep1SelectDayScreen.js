@@ -46,7 +46,31 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
       );
 
       if (response.success) {
-        setAvailableDays(response.data.availableDays || []);
+        const availableDaysData = response.data.availableDays || [];
+        console.log('Admin available days count:', availableDaysData.length);
+        console.log('Admin available days:', availableDaysData);
+        
+        // 🔧 WORKAROUND: Filter out incorrect days based on service configuration
+        const correctedAvailableDays = availableDaysData.filter(dateString => {
+          const date = new Date(dateString + 'T12:00:00'); // Add time to avoid timezone issues
+          const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+          
+          // Check against service configuration
+          const weeklySchedule = service.bookingConfiguration?.weeklySchedule || [];
+          const dayConfig = weeklySchedule.find(day => day.dayOfWeek === dayOfWeek);
+          
+          const shouldBeAvailable = dayConfig?.isAvailable || false;
+          
+          if (!shouldBeAvailable) {
+            console.log(`⚠️ ADMIN FILTERING OUT: ${dateString} (${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dayOfWeek]}) - Service closed on this day`);
+            return false;
+          }
+          
+          return true;
+        });
+        
+        console.log('🔧 ADMIN CORRECTED AVAILABLE DAYS:', correctedAvailableDays.length, correctedAvailableDays);
+        setAvailableDays(correctedAvailableDays);
       } else {
         Alert.alert('Error', response.message || 'Failed to load available days');
         setAvailableDays([]);
@@ -61,10 +85,18 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
   };
 
   const generateCalendar = () => {
+    console.log('🚨 ADMIN GENERATING CALENDAR 🚨');
+    console.log('Current month:', currentMonth, 'Current year:', currentYear);
+    console.log('Available days:', availableDays.length, availableDays);
+    
     const firstDay = new Date(currentYear, currentMonth - 1, 1);
     const lastDay = new Date(currentYear, currentMonth, 0);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+    console.log('🚨 ADMIN CALENDAR DEBUG 🚨');
+    console.log('First day of month:', firstDay.toDateString(), 'Day of week:', firstDay.getDay());
+    console.log('Start date for calendar:', startDate.toDateString(), 'Day of week:', startDate.getDay());
 
     const days = [];
     const today = new Date();
@@ -74,16 +106,27 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
       
-      const dateString = date.toISOString().split('T')[0];
+      // Create date string in local timezone to avoid timezone shifts
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateString = `${year}-${month}-${day}`;
       const isCurrentMonth = date.getMonth() === currentMonth - 1;
       const isToday = date.getTime() === today.getTime();
       const isPast = date < today;
       const isAvailable = availableDays.includes(dateString);
+      const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+
+      // Debug first few days to see alignment
+      if (i < 14) {
+        console.log(`Admin Day ${i}: ${date.toDateString()} (${dayOfWeek}) - ${dateString} - Available: ${isAvailable}`);
+      }
 
       days.push({
         date: date,
         dateString: dateString,
         day: date.getDate(),
+        dayOfWeek: dayOfWeek,
         isCurrentMonth,
         isToday,
         isPast,
@@ -91,6 +134,17 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
         isSelectable: isCurrentMonth && !isPast && isAvailable,
       });
     }
+
+    console.log('🚨 ADMIN CALENDAR GENERATED 🚨');
+    console.log('Total days:', days.length);
+    console.log('Available days in calendar:', days.filter(d => d.isAvailable).length);
+    
+    // Debug day alignment
+    const firstWeek = days.slice(0, 7);
+    console.log('Admin first week alignment:');
+    firstWeek.forEach((day, index) => {
+      console.log(`Position ${index} (${dayNames[index]}): ${day.date.toDateString()} (actual: ${dayNames[day.dayOfWeek]})`);
+    });
     
     setCalendarDays(days);
   };
@@ -121,6 +175,13 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
 
   const renderCalendarDay = (day, index) => {
     const isSelected = selectedDate === day.dateString;
+    const expectedDayOfWeek = index % 7; // Expected position in week
+    const actualDayOfWeek = day.dayOfWeek; // Actual day of week
+    
+    // Debug misalignment
+    if (day.isCurrentMonth && expectedDayOfWeek !== actualDayOfWeek) {
+      console.log(`⚠️ ADMIN DAY MISALIGNMENT: Position ${index} (${dayNames[expectedDayOfWeek]}) has ${day.date.toDateString()} (${dayNames[actualDayOfWeek]})`);
+    }
     
     return (
       <TouchableOpacity
@@ -265,13 +326,18 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
           <View style={styles.selectedDateInfo}>
             <Ionicons name="calendar" size={20} color="#7B2CBF" />
             <Text style={styles.selectedDateText}>
-              {new Date(selectedDate).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </Text>
+              {(() => {
+                // Parse the date string and create date in local timezone
+                const [year, month, day] = selectedDate.split('-').map(Number);
+                const localDate = new Date(year, month - 1, day);
+                return localDate.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                });
+              })()
+            }</Text>
           </View>
         )}
       </ScrollView>
