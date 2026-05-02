@@ -29,57 +29,55 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   useEffect(() => {
+    console.log('🚨 ADMIN MONTH/YEAR CHANGED 🚨');
+    console.log('New month:', currentMonth, 'New year:', currentYear);
     loadAvailableDays();
   }, [currentMonth, currentYear]);
 
   useEffect(() => {
+    console.log('🚨 ADMIN AVAILABLE DAYS CHANGED 🚨');
+    console.log('Available days updated:', availableDays.length);
     generateCalendar();
   }, [availableDays, currentMonth, currentYear]);
 
   const loadAvailableDays = async () => {
     try {
       setLoading(true);
+      console.log('🚨 ADMIN LOADING AVAILABLE DAYS 🚨');
+      console.log('Service ID:', service._id);
+      console.log('Month:', currentMonth, 'Year:', currentYear);
+      console.log('Using ADMIN BOOKING endpoint: /admin/booking/available-days');
+      
+      // Use the correct admin booking endpoint
       const response = await ApiService.getAdminBookingAvailableDays(
         currentMonth,
         currentYear,
         service._id
       );
 
+      console.log('🚨 ADMIN AVAILABLE DAYS RESPONSE 🚨');
+      console.log('Response:', JSON.stringify(response, null, 2));
+
       if (response.success) {
         const availableDaysData = response.data.availableDays || [];
         console.log('Admin available days count:', availableDaysData.length);
         console.log('Admin available days:', availableDaysData);
         
-        // 🔧 WORKAROUND: Filter out incorrect days based on service configuration
-        const correctedAvailableDays = availableDaysData.filter(dateString => {
-          const date = new Date(dateString + 'T12:00:00'); // Add time to avoid timezone issues
-          const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
-          
-          // Check against service configuration
-          const weeklySchedule = service.bookingConfiguration?.weeklySchedule || [];
-          const dayConfig = weeklySchedule.find(day => day.dayOfWeek === dayOfWeek);
-          
-          const shouldBeAvailable = dayConfig?.isAvailable || false;
-          
-          if (!shouldBeAvailable) {
-            console.log(`⚠️ ADMIN FILTERING OUT: ${dateString} (${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dayOfWeek]}) - Service closed on this day`);
-            return false;
-          }
-          
-          return true;
-        });
-        
-        console.log('🔧 ADMIN CORRECTED AVAILABLE DAYS:', correctedAvailableDays.length, correctedAvailableDays);
-        setAvailableDays(correctedAvailableDays);
+        // For admin bookings, trust the API response - don't filter based on service config
+        // The backend should handle the business logic for admin availability
+        console.log('🔧 ADMIN: Using all API available days without filtering');
+        setAvailableDays(availableDaysData);
       } else {
+        console.log('❌ ADMIN API Error:', response.message);
         Alert.alert('Error', response.message || 'Failed to load available days');
         setAvailableDays([]);
       }
     } catch (error) {
-      console.error('Error loading available days:', error);
+      console.error('❌ ADMIN Exception loading available days:', error);
       Alert.alert('Error', 'Failed to load available days');
       setAvailableDays([]);
     } finally {
+      console.log('🚨 ADMIN SETTING LOADING TO FALSE 🚨');
       setLoading(false);
     }
   };
@@ -102,6 +100,7 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Generate 42 days (6 weeks)
     for (let i = 0; i < 42; i++) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
@@ -122,6 +121,9 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
         console.log(`Admin Day ${i}: ${date.toDateString()} (${dayOfWeek}) - ${dateString} - Available: ${isAvailable}`);
       }
 
+      // FOR ADMIN: Allow selection of any available date from API (trust backend logic)
+      const isAdminSelectable = isCurrentMonth && !isPast && isAvailable;
+
       days.push({
         date: date,
         dateString: dateString,
@@ -130,20 +132,22 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
         isCurrentMonth,
         isToday,
         isPast,
-        isAvailable: isCurrentMonth && !isPast && isAvailable,
-        isSelectable: isCurrentMonth && !isPast && isAvailable,
+        isAvailable: isAvailable, // From API
+        isSelectable: isAdminSelectable, // Admin can select any API available date
       });
     }
 
     console.log('🚨 ADMIN CALENDAR GENERATED 🚨');
     console.log('Total days:', days.length);
-    console.log('Available days in calendar:', days.filter(d => d.isAvailable).length);
+    console.log('API Available days in calendar:', days.filter(d => d.isAvailable).length);
+    console.log('Admin selectable days:', days.filter(d => d.isSelectable).length);
+    console.log('Current month days:', days.filter(d => d.isCurrentMonth).length);
     
     // Debug day alignment
     const firstWeek = days.slice(0, 7);
     console.log('Admin first week alignment:');
     firstWeek.forEach((day, index) => {
-      console.log(`Position ${index} (${dayNames[index]}): ${day.date.toDateString()} (actual: ${dayNames[day.dayOfWeek]})`);
+      console.log(`Position ${index} (${dayNames[index]}): ${day.date.toDateString()} (actual: ${dayNames[day.dayOfWeek]}) - Selectable: ${day.isSelectable}`);
     });
     
     setCalendarDays(days);
@@ -190,7 +194,7 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
           styles.calendarDay,
           !day.isCurrentMonth && styles.otherMonthDay,
           day.isToday && styles.todayDay,
-          day.isAvailable && styles.availableDay,
+          day.isSelectable && styles.availableDay, // Use isSelectable for admin
           isSelected && styles.selectedDay,
           !day.isSelectable && styles.disabledDay,
         ]}
@@ -201,13 +205,13 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
           styles.dayText,
           !day.isCurrentMonth && styles.otherMonthText,
           day.isToday && styles.todayText,
-          day.isAvailable && styles.availableText,
+          day.isSelectable && styles.availableText, // Use isSelectable for admin
           isSelected && styles.selectedText,
           !day.isSelectable && styles.disabledText,
         ]}>
           {day.day}
         </Text>
-        {day.isAvailable && !isSelected && (
+        {day.isSelectable && !isSelected && (
           <View style={styles.availableDot} />
         )}
       </TouchableOpacity>
@@ -294,6 +298,8 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
 
+
+
           <View style={styles.dayNamesRow}>
             {dayNames.map((dayName, index) => (
               <View key={index} style={styles.dayNameCell}>
@@ -302,6 +308,7 @@ const AdminBookingStep1SelectDayScreen = ({ navigation, route }) => {
             ))}
           </View>
 
+          {/* Calendar Grid */}
           <View style={styles.calendarGrid}>
             {calendarDays.map((day, index) => renderCalendarDay(day, index))}
           </View>
@@ -613,6 +620,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
   },
+
 });
 
 export default AdminBookingStep1SelectDayScreen;

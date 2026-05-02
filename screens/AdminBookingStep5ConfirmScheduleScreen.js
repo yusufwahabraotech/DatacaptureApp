@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
   Switch,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,39 +18,98 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
   const { service, selectedDate, selectedSlot, bookingDetails, locationData } = route.params;
   const [loading, setLoading] = useState(false);
   const [processPayment, setProcessPayment] = useState(true);
-  const [paymentType, setPaymentType] = useState('upfront'); // 'upfront' or 'full'
-  const [upfrontPercentage, setUpfrontPercentage] = useState(50);
+  const [paymentType, setPaymentType] = useState('upfront');
+  const [upfrontPercentage, setUpfrontPercentage] = useState(
+    service?.bookingAvailability?.upfrontPercentage
+  );
+  
+  // Sub-service states
+  const [subServices, setSubServices] = useState([]);
+  const [loadingSubServices, setLoadingSubServices] = useState(true);
+  const [selectedSubServices, setSelectedSubServices] = useState([]);
+  const [showSubServiceModal, setShowSubServiceModal] = useState(false);
+  const [pricingBreakdown, setPricingBreakdown] = useState(null);
+  const [calculatingPrice, setCalculatingPrice] = useState(false);
+
+  useEffect(() => {
+    fetchSubServices();
+  }, []);
+
+  useEffect(() => {
+    if (selectedSubServices.length > 0) {
+      calculatePricing();
+    }
+  }, [selectedSubServices, paymentType, upfrontPercentage]);
+
+  const fetchSubServices = async () => {
+    try {
+      setLoadingSubServices(true);
+      const response = await ApiService.getAdminBookingSubServices(service._id);
+      
+      if (response.success && response.data.subServices) {
+        // Handle nested structure: response.data.subServices.subServices
+        const subServicesData = response.data.subServices.subServices || response.data.subServices;
+        setSubServices(Array.isArray(subServicesData) ? subServicesData : []);
+      }
+    } catch (error) {
+      console.error('Error fetching sub-services:', error);
+    } finally {
+      setLoadingSubServices(false);
+    }
+  };
+
+  const calculatePricing = async () => {
+    try {
+      setCalculatingPrice(true);
+      const response = await ApiService.calculateAdminBookingPricing({
+        serviceId: service._id,
+        bookedForPersons: [{
+          name: bookingDetails.customerType === 'existing' 
+            ? bookingDetails.customer.name 
+            : bookingDetails.customer.name,
+          selectedSubServices: selectedSubServices
+        }],
+        paymentType: paymentType === 'upfront' ? 'upfront' : 'full',
+        upfrontPercentage: upfrontPercentage
+      });
+
+      if (response.success && response.data) {
+        setPricingBreakdown(response.data);
+        // Update upfront percentage from backend response
+        if (response.data.upfrontPercentage) {
+          setUpfrontPercentage(response.data.upfrontPercentage);
+        }
+      }
+    } catch (error) {
+      console.error('Error calculating pricing:', error);
+    } finally {
+      setCalculatingPrice(false);
+    }
+  };
+
+  const toggleSubService = (subService) => {
+    setSelectedSubServices(prev => {
+      const exists = prev.find(s => s.subServiceId === subService.subServiceId);
+      if (exists) {
+        return prev.filter(s => s.subServiceId !== subService.subServiceId);
+      } else {
+        return [...prev, subService];
+      }
+    });
+  };
 
   const handleCreateBooking = async () => {
     try {
       setLoading(true);
 
-      console.log('🚨 ADMIN BOOKING CREATION DEBUG 🚨');
-      console.log('Service:', JSON.stringify(service, null, 2));
-      console.log('Booking Details:', JSON.stringify(bookingDetails, null, 2));
-      console.log('Customer Type:', bookingDetails.customerType);
-      console.log('Customer Object:', JSON.stringify(bookingDetails.customer, null, 2));
-      
-      // Determine the correct customer ID field
       let customerId = null;
       if (bookingDetails.customerType === 'existing' && bookingDetails.customer) {
-        // Try different possible ID fields
         customerId = bookingDetails.customer.id || 
                     bookingDetails.customer._id || 
                     bookingDetails.customer.userId || 
                     bookingDetails.customer.customUserId;
         
-        console.log('🚨 CUSTOMER ID RESOLUTION 🚨');
-        console.log('Customer ID fields check:');
-        console.log('- id:', bookingDetails.customer.id);
-        console.log('- _id:', bookingDetails.customer._id);
-        console.log('- userId:', bookingDetails.customer.userId);
-        console.log('- customUserId:', bookingDetails.customer.customUserId);
-        console.log('Final customerId:', customerId);
-        
-        // Validate that we have a customerId for existing customers
         if (!customerId) {
-          console.log('❌ MISSING CUSTOMER ID FOR EXISTING CUSTOMER ❌');
           Alert.alert('Error', 'Customer ID is missing. Please select the customer again.');
           setLoading(false);
           return;
@@ -63,24 +123,26 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
         
         customerType: bookingDetails.customerType,
         
-        // Handle customer data based on type - EXACTLY as backend expects
         ...(bookingDetails.customerType === 'existing' ? {
-          // For existing customers: ONLY send customerId, backend will fetch name/email
           customerId: customerId,
         } : {
-          // For external customers: send name, email, phone (no customerId)
           customerName: bookingDetails.customer.name,
           customerEmail: bookingDetails.customer.email,
           customerPhone: bookingDetails.customer.phone || '',
         }),
         
         primarySlot: selectedSlot.datetime,
-        guests: [], // Admin can add guests later if needed
+        
+        // Include sub-services
+        primaryCustomerSubServices: selectedSubServices,
+        primaryCustomerTotal: pricingBreakdown?.individualBreakdowns?.[0]?.individualTotal || 
+                             (service.actualAmount || service.priceInDollars || 0),
+        
+        guests: [],
         
         location: locationData,
         customerNotes: bookingDetails.customerNotes,
         
-        // Admin Extensions
         ...(bookingDetails.serviceProvider && {
           serviceProviderId: bookingDetails.serviceProvider.id || bookingDetails.serviceProvider._id,
         }),
@@ -89,58 +151,24 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
         processPayment,
       };
 
-      console.log('🚨 FINAL BOOKING PAYLOAD 🚨');
-      console.log('Payload:', JSON.stringify(bookingPayload, null, 2));
-      
-      // Validate payload structure matches backend expectations
-      if (bookingDetails.customerType === 'existing') {
-        console.log('✅ EXISTING CUSTOMER PAYLOAD VALIDATION:');
-        console.log('- customerType:', bookingPayload.customerType);
-        console.log('- customerId:', bookingPayload.customerId);
-        console.log('- Has customerName (should be undefined):', bookingPayload.customerName);
-        console.log('- Has customerEmail (should be undefined):', bookingPayload.customerEmail);
-        
-        if (bookingPayload.customerName || bookingPayload.customerEmail) {
-          console.log('⚠️ WARNING: Existing customer payload contains name/email fields!');
-        }
-      } else {
-        console.log('✅ EXTERNAL CUSTOMER PAYLOAD VALIDATION:');
-        console.log('- customerType:', bookingPayload.customerType);
-        console.log('- customerName:', bookingPayload.customerName);
-        console.log('- customerEmail:', bookingPayload.customerEmail);
-        console.log('- customerPhone:', bookingPayload.customerPhone);
-        console.log('- Has customerId (should be undefined):', bookingPayload.customerId);
-        
-        if (bookingPayload.customerId) {
-          console.log('⚠️ WARNING: External customer payload contains customerId field!');
-        }
-      }
-
       const response = await ApiService.createAdminBooking(bookingPayload);
-
-      console.log('🚨 BOOKING CREATION RESPONSE 🚨');
-      console.log('Response:', JSON.stringify(response, null, 2));
 
       if (response.success) {
         if (processPayment && response.data.booking.paymentLink) {
-          // Navigate to payment screen
           navigation.navigate('AdminBookingPayment', {
             booking: response.data.booking,
             paymentLink: response.data.booking.paymentLink,
           });
         } else {
-          // Navigate to success screen
           navigation.navigate('AdminBookingSuccess', {
             booking: response.data.booking,
           });
         }
       } else {
-        console.log('❌ BOOKING CREATION FAILED ❌');
-        console.log('Error message:', response.message);
         Alert.alert('Booking Failed', response.message || 'Failed to create booking');
       }
     } catch (error) {
-      console.error('❌ BOOKING CREATION ERROR:', error);
+      console.error('Booking creation error:', error);
       Alert.alert('Error', 'Failed to create booking. Please try again.');
     } finally {
       setLoading(false);
@@ -157,8 +185,13 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
   };
 
   const calculateAmount = () => {
+    if (pricingBreakdown) {
+      return paymentType === 'upfront' 
+        ? pricingBreakdown.upfrontAmount 
+        : pricingBreakdown.grandTotal;
+    }
     const totalAmount = service.actualAmount || service.priceInDollars || 0;
-    if (paymentType === 'upfront') {
+    if (paymentType === 'upfront' && upfrontPercentage) {
       return (totalAmount * upfrontPercentage) / 100;
     }
     return totalAmount;
@@ -179,6 +212,72 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
       </View>
       <Text style={styles.summaryValue}>{value}</Text>
     </View>
+  );
+
+  const renderSubServiceModal = () => (
+    <Modal
+      visible={showSubServiceModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setShowSubServiceModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select Sub-Services</Text>
+            <TouchableOpacity onPress={() => setShowSubServiceModal(false)}>
+              <Ionicons name="close" size={24} color="#1F2937" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalBody}>
+            {subServices.map((subService) => {
+              const isSelected = selectedSubServices.find(
+                s => s.subServiceId === subService.subServiceId
+              );
+              
+              return (
+                <TouchableOpacity
+                  key={subService.subServiceId}
+                  style={[
+                    styles.subServiceItem,
+                    isSelected && styles.subServiceItemSelected
+                  ]}
+                  onPress={() => toggleSubService(subService)}
+                >
+                  <View style={styles.subServiceInfo}>
+                    <Text style={styles.subServiceName}>{subService.name}</Text>
+                    {subService.description && (
+                      <Text style={styles.subServiceDescription}>
+                        {subService.description}
+                      </Text>
+                    )}
+                    <Text style={styles.subServicePrice}>
+                      ₦{subService.price.toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={[
+                    styles.checkbox,
+                    isSelected && styles.checkboxSelected
+                  ]}>
+                    {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowSubServiceModal(false)}
+            >
+              <Text style={styles.modalButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 
   return (
@@ -203,7 +302,6 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
       </View>
 
       <ScrollView style={styles.content}>
-        {/* Booking Summary */}
         <View style={styles.summaryContainer}>
           <Text style={styles.summaryTitle}>Booking Summary</Text>
           
@@ -212,9 +310,42 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
               {renderSummaryRow('Service', service.name, 'briefcase')}
               {renderSummaryRow('Provider', service.producer, 'business')}
               {renderSummaryRow('Duration', `${service.bookingAvailability?.slotDurationMinutes || 60} minutes`, 'time')}
-              {renderSummaryRow('Price', `₦${(service.actualAmount || service.priceInDollars || 0).toLocaleString()}`, 'card')}
+              {renderSummaryRow('Base Price', `₦${(service.actualAmount || service.priceInDollars || 0).toLocaleString()}`, 'card')}
             </>
           ))}
+
+          {/* Sub-Services Section */}
+          {!loadingSubServices && subServices.length > 0 && (
+            <View style={styles.subServicesSection}>
+              <View style={styles.subServicesSectionHeader}>
+                <Text style={styles.summarySectionTitle}>Sub-Services</Text>
+                <TouchableOpacity
+                  style={styles.selectSubServicesButton}
+                  onPress={() => setShowSubServiceModal(true)}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color="#7B2CBF" />
+                  <Text style={styles.selectSubServicesText}>
+                    {selectedSubServices.length > 0 ? 'Edit' : 'Add'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {selectedSubServices.length > 0 ? (
+                <View style={styles.selectedSubServicesList}>
+                  {selectedSubServices.map((subService) => (
+                    <View key={subService.subServiceId} style={styles.selectedSubServiceItem}>
+                      <Text style={styles.selectedSubServiceName}>{subService.name}</Text>
+                      <Text style={styles.selectedSubServicePrice}>
+                        ₦{subService.price.toLocaleString()}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.noSubServicesText}>No sub-services selected</Text>
+              )}
+            </View>
+          )}
 
           {renderSummarySection('Schedule', (
             <>
@@ -272,7 +403,6 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
           ))}
         </View>
 
-        {/* Payment Options */}
         <View style={styles.paymentContainer}>
           <Text style={styles.paymentTitle}>Payment Options</Text>
           
@@ -334,9 +464,28 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
                 <View style={styles.amountRow}>
                   <Text style={styles.amountLabel}>Total Service Price:</Text>
                   <Text style={styles.amountValue}>
-                    ₦{(service.actualAmount || service.priceInDollars || 0).toLocaleString()}
+                    ₦{pricingBreakdown 
+                      ? pricingBreakdown.grandTotal.toLocaleString() 
+                      : (service.actualAmount || service.priceInDollars || 0).toLocaleString()}
                   </Text>
                 </View>
+                {pricingBreakdown && selectedSubServices.length > 0 && (
+                  <View style={styles.priceBreakdownContainer}>
+                    <Text style={styles.breakdownLabel}>Price Breakdown:</Text>
+                    <View style={styles.breakdownRow}>
+                      <Text style={styles.breakdownItem}>• Base Service</Text>
+                      <Text style={styles.breakdownValue}>
+                        ₦{pricingBreakdown.baseServicePrice.toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={styles.breakdownRow}>
+                      <Text style={styles.breakdownItem}>• Sub-Services</Text>
+                      <Text style={styles.breakdownValue}>
+                        ₦{pricingBreakdown.individualBreakdowns[0].subServicesTotal.toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+                )}
                 <View style={styles.amountRow}>
                   <Text style={styles.amountLabelBold}>Amount to Charge:</Text>
                   <Text style={styles.amountValueBold}>
@@ -367,6 +516,8 @@ const AdminBookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
           )}
         </TouchableOpacity>
       </View>
+
+      {renderSubServiceModal()}
     </SafeAreaView>
   );
 };
@@ -473,6 +624,51 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontStyle: 'italic',
   },
+  subServicesSection: {
+    marginBottom: 20,
+  },
+  subServicesSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  selectSubServicesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  selectSubServicesText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#7B2CBF',
+  },
+  selectedSubServicesList: {
+    gap: 8,
+  },
+  selectedSubServiceItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F3E8FF',
+    borderRadius: 8,
+  },
+  selectedSubServiceName: {
+    fontSize: 14,
+    color: '#1F2937',
+  },
+  selectedSubServicePrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7B2CBF',
+  },
+  noSubServicesText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
   paymentContainer: {
     backgroundColor: 'white',
     margin: 8,
@@ -566,6 +762,34 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#7B2CBF',
   },
+  priceBreakdownContainer: {
+    marginLeft: 12,
+    marginTop: 4,
+    marginBottom: 8,
+    paddingLeft: 8,
+    borderLeftWidth: 2,
+    borderLeftColor: '#E5E7EB',
+  },
+  breakdownLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+    fontStyle: 'italic',
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  breakdownItem: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  breakdownValue: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
   footer: {
     backgroundColor: 'white',
     padding: 20,
@@ -585,6 +809,96 @@ const styles = StyleSheet.create({
     backgroundColor: '#9CA3AF',
   },
   createButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  modalBody: {
+    padding: 20,
+  },
+  subServiceItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 12,
+  },
+  subServiceItemSelected: {
+    borderColor: '#7B2CBF',
+    backgroundColor: '#F3E8FF',
+  },
+  subServiceInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  subServiceName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  subServiceDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  subServicePrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7B2CBF',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#7B2CBF',
+    borderColor: '#7B2CBF',
+  },
+  modalFooter: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  modalButton: {
+    backgroundColor: '#7B2CBF',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  modalButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: 'white',

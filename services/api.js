@@ -1,14 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-// Single base URL configuration - Updated to use local IPv4
-const BASE_URL = 'http://192.168.0.183:3000/api';
+// Single base URL configuration - Updated to use new IPv4
+const BASE_URL = 'http://192.168.1.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v15 - RENDER DEPLOYMENT UPDATE
 const FORCE_RELOAD_NOW = 'RENDER_DEPLOYMENT_UPDATE_' + Date.now();
 console.log('🚨 RENDER DEPLOYMENT UPDATE API SERVICE RELOAD v15 🚨', FORCE_RELOAD_NOW);
 console.log('🔥 USING RENDER DEPLOYMENT 🔥');
-console.log('🌐 Using local base URL:', BASE_URL);
+console.log('🌐 Using new base URL:', BASE_URL);
 
 // CACHE BUST v2.5 - RENDER_DEPLOYMENT_UPDATE
 class ApiService {
@@ -3862,6 +3862,10 @@ class ApiService {
     });
     if (serviceId) params.append('serviceId', serviceId);
     
+    console.log('🚨 ADMIN BOOKING API CALL 🚨');
+    console.log('Endpoint: /admin/booking/available-days');
+    console.log('Params:', params.toString());
+    
     return this.apiCall(`/admin/booking/available-days?${params}`);
   }
 
@@ -3869,6 +3873,10 @@ class ApiService {
   static async getAdminBookingAvailableSlots(date, serviceId = null) {
     const params = new URLSearchParams({ date });
     if (serviceId) params.append('serviceId', serviceId);
+    
+    console.log('🚨 ADMIN BOOKING SLOTS API CALL 🚨');
+    console.log('Endpoint: /admin/booking/available-slots');
+    console.log('Params:', params.toString());
     
     return this.apiCall(`/admin/booking/available-slots?${params}`);
   }
@@ -4113,7 +4121,7 @@ class ApiService {
     return this.apiCall(`/orders/public/services/${serviceId}/sub-services`);
   }
 
-  // Calculate pricing with sub-services
+  // Calculate pricing with sub-services (Customer)
   static async calculateBookingPricing(pricingData) {
     console.log('🚨 CALCULATING BOOKING PRICING WITH SUB-SERVICES 🚨');
     console.log('Pricing data:', JSON.stringify(pricingData, null, 2));
@@ -4122,6 +4130,25 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(pricingData),
     });
+  }
+
+  // Calculate pricing with sub-services (Admin)
+  static async calculateAdminBookingPricing(pricingData) {
+    console.log('🚨 CALCULATING ADMIN BOOKING PRICING WITH SUB-SERVICES 🚨');
+    console.log('Pricing data:', JSON.stringify(pricingData, null, 2));
+    
+    return this.apiCall('/admin/booking/calculate-pricing', {
+      method: 'POST',
+      body: JSON.stringify(pricingData),
+    });
+  }
+
+  // Get admin booking sub-services
+  static async getAdminBookingSubServices(serviceId) {
+    console.log('🚨 FETCHING ADMIN BOOKING SUB-SERVICES 🚨');
+    console.log('Service ID:', serviceId);
+    
+    return this.apiCall(`/admin/booking/services/${serviceId}/sub-services`);
   }
 
 }
