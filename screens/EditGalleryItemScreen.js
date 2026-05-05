@@ -486,38 +486,35 @@ const EditGalleryItemScreen = ({ navigation, route }) => {
             </View>
           )}
 
-          <Text style={styles.inputLabel}>SKU (Stock Keeping Unit Code)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter SKU"
-            value={formData.sku}
-            onChangeText={(text) => setFormData({...formData, sku: text})}
-          />
+          {/* Product-specific fields */}
+          {formData.itemType === 'product' && (
+            <>
+              <Text style={styles.inputLabel}>SKU (Stock Keeping Unit Code)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter SKU"
+                value={formData.sku}
+                onChangeText={(text) => setFormData({...formData, sku: text})}
+              />
 
-          <Text style={styles.inputLabel}>UPC (Universal Product Code)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter UPC"
-            value={formData.upc}
-            onChangeText={(text) => setFormData({...formData, upc: text})}
-          />
+              <Text style={styles.inputLabel}>UPC (Universal Product Code)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter UPC"
+                value={formData.upc}
+                onChangeText={(text) => setFormData({...formData, upc: text})}
+              />
 
-          <Text style={styles.inputLabel}>Platform Unique Code (Auto-generated)</Text>
-          <TextInput
-            style={[styles.input, styles.readOnlyInput]}
-            value={formData.platformUniqueCode}
-            editable={false}
-            placeholder="Auto-generated"
-          />
-
-          <Text style={styles.inputLabel}>Total Available Quantity</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="0"
-            value={formData.totalAvailableQuantity}
-            onChangeText={(text) => setFormData({...formData, totalAvailableQuantity: text})}
-            keyboardType="numeric"
-          />
+              <Text style={styles.inputLabel}>Total Available Quantity</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0"
+                value={formData.totalAvailableQuantity}
+                onChangeText={(text) => setFormData({...formData, totalAvailableQuantity: text})}
+                keyboardType="numeric"
+              />
+            </>
+          )}
 
           <Text style={styles.inputLabel}>Price (₦)</Text>
           <TextInput

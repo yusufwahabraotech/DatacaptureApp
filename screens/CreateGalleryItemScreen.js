@@ -227,6 +227,48 @@ const CreateGalleryItemScreen = ({ navigation }) => {
       return;
     }
 
+    // Validate sub-services if enabled
+    if (formData.itemType === 'service' && formData.hasSubServices) {
+      if (formData.subServices.length === 0) {
+        Alert.alert(
+          'Sub-Services Required',
+          'You have enabled sub-services but haven\'t added any. Please add at least 2 sub-services or disable the "Has Sub-Services" option.'
+        );
+        return;
+      }
+      
+      if (formData.subServices.length === 1) {
+        Alert.alert(
+          'Minimum Sub-Services Required',
+          'You need at least 2 sub-services. Please add one more sub-service or disable the "Has Sub-Services" option if you don\'t need sub-services.'
+        );
+        return;
+      }
+
+      // Validate each sub-service has required fields
+      const invalidSubService = formData.subServices.find((sub, index) => {
+        if (!sub.name?.trim()) return { index, field: 'name' };
+        if (!sub.description?.trim()) return { index, field: 'description' };
+        if (!sub.price || sub.price <= 0) return { index, field: 'price' };
+        return null;
+      });
+
+      if (invalidSubService) {
+        const subIndex = formData.subServices.findIndex((sub, index) => {
+          if (!sub.name?.trim()) return true;
+          if (!sub.description?.trim()) return true;
+          if (!sub.price || sub.price <= 0) return true;
+          return false;
+        });
+        
+        Alert.alert(
+          'Incomplete Sub-Service',
+          `Sub-Service ${subIndex + 1} is missing required information. Please fill in the name, description, and service fee for all sub-services.`
+        );
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -584,25 +626,25 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             </View>
           </Modal>
 
-          <Text style={styles.inputLabel}>SKU (Stock Keeping Unit Code) *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter SKU"
-            value={formData.sku}
-            onChangeText={(text) => setFormData({...formData, sku: text})}
-          />
-
-          <Text style={styles.inputLabel}>UPC (Universal Product Code) *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter UPC"
-            value={formData.upc}
-            onChangeText={(text) => setFormData({...formData, upc: text})}
-          />
-
           {/* Product-specific fields */}
           {formData.itemType === 'product' && (
             <>
+              <Text style={styles.inputLabel}>SKU (Stock Keeping Unit Code) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter SKU"
+                value={formData.sku}
+                onChangeText={(text) => setFormData({...formData, sku: text})}
+              />
+
+              <Text style={styles.inputLabel}>UPC (Universal Product Code) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter UPC"
+                value={formData.upc}
+                onChangeText={(text) => setFormData({...formData, upc: text})}
+              />
+
               <Text style={styles.inputLabel}>Total Available Quantity</Text>
               <TextInput
                 style={styles.input}
@@ -1041,7 +1083,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                       />
                       <TextInput
                         style={styles.input}
-                        placeholder="Price (₦) *"
+                        placeholder="Service fee (₦)"
                         value={subService.price?.toString() || ''}
                         onChangeText={(text) => {
                           const updatedSubServices = [...formData.subServices];
