@@ -1144,7 +1144,7 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                   <TouchableOpacity
                     style={styles.addSubServiceButton}
                     onPress={() => {
-                      const newSubService = { name: '', description: '', price: 0, uploadPicture: '' };
+                      const newSubService = { name: '', description: '', price: '', uploadPicture: '' };
                       setFormData({...formData, subServices: [...formData.subServices, newSubService]});
                     }}
                   >
