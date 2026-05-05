@@ -223,6 +223,7 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
       
       // Use the original transaction ID since we can't extract from URL
       verifyBookingPayment(transactionId);
+      return false; // Prevent WebView from navigating
     }
     
     // Check for Flutterwave failure/cancellation
@@ -244,7 +245,11 @@ const BookingPaymentVerificationScreen = ({ route, navigation }) => {
           ]
         );
       }, 1000);
+      return false; // Prevent WebView from navigating
     }
+    
+    // Allow other URLs to load
+    return true;
   };
 
   const verifyBookingPayment = async (txRef) => {

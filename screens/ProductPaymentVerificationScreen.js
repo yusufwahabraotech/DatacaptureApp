@@ -549,12 +549,6 @@ const ProductPaymentVerificationScreen = ({ navigation, route }) => {
               Verification attempt {verificationAttempts} of 5
             </Text>
           )}
-          
-          {/* Debug info */}
-          <View style={styles.debugInfo}>
-            <Text style={styles.debugText}>Order ID (temporary): {orderId}</Text>
-            <Text style={styles.debugText}>Transaction Ref (for verification): {txRef}</Text>
-          </View>
 
           <TouchableOpacity
             style={styles.manualVerifyButton}
