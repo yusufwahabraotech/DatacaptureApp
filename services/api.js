@@ -1,14 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-// Single base URL configuration - Updated to use new IPv4
-const BASE_URL = 'http://192.168.1.183:3000/api';
+// Single base URL configuration - Local development
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
-// FORCE COMPLETE RELOAD - BREAKING CACHE v15 - RENDER DEPLOYMENT UPDATE
-const FORCE_RELOAD_NOW = 'RENDER_DEPLOYMENT_UPDATE_' + Date.now();
-console.log('🚨 RENDER DEPLOYMENT UPDATE API SERVICE RELOAD v15 🚨', FORCE_RELOAD_NOW);
-console.log('🔥 USING RENDER DEPLOYMENT 🔥');
-console.log('🌐 Using new base URL:', BASE_URL);
+// FORCE COMPLETE RELOAD - BREAKING CACHE v16 - RENDER DEPLOYMENT
+const FORCE_RELOAD_NOW = 'RENDER_DEPLOYMENT_LIVE_' + Date.now();
+console.log('🚨 RENDER DEPLOYMENT LIVE API SERVICE v16 🚨', FORCE_RELOAD_NOW);
+console.log('🔥 USING RENDER LIVE DEPLOYMENT 🔥');
+console.log('🌐 Using Render base URL:', BASE_URL);
 
 // CACHE BUST v2.5 - RENDER_DEPLOYMENT_UPDATE
 class ApiService {

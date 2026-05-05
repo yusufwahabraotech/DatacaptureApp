@@ -189,124 +189,142 @@ const ServiceBookingCalendarScreen = ({ navigation }) => {
     return dates;
   };
 
-  const renderBookingItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.bookingCard}
-      onPress={() => {
-        console.log('🚨 BOOKING CARD PRESSED 🚨');
-        console.log('Item data:', JSON.stringify(item, null, 2));
-        console.log('Using orderId:', item._id || item.orderId);
-        navigation.navigate('OrderDetails', { 
-          orderId: item._id || item.orderId,
-          fromAdmin: true,
-          isAdmin: true 
-        });
-      }}
-    >
-      <View style={styles.bookingHeader}>
-        <View style={styles.bookingInfo}>
-          <Text style={styles.serviceName} numberOfLines={2}>
-            {item.productName}
-          </Text>
-          <Text style={styles.customerName}>{item.customerName}</Text>
-          <Text style={styles.bookingTime}>{formatTime(item.bookingTime)}</Text>
-          <Text style={styles.bookingDuration}>
-            Duration: {item.bookingDuration || 'Not specified'} minutes
-          </Text>
-        </View>
-        
-        <View style={styles.bookingStatus}>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.bookingStatus) }]}>
-            <Text style={styles.statusText}>
-              {item.bookingStatus?.toUpperCase() || 'SCHEDULED'}
+  const renderBookingItem = ({ item }) => {
+    // Extract data from either top-level or nested serviceBooking
+    const booking = item.serviceBooking || item;
+    const productName = item.productName || 'Service Booking';
+    const customerName = item.customerName || 'Customer';
+    const customerEmail = item.customerEmail || 'No email';
+    const customerPhone = item.customerPhone || null;
+    const bookingTime = booking.bookingTime || item.bookingTime || 'Not specified';
+    const bookingDuration = booking.duration || item.duration || item.bookingDuration || 'Not specified';
+    const bookingStatus = booking.bookingStatus || item.bookingStatus || 'scheduled';
+    const orderStatus = item.orderStatus || 'pending';
+    const bookingLocation = booking.location || item.bookingLocation || item.location;
+    const bookedForPersons = booking.bookedForPersons || item.bookedForPersons || [];
+    const bookingNotes = booking.notes || item.bookingNotes || item.notes;
+    const totalAmount = item.productPrice || item.totalAmount || 0;
+    const paidAmount = item.totalAmountPaid || item.paidAmount || 0;
+    const paymentStatus = orderStatus === 'fully_paid' ? 'completed' : orderStatus === 'partially_paid' ? 'partial' : 'pending';
+    
+    return (
+      <TouchableOpacity
+        style={styles.bookingCard}
+        onPress={() => {
+          console.log('🚨 BOOKING CARD PRESSED 🚨');
+          console.log('Item data:', JSON.stringify(item, null, 2));
+          console.log('Using orderId:', item._id || item.orderId);
+          navigation.navigate('OrderDetails', { 
+            orderId: item._id || item.orderId,
+            fromAdmin: true,
+            isAdmin: true 
+          });
+        }}
+      >
+        <View style={styles.bookingHeader}>
+          <View style={styles.bookingInfo}>
+            <Text style={styles.serviceName} numberOfLines={2}>
+              {productName}
+            </Text>
+            <Text style={styles.customerName}>{customerName}</Text>
+            <Text style={styles.bookingTime}>{formatTime(bookingTime)}</Text>
+            <Text style={styles.bookingDuration}>
+              Duration: {bookingDuration} {typeof bookingDuration === 'number' ? 'minutes' : ''}
             </Text>
           </View>
-          <View style={[styles.paymentStatusBadge, { 
-            backgroundColor: item.paymentStatus === 'completed' ? '#4CAF50' : '#FF9800',
-            marginTop: 4 
-          }]}>
-            <Text style={styles.statusText}>
-              {item.paymentStatus?.toUpperCase() || 'PENDING'}
-            </Text>
+          
+          <View style={styles.bookingStatus}>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(bookingStatus) }]}>
+              <Text style={styles.statusText}>
+                {bookingStatus?.toUpperCase() || 'SCHEDULED'}
+              </Text>
+            </View>
+            <View style={[styles.paymentStatusBadge, { 
+              backgroundColor: paymentStatus === 'completed' ? '#4CAF50' : paymentStatus === 'partial' ? '#FF9800' : '#F44336',
+              marginTop: 4 
+            }]}>
+              <Text style={styles.statusText}>
+                {paymentStatus?.toUpperCase() || 'PENDING'}
+              </Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      <View style={styles.bookingDetails}>
-        {/* Customer Contact Information */}
-        <View style={styles.customerSection}>
-          <Text style={styles.sectionTitle}>Customer Details</Text>
-          <Text style={styles.customerEmail}>{item.customerEmail}</Text>
-          {item.customerPhone && (
-            <Text style={styles.customerPhone}>📞 {item.customerPhone}</Text>
-          )}
-        </View>
-
-        {/* Booking Location */}
-        {item.bookingLocation && (
-          <View style={styles.locationSection}>
-            <Text style={styles.sectionTitle}>Booking Location</Text>
-            <Text style={styles.locationType}>
-              Type: {item.bookingLocation.type === 'new_address' ? 'Customer Address' : 
-                     item.bookingLocation.type === 'organization_location' ? 'Organization Location' : 
-                     'Other Location'}
-            </Text>
-            {item.bookingLocation.address && (
-              <Text style={styles.locationAddress}>📍 {item.bookingLocation.address}</Text>
+        <View style={styles.bookingDetails}>
+          {/* Customer Contact Information */}
+          <View style={styles.customerSection}>
+            <Text style={styles.sectionTitle}>Customer Details</Text>
+            <Text style={styles.customerEmail}>{customerEmail}</Text>
+            {customerPhone && (
+              <Text style={styles.customerPhone}>📞 {customerPhone}</Text>
             )}
           </View>
-        )}
 
-        {/* Booked Persons */}
-        {item.bookedForPersons && item.bookedForPersons.length > 0 && (
-          <View style={styles.personsSection}>
-            <Text style={styles.sectionTitle}>Booked For ({item.bookedForPersons.length} person{item.bookedForPersons.length > 1 ? 's' : ''})</Text>
-            {item.bookedForPersons.map((person, index) => (
-              <View key={index} style={styles.personItem}>
-                <Text style={styles.personName}>
-                  {person.name} {person.isMainBooker ? '(Main Booker)' : ''}
-                </Text>
-                {person.email && (
-                  <Text style={styles.personEmail}>{person.email}</Text>
-                )}
-                {person.slotDateTime && (
-                  <Text style={styles.personSlot}>
-                    Slot: {new Date(person.slotDateTime).toLocaleString()}
+          {/* Booking Location */}
+          {bookingLocation && (
+            <View style={styles.locationSection}>
+              <Text style={styles.sectionTitle}>Booking Location</Text>
+              <Text style={styles.locationType}>
+                Type: {bookingLocation.type === 'new_address' ? 'Customer Address' : 
+                       bookingLocation.type === 'organization_location' ? 'Organization Location' : 
+                       'Other Location'}
+              </Text>
+              {bookingLocation.address && (
+                <Text style={styles.locationAddress}>📍 {bookingLocation.address}</Text>
+              )}
+            </View>
+          )}
+
+          {/* Booked Persons */}
+          {bookedForPersons && bookedForPersons.length > 0 && (
+            <View style={styles.personsSection}>
+              <Text style={styles.sectionTitle}>Booked For ({bookedForPersons.length} person{bookedForPersons.length > 1 ? 's' : ''})</Text>
+              {bookedForPersons.map((person, index) => (
+                <View key={index} style={styles.personItem}>
+                  <Text style={styles.personName}>
+                    {person.name || `${person.firstName} ${person.lastName}`} {person.isMainBooker ? '(Main Booker)' : ''}
                   </Text>
-                )}
-              </View>
-            ))}
-          </View>
-        )}
+                  {person.email && (
+                    <Text style={styles.personEmail}>{person.email}</Text>
+                  )}
+                  {person.slotDateTime && (
+                    <Text style={styles.personSlot}>
+                      Slot: {new Date(person.slotDateTime).toLocaleString()}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
 
-        {/* Booking Notes */}
-        {item.bookingNotes && (
-          <View style={styles.notesSection}>
-            <Text style={styles.sectionTitle}>Booking Notes</Text>
-            <Text style={styles.bookingNotes}>{item.bookingNotes}</Text>
-          </View>
-        )}
+          {/* Booking Notes */}
+          {bookingNotes && (
+            <View style={styles.notesSection}>
+              <Text style={styles.sectionTitle}>Booking Notes</Text>
+              <Text style={styles.bookingNotes}>{bookingNotes}</Text>
+            </View>
+          )}
 
-        {/* Payment Information */}
-        <View style={styles.priceSection}>
-          <Text style={styles.sectionTitle}>Payment Details</Text>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Total Amount:</Text>
-            <Text style={styles.priceValue}>₦{item.totalAmount?.toLocaleString()}</Text>
+          {/* Payment Information */}
+          <View style={styles.priceSection}>
+            <Text style={styles.sectionTitle}>Payment Details</Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Total Amount:</Text>
+              <Text style={styles.priceValue}>₦{totalAmount?.toLocaleString()}</Text>
+            </View>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Amount Paid:</Text>
+              <Text style={styles.pricePaid}>₦{paidAmount?.toLocaleString()}</Text>
+            </View>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Payment Status:</Text>
+              <Text style={[styles.paymentStatusText, { 
+                color: paymentStatus === 'completed' ? '#4CAF50' : paymentStatus === 'partial' ? '#FF9800' : '#F44336'
+              }]}>
+                {paymentStatus?.toUpperCase() || 'PENDING'}
+              </Text>
+            </View>
           </View>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Amount Paid:</Text>
-            <Text style={styles.pricePaid}>₦{item.paidAmount?.toLocaleString()}</Text>
-          </View>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Payment Status:</Text>
-            <Text style={[styles.paymentStatusText, { 
-              color: item.paymentStatus === 'completed' ? '#4CAF50' : '#FF9800' 
-            }]}>
-              {item.paymentStatus?.toUpperCase() || 'PENDING'}
-            </Text>
-          </View>
-        </View>
 
         <View style={styles.actionButtons}>
           <TouchableOpacity
@@ -340,6 +358,7 @@ const ServiceBookingCalendarScreen = ({ navigation }) => {
       </View>
     </TouchableOpacity>
   );
+};
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>

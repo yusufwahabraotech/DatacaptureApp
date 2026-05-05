@@ -26,20 +26,36 @@ const ServiceProviderTaskDashboardScreen = ({ navigation }) => {
 
   const loadData = useCallback(async () => {
     try {
-      const [bookingsRes, statsRes] = await Promise.all([
-        ApiService.getMyBookings(),
+      const [assignedRes, acceptedRes, rejectedRes, completedRes, statsRes] = await Promise.all([
+        ApiService.getAssignedTasks(),
+        ApiService.getAcceptedTasks(),
+        ApiService.getRejectedTasks(),
+        ApiService.getCompletedTasks(),
         ApiService.getTaskStatistics(),
       ]);
 
-      if (bookingsRes.success) {
-        setAllBookings(bookingsRes.data.bookings || []);
-        // Use summary from bookings response as fallback
-        if (!statsRes.success) {
-          setStatistics(bookingsRes.data.summary || null);
-        }
-      } else if (bookingsRes.message !== 'Service provider profile not found') {
-        Alert.alert('Error', bookingsRes.message || 'Failed to load bookings');
+      // Combine all tasks with their status
+      const allTasks = [];
+      
+      if (assignedRes.success && assignedRes.data?.tasks) {
+        allTasks.push(...assignedRes.data.tasks.map(t => ({ ...t, taskStatus: 'assigned', status: 'assigned' })));
       }
+      if (acceptedRes.success && acceptedRes.data?.tasks) {
+        allTasks.push(...acceptedRes.data.tasks.map(t => ({ ...t, taskStatus: 'accepted', status: 'accepted' })));
+      }
+      if (rejectedRes.success && rejectedRes.data?.tasks) {
+        allTasks.push(...rejectedRes.data.tasks.map(t => ({ ...t, taskStatus: 'rejected', status: 'rejected' })));
+      }
+      if (completedRes.success && completedRes.data?.tasks) {
+        allTasks.push(...completedRes.data.tasks.map(t => ({ ...t, taskStatus: 'completed', status: 'completed' })));
+      }
+
+      console.log('🚨 LOADED TASKS WITH GUEST DETAILS 🚨');
+      console.log('Total tasks:', allTasks.length);
+      console.log('Assigned tasks with guestDetails:', allTasks.filter(t => t.status === 'assigned' && t.guestDetails).length);
+      console.log('Accepted tasks with guestDetails:', allTasks.filter(t => t.status === 'accepted' && t.guestDetails).length);
+      
+      setAllBookings(allTasks);
 
       if (statsRes.success) {
         setStatistics(statsRes.data.statistics || statsRes.data.summary || null);
@@ -198,9 +214,31 @@ const ServiceProviderTaskDashboardScreen = ({ navigation }) => {
   /* ── Task card ── */
   const renderTask = ({ item }) => {
     const status = (item.taskStatus || item.status || '').toLowerCase();
-    const locationText = typeof item.location === 'string'
-      ? item.location
-      : item.location?.address || 'Location TBD';
+    
+    // Enhanced location text extraction
+    let locationText = 'Location TBD';
+    
+    if (typeof item.location === 'string') {
+      locationText = item.location;
+    } else if (item.location && typeof item.location === 'object') {
+      // Check location type and extract appropriate text
+      const locationType = item.location.type;
+      
+      if (locationType === 'merchant_location' || locationType === 'merchantLocation' || locationType === 'organization_location') {
+        locationText = item.location.address || item.location.organizationName || 'Merchant Location';
+      } else if (locationType === 'customer_address' || locationType === 'new_address' || locationType === 'newAddress') {
+        locationText = item.location.address || 'Customer Address';
+      } else if (locationType === 'whatsapp_location' || locationType === 'whatsappLocation') {
+        locationText = item.location.whatsappLocationUrl ? 'WhatsApp Location (Shared)' : 'WhatsApp Location';
+      } else if (item.location.address) {
+        locationText = item.location.address;
+      }
+    }
+    
+    console.log('🚨 TASK LOCATION DEBUG 🚨');
+    console.log('Task ID:', item.taskId);
+    console.log('Raw location:', JSON.stringify(item.location, null, 2));
+    console.log('Extracted locationText:', locationText);
 
     return (
       <View style={styles.taskCard}>
@@ -256,6 +294,64 @@ const ServiceProviderTaskDashboardScreen = ({ navigation }) => {
                 <Text style={styles.detailText}>{item.customerPhone}</Text>
               </View>
             )}
+          </View>
+        )}
+
+        {/* Guest Details — shown for both assigned and accepted */}
+        {(status === 'assigned' || status === 'accepted') && item.guestDetails && item.guestDetails.length > 0 && (
+          <View style={styles.guestBox}>
+            <Text style={styles.guestTitle}>
+              👥 Guests ({item.guestDetails.length} person{item.guestDetails.length > 1 ? 's' : ''})
+            </Text>
+            {item.guestDetails.map((guest, index) => (
+              <View key={index} style={styles.guestCard}>
+                <View style={styles.guestHeader}>
+                  <Text style={styles.guestName}>
+                    {guest.name || `${guest.firstName} ${guest.lastName}`}
+                  </Text>
+                  {guest.age && (
+                    <Text style={styles.guestAge}>Age: {guest.age}</Text>
+                  )}
+                </View>
+                
+                {guest.email && (
+                  <View style={styles.detailRow}>
+                    <Ionicons name="mail" size={13} color="#6B7280" />
+                    <Text style={styles.guestDetailText}>{guest.email}</Text>
+                  </View>
+                )}
+                
+                {guest.slotDateTime && (
+                  <View style={styles.detailRow}>
+                    <Ionicons name="time" size={13} color="#6B7280" />
+                    <Text style={styles.guestDetailText}>
+                      {new Date(guest.slotDateTime).toLocaleString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
+                    </Text>
+                  </View>
+                )}
+                
+                {guest.notes && (
+                  <View style={styles.guestNotes}>
+                    <Text style={styles.guestNotesText}>📝 {guest.notes}</Text>
+                  </View>
+                )}
+                
+                {guest.selectedSubServices && guest.selectedSubServices.length > 0 && (
+                  <View style={styles.subServicesBox}>
+                    <Text style={styles.subServicesTitle}>Sub-Services:</Text>
+                    {guest.selectedSubServices.map((subService, subIndex) => (
+                      <View key={subIndex} style={styles.subServiceRow}>
+                        <Text style={styles.subServiceName}>• {subService.name}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))}
           </View>
         )}
 
@@ -481,6 +577,23 @@ const styles = StyleSheet.create({
   detailText:     { fontSize: 13, color: '#6B7280', flex: 1 },
   contactBox:     { backgroundColor: '#F3E8FF', borderRadius: 8, padding: 12, marginBottom: 10, gap: 6 },
   contactTitle:   { fontSize: 13, fontWeight: '600', color: '#7B2CBF', marginBottom: 4 },
+  guestBox:       { backgroundColor: '#FFF8DC', borderRadius: 8, padding: 12, marginBottom: 10 },
+  guestTitle:     { fontSize: 13, fontWeight: '600', color: '#1F2937', marginBottom: 8 },
+  guestCard:      { backgroundColor: 'white', borderRadius: 6, padding: 10, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#7B2CBF' },
+  guestHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  guestName:      { fontSize: 14, fontWeight: '600', color: '#1F2937', flex: 1 },
+  guestAge:       { fontSize: 12, color: '#6B7280', backgroundColor: '#F3F4F6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  guestDetailText: { fontSize: 12, color: '#6B7280', flex: 1 },
+  guestNotes:     { backgroundColor: '#FEF3C7', borderRadius: 4, padding: 6, marginTop: 4 },
+  guestNotesText: { fontSize: 11, color: '#92400E', fontStyle: 'italic' },
+  subServicesBox: { marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  subServicesTitle: { fontSize: 11, fontWeight: '600', color: '#6B7280', marginBottom: 4 },
+  subServiceRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
+  subServiceName: { fontSize: 11, color: '#1F2937', flex: 1 },
+  subServicePrice: { fontSize: 11, fontWeight: '600', color: '#7B2CBF' },
+  guestTotal:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#E5E7EB' },
+  guestTotalLabel: { fontSize: 12, fontWeight: '600', color: '#1F2937' },
+  guestTotalValue: { fontSize: 12, fontWeight: '700', color: '#10B981' },
   completionBox:  { backgroundColor: '#F0FDF4', borderRadius: 8, padding: 12, marginBottom: 10 },
   completionTitle: { fontSize: 13, fontWeight: '600', color: '#15803D', marginBottom: 4 },
   completionText: { fontSize: 13, color: '#1F2937', lineHeight: 18 },

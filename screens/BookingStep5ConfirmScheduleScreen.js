@@ -40,6 +40,7 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
   const [loadingSubServices, setLoadingSubServices] = useState(true);
   const [loadingPricing, setLoadingPricing] = useState(false);
   const [realTimePricing, setRealTimePricing] = useState(null);
+  const [locationOptions, setLocationOptions] = useState({});
 
   // Initialize sub-service selections for all persons
   const initializeSubServiceSelections = () => {
@@ -71,6 +72,25 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
       setAvailableSubServices([]);
     } finally {
       setLoadingSubServices(false);
+    }
+  };
+
+  // Fetch location options to get merchant location details
+  const fetchLocationOptions = async () => {
+    try {
+      const response = await ApiService.getLocationOptions(
+        service.organizationId,
+        service._id
+      );
+
+      if (response.success) {
+        const options = response.data.locationOptions || {};
+        setLocationOptions(options);
+        console.log('🚨 LOCATION OPTIONS LOADED 🚨');
+        console.log('Location options:', JSON.stringify(options, null, 2));
+      }
+    } catch (error) {
+      console.error('Error loading location options:', error);
     }
   };
 
@@ -158,6 +178,7 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
     // Initialize sub-service selections and fetch available sub-services
     initializeSubServiceSelections();
     fetchSubServices();
+    fetchLocationOptions();
   }, [service]);
 
   // Recalculate pricing when sub-service selections or payment type changes
@@ -256,17 +277,37 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
   };
 
   const getLocationDisplayText = () => {
+    console.log('🚨 LOCATION DISPLAY DEBUG 🚨');
+    console.log('bookingLocation:', JSON.stringify(bookingLocation, null, 2));
+    
     const locationType = bookingLocation.locationType || bookingLocation.type;
+    console.log('Detected locationType:', locationType);
+    
+    // Get location options to find merchant location details
+    const merchantLocationOption = locationOptions?.merchantLocation || locationOptions?.merchant_location;
+    
     switch (locationType) {
+      case 'merchantLocation':
       case 'merchant_location':
+        // Return the actual merchant location address if available
+        if (merchantLocationOption && merchantLocationOption.address) {
+          return merchantLocationOption.address;
+        }
+        if (merchantLocationOption && merchantLocationOption.organizationName) {
+          return `${merchantLocationOption.organizationName} Location`;
+        }
         return 'Service provider\'s location';
+      case 'customerAddress':
       case 'customer_address':
         return bookingLocation.address || 'Your registered address';
+      case 'newAddress':
       case 'new_address':
         return bookingLocation.address || 'Custom address';
+      case 'whatsappLocation':
       case 'whatsapp_location':
         return bookingLocation.whatsappLocationUrl ? 'WhatsApp shared location' : 'WhatsApp location';
       default:
+        console.log('⚠️ Unknown location type:', locationType);
         return 'Location to be confirmed';
     }
   };
@@ -856,33 +897,33 @@ const BookingStep5ConfirmScheduleScreen = ({ navigation, route }) => {
                   <View key={index} style={styles.individualBreakdown}>
                     <Text style={styles.individualPersonName}>{breakdown.personName}</Text>
                     <View style={styles.individualDetails}>
-                      <View style={styles.pricingRow}>
-                        <Text style={styles.subServiceLabel}>Base Service</Text>
-                        <Text style={styles.pricingValue}>
+                      <View style={styles.individualPricingRow}>
+                        <Text style={styles.individualItemLabel}>Base Service</Text>
+                        <Text style={styles.individualItemValue}>
                           ₦{breakdown.basePrice.toLocaleString()}
                         </Text>
                       </View>
                       {breakdown.subServices && breakdown.subServices.length > 0 && (
                         <>
                           {breakdown.subServices.map((subService, subIndex) => (
-                            <View key={subIndex} style={styles.pricingRow}>
-                              <Text style={styles.subServiceLabel}>
-                                + {subService.name} ({subService.code})
+                            <View key={subIndex} style={styles.individualPricingRow}>
+                              <Text style={styles.individualItemLabel}>
+                                + {subService.name}
                               </Text>
-                              <Text style={styles.pricingValue}>
+                              <Text style={styles.individualItemValue}>
                                 ₦{subService.price.toLocaleString()}
                               </Text>
                             </View>
                           ))}
-                          <View style={styles.pricingRow}>
-                            <Text style={styles.subServiceLabel}>Sub-Services Total</Text>
-                            <Text style={styles.pricingValue}>
+                          <View style={styles.individualPricingRow}>
+                            <Text style={styles.individualSubtotalLabel}>Sub-Services Total</Text>
+                            <Text style={styles.individualSubtotalValue}>
                               ₦{breakdown.subServicesTotal.toLocaleString()}
                             </Text>
                           </View>
                         </>
                       )}
-                      <View style={styles.pricingRow}>
+                      <View style={styles.individualTotalRow}>
                         <Text style={styles.individualTotalLabel}>Individual Total</Text>
                         <Text style={styles.individualTotalValue}>
                           ₦{breakdown.individualTotal.toLocaleString()}
@@ -1729,17 +1770,62 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   individualDetails: {
-    paddingLeft: 8,
+    gap: 4,
+  },
+  individualPricingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  individualItemLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    flex: 1,
+  },
+  individualItemValue: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#1F2937',
+    textAlign: 'right',
+    minWidth: 80,
+  },
+  individualSubtotalLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+    flex: 1,
+  },
+  individualSubtotalValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1F2937',
+    textAlign: 'right',
+    minWidth: 80,
+  },
+  individualTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
   individualTotalLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1F2937',
+    flex: 1,
   },
   individualTotalValue: {
     fontSize: 14,
     fontWeight: '700',
     color: '#7B2CBF',
+    textAlign: 'right',
+    minWidth: 80,
   },
 });
 

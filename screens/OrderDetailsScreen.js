@@ -290,7 +290,10 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                       <Text style={styles.infoLabel}>Location Type:</Text>
                       <Text style={styles.infoValue}>
                         {order.serviceBooking.location.type === 'new_address' ? 'Customer Address' :
+                         order.serviceBooking.location.type === 'customer_address' ? 'Customer Address' :
                          order.serviceBooking.location.type === 'organization_location' ? 'Organization Location' :
+                         order.serviceBooking.location.type === 'merchant_location' ? 'Merchant Location' :
+                         order.serviceBooking.location.type === 'merchantLocation' ? 'Merchant Location' :
                          order.serviceBooking.location.type === 'whatsapp_location' ? 'WhatsApp Location' :
                          'Other Location'}
                       </Text>
@@ -1194,7 +1197,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 6,
     paddingHorizontal: 8,
     backgroundColor: 'white',
     borderRadius: 4,
@@ -1204,11 +1207,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
     flex: 1,
+    paddingRight: 12,
   },
   subServiceSummaryPrice: {
     fontSize: 14,
     fontWeight: '600',
     color: '#7B2CBF',
+    textAlign: 'right',
+    minWidth: 80,
   },
   personSubServicesTotal: {
     flexDirection: 'row',
@@ -1216,6 +1222,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     paddingTop: 8,
+    paddingHorizontal: 8,
     borderTopWidth: 1,
     borderTopColor: '#D1D5DB',
   },
@@ -1223,11 +1230,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#6B7280',
+    flex: 1,
   },
   personSubServicesTotalValue: {
     fontSize: 14,
     fontWeight: '700',
     color: '#7B2CBF',
+    textAlign: 'right',
+    minWidth: 80,
   },
   allSubServicesTotal: {
     flexDirection: 'row',
@@ -1246,11 +1256,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#1F2937',
+    flex: 1,
   },
   allSubServicesTotalValue: {
     fontSize: 16,
     fontWeight: '700',
     color: '#7B2CBF',
+    textAlign: 'right',
+    minWidth: 80,
   },
   notesSection: {
     marginTop: 16,
