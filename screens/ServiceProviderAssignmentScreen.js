@@ -33,20 +33,24 @@ const ServiceProviderAssignmentScreen = ({ navigation }) => {
     serviceProviderFeeDescription: '',
     serviceProviderFee: '',
     serviceProviderFeeCurrency: 'USD',
-    serviceProviderFeeFrequency: 'hourly'
+    serviceProviderFeeFrequency: 'per-service'
   });
   const [currentSpecialty, setCurrentSpecialty] = useState('');
 
   // Frequency options for the dropdown
   const frequencyOptions = [
+    { label: 'Per Service (Per Task)', value: 'per-service' },
+    { label: 'Per Project', value: 'per-project' },
     { label: 'Hourly', value: 'hourly' },
     { label: 'Daily', value: 'daily' },
     { label: 'Weekly', value: 'weekly' },
+    { label: 'Bi-Weekly', value: 'bi-weekly' },
     { label: 'Monthly', value: 'monthly' },
-    { label: 'Per Project', value: 'per project' },
-    { label: 'Per Task', value: 'per task' },
     { label: 'Quarterly', value: 'quarterly' },
+    { label: 'Semi-Annually', value: 'semi-annually' },
     { label: 'Annually', value: 'annually' },
+    { label: 'One-Time', value: 'one-time' },
+    { label: 'Custom', value: 'custom' },
   ];
 
   // Currency options
@@ -198,7 +202,7 @@ const ServiceProviderAssignmentScreen = ({ navigation }) => {
           serviceProviderFeeDescription: '',
           serviceProviderFee: '',
           serviceProviderFeeCurrency: 'USD',
-          serviceProviderFeeFrequency: 'hourly'
+          serviceProviderFeeFrequency: 'per-service'
         });
         await loadData(); // Refresh data
       } else {
@@ -480,7 +484,7 @@ const ServiceProviderAssignmentScreen = ({ navigation }) => {
                 serviceProviderFeeDescription: '',
                 serviceProviderFee: '',
                 serviceProviderFeeCurrency: 'USD',
-                serviceProviderFeeFrequency: 'hourly'
+                serviceProviderFeeFrequency: 'per-service'
               });
             }}>
               <Ionicons name="close" size={24} color="#333333" />
