@@ -193,6 +193,19 @@ const ServiceProviderTaskDashboardScreen = ({ navigation }) => {
   const formatDate = (d) =>
     new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
+  const getCurrencySymbol = (currency) => {
+    const symbols = {
+      'NGN': '₦',
+      'USD': '$',
+      'GBP': '£',
+      'EUR': '€',
+      'GHS': '₵',
+      'KES': 'KSh',
+      'ZAR': 'R',
+    };
+    return symbols[currency] || currency;
+  };
+
   /* ── Statistics card ── */
   const renderStats = () => (
     <View style={styles.statsCard}>
@@ -214,6 +227,20 @@ const ServiceProviderTaskDashboardScreen = ({ navigation }) => {
   /* ── Task card ── */
   const renderTask = ({ item }) => {
     const status = (item.taskStatus || item.status || '').toLowerCase();
+    
+    // Debug fee information
+    console.log('🚨 TASK FEE DEBUG 🚨');
+    console.log('Task ID:', item.taskId);
+    console.log('Status:', status);
+    console.log('feeInfo:', JSON.stringify(item.feeInfo, null, 2));
+    console.log('item.fee:', item.fee);
+    console.log('All item keys:', Object.keys(item));
+    
+    // Use service provider fee instead of customer price
+    const displayFee = item.feeInfo?.amount || item.fee || 0;
+    const currency = item.feeInfo?.currency || 'NGN';
+    const currencySymbol = getCurrencySymbol(currency);
+    console.log('Final displayFee:', displayFee, 'Currency:', currency);
     
     // Enhanced location text extraction
     let locationText = 'Location TBD';
@@ -256,7 +283,10 @@ const ServiceProviderTaskDashboardScreen = ({ navigation }) => {
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.taskId}>#{item.taskId?.slice(-6)}</Text>
-            <Text style={styles.taskFee}>₦{item.fee?.toLocaleString()}</Text>
+            <Text style={styles.taskFee}>{currencySymbol}{displayFee.toLocaleString()}</Text>
+            {item.feeInfo && (
+              <Text style={styles.feeLabel}>Your Fee{item.feeInfo.frequency ? ` (${item.feeInfo.frequency})` : ''}</Text>
+            )}
           </View>
         </View>
 
@@ -572,6 +602,7 @@ const styles = StyleSheet.create({
   customerFullName: { fontSize: 13, fontWeight: '500', color: '#7B2CBF' },
   taskId:         { fontSize: 11, color: '#9CA3AF', marginBottom: 3 },
   taskFee:        { fontSize: 15, fontWeight: '700', color: '#10B981' },
+  feeLabel:       { fontSize: 10, color: '#6B7280', marginTop: 2 },
   taskDetails:    { borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10, marginBottom: 10, gap: 6 },
   detailRow:      { flexDirection: 'row', alignItems: 'center', gap: 7 },
   detailText:     { fontSize: 13, color: '#6B7280', flex: 1 },
