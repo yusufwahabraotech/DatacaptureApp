@@ -10,6 +10,7 @@ import {
   Image,
   Modal,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -434,7 +435,16 @@ const CreateGalleryItemScreen = ({ navigation }) => {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Location Selection */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Location *</Text>
@@ -1367,7 +1377,8 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             {loading ? 'Creating...' : 'Create Gallery Item'}
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {showStartDatePicker && (
         <DateTimePicker
