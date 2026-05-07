@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
 // Single base URL configuration - Local development
-const BASE_URL = 'http://192.168.0.183:3000/api';
+const BASE_URL = 'https://datacapture-backend.onrender.com/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v16 - RENDER DEPLOYMENT
 const FORCE_RELOAD_NOW = 'RENDER_DEPLOYMENT_LIVE_' + Date.now();
