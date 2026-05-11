@@ -4053,38 +4053,25 @@ class ApiService {
     return response;
   }
 
-  // Step 3: Get Service Providers for Manual Assignment
+  // Step 3: Get Service Providers for Manual Assignment (uses service-provider-assignment/detailed)
   static async getAdminBookingServiceProviders(serviceId = null) {
     console.log('🚨 GET ADMIN BOOKING SERVICE PROVIDERS API CALL 🚨');
     console.log('Service ID parameter:', serviceId);
+    console.log('Using endpoint: /service-provider-assignment/detailed');
     
-    const params = new URLSearchParams();
-    if (serviceId) params.append('serviceId', serviceId);
-    
-    const queryString = params.toString();
-    const endpoint = `/admin/booking/service-providers${queryString ? '?' + queryString : ''}`;
-    
-    console.log('API endpoint:', endpoint);
-    console.log('Full URL:', `${BASE_URL}${endpoint}`);
-    
-    const response = await this.apiCall(endpoint);
+    const response = await this.apiCall('/service-provider-assignment/detailed');
     
     console.log('🚨 SERVICE PROVIDERS API RESPONSE 🚨');
     console.log('Response success:', response.success);
     console.log('Response message:', response.message);
     console.log('Response data keys:', response.data ? Object.keys(response.data) : 'No data');
     
-    if (response.success && response.data) {
-      console.log('Providers array:', response.data.providers);
-      console.log('Providers count:', response.data.providers?.length || 0);
-      console.log('Total providers:', response.data.total);
-      
-      if (response.data.providers && response.data.providers.length > 0) {
-        console.log('Sample provider structure:', JSON.stringify(response.data.providers[0], null, 2));
+    if (response.success && response.data?.serviceProviders) {
+      console.log('Service providers count:', response.data.serviceProviders.length);
+      if (response.data.serviceProviders.length > 0) {
+        console.log('Sample provider structure:', JSON.stringify(response.data.serviceProviders[0], null, 2));
       }
     }
-    
-    console.log('Full response:', JSON.stringify(response, null, 2));
     
     return response;
   }

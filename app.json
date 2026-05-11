@@ -36,6 +36,18 @@
             "BROWSABLE",
             "DEFAULT"
           ]
+        },
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "vestradat"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -50,6 +62,9 @@
         "projectId": "c1529687-ad01-409a-b948-f6cac3e2bde9"
       }
     },
-    "owner": "raoatechdatacapai"
+    "owner": "raoatechdatacapai",
+    "updates": {
+      "url": "https://u.expo.dev/c1529687-ad01-409a-b948-f6cac3e2bde9"
+    }
   }
 }

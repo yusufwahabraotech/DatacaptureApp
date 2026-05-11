@@ -100,38 +100,34 @@ const AdminBookingStep3EnterDetailsScreen = ({ navigation, route }) => {
       
       console.log('🚨 LOADING SERVICE PROVIDERS 🚨');
       console.log('Service ID:', service._id);
+      console.log('Using endpoint: /service-provider-assignment/detailed');
       
       const response = await ApiService.getAdminBookingServiceProviders(service._id);
 
       console.log('🚨 SERVICE PROVIDERS RESPONSE 🚨');
       console.log('Response:', JSON.stringify(response, null, 2));
       
-      if (response.success && response.data && response.data.providers) {
-        console.log('Service providers loaded:', response.data.providers.length);
-        setServiceProviders(response.data.providers);
+      if (response.success && response.data?.serviceProviders) {
+        console.log('Service providers loaded:', response.data.serviceProviders.length);
+        
+        // Transform the response to match the expected format
+        const providers = response.data.serviceProviders.map(provider => ({
+          id: provider.userId,
+          providerId: provider.customUserId || provider.userId,
+          name: `${provider.firstName} ${provider.lastName}`,
+          email: provider.email,
+          phoneNumber: provider.phoneNumber || '',
+          specialties: provider.serviceProviderInfo?.specialties || [],
+          rating: provider.serviceProviderInfo?.rating || 0,
+          completedTasks: provider.serviceProviderInfo?.completedBookings || 0,
+        }));
+        
+        console.log('Transformed providers:', providers.length);
+        setServiceProviders(providers);
       } else {
-        console.log('❌ Service providers load failed');
-        
-        // Try fallback
-        const fallbackResponse = await ApiService.getAssignedServiceProviders();
-        
-        if (fallbackResponse.success && fallbackResponse.data?.serviceProviders) {
-          const providers = fallbackResponse.data.serviceProviders.map(provider => ({
-            id: provider.userId,
-            providerId: provider.customUserId || provider.userId,
-            name: `${provider.firstName} ${provider.lastName}`,
-            email: provider.email,
-            phoneNumber: provider.phoneNumber || '',
-            specialties: provider.serviceProviderInfo?.specialties || [],
-            rating: provider.serviceProviderInfo?.rating || 0,
-            completedTasks: provider.serviceProviderInfo?.completedBookings || 0,
-          }));
-          
-          setServiceProviders(providers);
-        } else {
-          setServiceProvidersError('No service providers available');
-          setServiceProviders([]);
-        }
+        console.log('❌ Service providers load failed:', response.message);
+        setServiceProvidersError(response.message || 'No service providers available');
+        setServiceProviders([]);
       }
     } catch (error) {
       console.error('❌ Service providers load error:', error);
