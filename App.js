@@ -147,6 +147,13 @@ import AdminPurchaseSuccessScreen from './screens/AdminPurchaseSuccessScreen';
 import TaskCompletionFormScreen from './screens/TaskCompletionFormScreen';
 import DeliveryConfirmationFormScreen from './screens/DeliveryConfirmationFormScreen';
 import AdminCompletedTasksReportScreen from './screens/AdminCompletedTasksReportScreen';
+import ServiceProviderBankDetailsScreen from './screens/ServiceProviderBankDetailsScreen';
+import ServiceProviderSettlementsScreen from './screens/ServiceProviderSettlementsScreen';
+import ServiceProviderSettlementDetailsScreen from './screens/ServiceProviderSettlementDetailsScreen';
+import AdminProcessSettlementScreen from './screens/AdminProcessSettlementScreen';
+import AdminSettlementsManagementScreen from './screens/AdminSettlementsManagementScreen';
+import AdminSettlementDetailsScreen from './screens/AdminSettlementDetailsScreen';
+import ApkDownloadReportsScreen from './screens/ApkDownloadReportsScreen';
 
 const Stack = createStackNavigator();
 
@@ -382,6 +389,17 @@ export default function App() {
         <Stack.Screen name="TaskCompletionForm" component={TaskCompletionFormScreen} />
         <Stack.Screen name="DeliveryConfirmationForm" component={DeliveryConfirmationFormScreen} />
         <Stack.Screen name="AdminCompletedTasksReport" component={AdminCompletedTasksReportScreen} />
+        
+        {/* Service Provider Settlement Screens */}
+        <Stack.Screen name="ServiceProviderBankDetails" component={ServiceProviderBankDetailsScreen} />
+        <Stack.Screen name="ServiceProviderSettlements" component={ServiceProviderSettlementsScreen} />
+        <Stack.Screen name="ServiceProviderSettlementDetails" component={ServiceProviderSettlementDetailsScreen} />
+        <Stack.Screen name="AdminProcessSettlement" component={AdminProcessSettlementScreen} />
+        <Stack.Screen name="AdminSettlementsManagement" component={AdminSettlementsManagementScreen} />
+        <Stack.Screen name="AdminSettlementDetails" component={AdminSettlementDetailsScreen} />
+        
+        {/* APK Download Reports & Statistics */}
+        <Stack.Screen name="ApkDownloadReports" component={ApkDownloadReportsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

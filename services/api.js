@@ -243,6 +243,72 @@ class ApiService {
     return this.apiCall(`/user/users?page=${page}&limit=${limit}&includeOrganization=true`);
   }
 
+  // APK DOWNLOAD REPORTS & STATISTICS
+  static async getApkDownloadStats() {
+    return this.apiCall('/apk-download/stats');
+  }
+
+  static async getApkDownloadList(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.page) params.append('page', filters.page);
+    if (filters.limit) params.append('limit', filters.limit);
+    if (filters.platform) params.append('platform', filters.platform);
+    if (filters.role) params.append('role', filters.role);
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    return this.apiCall(`/apk-download/list?${params.toString()}`);
+  }
+
+  // SERVICE PROVIDER SETTLEMENTS
+  static async getProviderBankDetails() {
+    return this.apiCall('/service-provider-settlements/provider/my-bank-details');
+  }
+
+  static async addProviderBankDetails(bankDetails) {
+    return this.apiCall('/service-provider-settlements/provider/bank-details', {
+      method: 'PUT',
+      body: JSON.stringify(bankDetails),
+    });
+  }
+
+  static async getMySettlements(status = null) {
+    const query = status ? `?status=${status}` : '';
+    return this.apiCall(`/service-provider-settlements/provider/my-settlements${query}`);
+  }
+
+  static async getSettlementById(settlementId) {
+    return this.apiCall(`/service-provider-settlements/provider/${settlementId}`);
+  }
+
+  static async confirmSettlement(settlementId, comment = '') {
+    return this.apiCall(`/service-provider-settlements/provider/${settlementId}/confirm`, {
+      method: 'POST',
+      body: JSON.stringify({ comment }),
+    });
+  }
+
+  static async processSettlement(settlementData) {
+    console.log('🚨 PROCESSING SETTLEMENT 🚨');
+    console.log('Settlement data:', JSON.stringify(settlementData, null, 2));
+    
+    return this.apiCall('/service-provider-settlements/admin/process', {
+      method: 'POST',
+      body: JSON.stringify(settlementData),
+    });
+  }
+
+  static async getOrganizationSettlements(status = null, serviceProviderId = null) {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (serviceProviderId) params.append('serviceProviderId', serviceProviderId);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.apiCall(`/service-provider-settlements/admin/all${query}`);
+  }
+
+  static async getAdminSettlementById(settlementId) {
+    return this.apiCall(`/service-provider-settlements/admin/${settlementId}`);
+  }
+
   static async getUserById(userId) {
     if (!userId || userId === 'undefined') {
       return { success: false, message: 'User ID is required' };
@@ -2554,6 +2620,19 @@ class ApiService {
       console.log('Sample provider:', response.data.serviceProviders[0] ? JSON.stringify(response.data.serviceProviders[0], null, 2) : 'No providers');
     }
     
+    return response;
+  }
+
+  // Get Service Providers for Settlement (uses service provider assignment endpoint)
+  static async getServiceProviders() {
+    console.log('🚨 FETCHING SERVICE PROVIDERS FOR SETTLEMENT 🚨');
+    
+    // Use the service provider assignment endpoint
+    const response = await this.apiCall('/service-provider-assignment/detailed');
+    
+    console.log('Service providers response:', JSON.stringify(response, null, 2));
+    
+    // Return the response as-is since the screen will handle the data structure
     return response;
   }
 

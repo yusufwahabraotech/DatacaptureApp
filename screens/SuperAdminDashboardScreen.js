@@ -204,6 +204,12 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
       subtitle: 'Process remittances for confirmed orders',
       icon: 'checkmark-circle',
       onPress: () => navigation.navigate('ConfirmedDeliveries')
+    },
+    {
+      title: 'APK Download Reports',
+      subtitle: 'View app download statistics & analytics',
+      icon: 'download',
+      onPress: () => navigation.navigate('ApkDownloadReports')
     }
   ];
 

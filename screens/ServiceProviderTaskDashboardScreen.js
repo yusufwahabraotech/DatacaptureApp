@@ -483,9 +483,14 @@ const ServiceProviderTaskDashboardScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Tasks</Text>
-        <TouchableOpacity onPress={onRefresh}>
-          <Ionicons name="refresh" size={24} color="#7B2CBF" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 16 }}>
+          <TouchableOpacity onPress={() => navigation.navigate('ServiceProviderSettlements')}>
+            <Ionicons name="wallet" size={24} color="#7B2CBF" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onRefresh}>
+            <Ionicons name="refresh" size={24} color="#7B2CBF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView

@@ -271,10 +271,10 @@ const AdminDashboardScreen = ({ navigation }) => {
     },
     {
       title: 'Settlements',
-      subtitle: 'View payment settlements',
+      subtitle: 'Process & manage settlements',
       icon: 'wallet',
       moduleKey: ModuleAccessChecker.FREE_MODULES.PAYMENTS,
-      onPress: () => navigation.navigate('Settlements')
+      onPress: () => navigation.navigate('AdminSettlementsManagement')
     },
     {
       title: 'Service Bookings',
