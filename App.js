@@ -154,6 +154,8 @@ import AdminProcessSettlementScreen from './screens/AdminProcessSettlementScreen
 import AdminSettlementsManagementScreen from './screens/AdminSettlementsManagementScreen';
 import AdminSettlementDetailsScreen from './screens/AdminSettlementDetailsScreen';
 import ApkDownloadReportsScreen from './screens/ApkDownloadReportsScreen';
+import AdminCompletedTasksScreen from './screens/AdminCompletedTasksScreen';
+import AdminTaskCompletionDetailsScreen from './screens/AdminTaskCompletionDetailsScreen';
 
 const Stack = createStackNavigator();
 
@@ -400,6 +402,10 @@ export default function App() {
         
         {/* APK Download Reports & Statistics */}
         <Stack.Screen name="ApkDownloadReports" component={ApkDownloadReportsScreen} />
+        
+        {/* Admin Completed Tasks Module */}
+        <Stack.Screen name="AdminCompletedTasks" component={AdminCompletedTasksScreen} />
+        <Stack.Screen name="AdminTaskCompletionDetails" component={AdminTaskCompletionDetailsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>

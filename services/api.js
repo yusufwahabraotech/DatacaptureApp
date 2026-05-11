@@ -3027,6 +3027,16 @@ class ApiService {
     return this.apiCall(`/service-provider-tasks/admin/tasks/${taskId}/completion-details`);
   }
 
+  // ADMIN COMPLETED TASKS MODULE
+  static async getAdminCompletedTasksList(includeConfirmation = true) {
+    const endpoint = `/service-provider-tasks/admin/report/completed?includeConfirmation=${includeConfirmation}`;
+    return this.apiCall(endpoint);
+  }
+
+  static async getAdminTaskCompletionDetails(taskId) {
+    return this.apiCall(`/service-provider-tasks/admin/tasks/${taskId}/completion-details`);
+  }
+
   // ADMIN NOTIFICATION SYSTEM
   static async getAdminNotifications(params = {}) {
     const queryParams = new URLSearchParams();

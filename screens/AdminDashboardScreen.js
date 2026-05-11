@@ -299,6 +299,13 @@ const AdminDashboardScreen = ({ navigation }) => {
       icon: 'calendar-outline',
       moduleKey: ModuleAccessChecker.FREE_MODULES.ORDERS,
       onPress: () => navigation.navigate('AdminBookingManagement')
+    },
+    {
+      title: 'Completed Tasks',
+      subtitle: 'View completed service tasks',
+      icon: 'checkmark-done-circle',
+      moduleKey: ModuleAccessChecker.FREE_MODULES.ORDERS,
+      onPress: () => navigation.navigate('AdminCompletedTasks')
     }
   ];
 
