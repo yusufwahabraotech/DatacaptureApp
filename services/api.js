@@ -1806,20 +1806,56 @@ class ApiService {
     console.log('🚨 PAYMENT DATA FOR BACKEND 🚨');
     console.log('Payment data:', JSON.stringify(paymentData, null, 2));
     
-    return this.apiCall('/payment/initialize', {
+    const response = await this.apiCall('/payment/initialize', {
       method: 'POST',
       body: JSON.stringify(paymentData),
     });
+    
+    if (response.success && response.data.transactionRef) {
+      await AsyncStorage.setItem('paymentType', 'subscription');
+      await AsyncStorage.setItem('paymentTxRef', response.data.transactionRef);
+      console.log('✅ Stored payment type: subscription');
+    }
+    
+    return response;
   }
 
   static async verifyPayment(transactionId) {
     console.log('🚨 PAYMENT VERIFICATION DEBUG 🚨');
     console.log('Transaction ID/tx_ref:', transactionId);
     
-    return this.apiCall('/payment/verify', {
-      method: 'POST',
-      body: JSON.stringify({ tx_ref: transactionId }),
-    });
+    const paymentType = await AsyncStorage.getItem('paymentType');
+    console.log('📦 Stored payment type:', paymentType);
+    
+    let response;
+    
+    if (paymentType === 'combined') {
+      console.log('✅ Using COMBINED verification endpoint');
+      response = await this.apiCall('/payment/combined/verify', {
+        method: 'POST',
+        body: JSON.stringify({ tx_ref: transactionId }),
+      });
+    } else if (paymentType === 'verified-badge') {
+      console.log('✅ Using VERIFIED BADGE verification endpoint');
+      response = await this.apiCall('/payment/verified-badge/verify', {
+        method: 'POST',
+        body: JSON.stringify({ tx_ref: transactionId }),
+      });
+    } else {
+      console.log('✅ Using SUBSCRIPTION verification endpoint (default)');
+      response = await this.apiCall('/payment/verify', {
+        method: 'POST',
+        body: JSON.stringify({ tx_ref: transactionId }),
+      });
+    }
+    
+    if (response.success) {
+      await AsyncStorage.removeItem('paymentType');
+      await AsyncStorage.removeItem('paymentTxRef');
+      console.log('✅ Cleared payment type from storage');
+    }
+    
+    return response;
   }
 
   static async getPackagePricing(packageId, duration = null) {
@@ -2545,28 +2581,44 @@ class ApiService {
     console.log('🚨 COMBINED PAYMENT INITIALIZATION DEBUG 🚨');
     console.log('Combined payment data being sent:', JSON.stringify(paymentData, null, 2));
     
-    // Ensure correct field names for backend compatibility
     const correctedPaymentData = {
       ...paymentData,
       includeVerifiedBadge: paymentData.includeVerifiedBadge || paymentData.includeLocationVerification,
       locations: paymentData.locations || []
     };
     
-    // Remove old field names if they exist
     delete correctedPaymentData.includeLocationVerification;
     delete correctedPaymentData.locationVerificationAmount;
     
     console.log('🚨 CORRECTED PAYMENT DATA 🚨');
     console.log('Final payload:', JSON.stringify(correctedPaymentData, null, 2));
     
-    return this.apiCall('/payment/combined/initialize', {
+    const response = await this.apiCall('/payment/combined/initialize', {
       method: 'POST',
       body: JSON.stringify(correctedPaymentData),
     });
+    
+    if (response.success && response.data.transactionRef) {
+      await AsyncStorage.setItem('paymentType', 'combined');
+      await AsyncStorage.setItem('paymentTxRef', response.data.transactionRef);
+      console.log('✅ Stored payment type: combined');
+    }
+    
+    return response;
   }
 
   static async verifyCombinedPayment(transactionId) {
     console.log('🚨 COMBINED PAYMENT VERIFICATION DEBUG 🚨');
+    console.log('Transaction ID/tx_ref:', transactionId);
+    
+    return this.apiCall('/payment/combined/verify', {
+      method: 'POST',
+      body: JSON.stringify({ tx_ref: transactionId }),
+    });
+  }
+
+  static async verifyCombinedPayment(transactionId) {
+    console.log('🚀 COMBINED PAYMENT VERIFICATION DEBUG 🚀');
     console.log('Transaction ID/tx_ref:', transactionId);
     
     return this.apiCall('/payment/combined/verify', {

@@ -39,9 +39,26 @@ const PaymentVerificationScreen = ({ route, navigation }) => {
 
   const verifyPayment = async () => {
     try {
-      const response = await ApiService.verifyPayment(tx_ref);
+      // Check if this is a combined payment (subscription + verified badge)
+      const paymentType = route.params?.paymentType;
+      
+      console.log('🔍 PAYMENT VERIFICATION DEBUG:');
+      console.log('Payment Type:', paymentType);
+      console.log('tx_ref:', tx_ref);
+      
+      let response;
+      if (paymentType === 'combined') {
+        console.log('✅ Using COMBINED payment verification endpoint');
+        response = await ApiService.verifyCombinedPayment(tx_ref);
+      } else {
+        console.log('✅ Using REGULAR payment verification endpoint');
+        response = await ApiService.verifyPayment(tx_ref);
+      }
+      
+      console.log('Verification response:', response);
       setVerificationResult(response);
     } catch (error) {
+      console.log('Verification error:', error);
       setVerificationResult({ 
         success: false, 
         message: 'Failed to verify payment' 

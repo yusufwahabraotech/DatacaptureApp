@@ -135,11 +135,27 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
     try {
       const response = await ApiService.getOrganizationProfile();
       if (response.success && response.data.profile && response.data.profile.locations) {
-        // Filter unpaid locations and fetch their pricing
-        const unpaidLocations = response.data.profile.locations
-          .filter(location => !location.isPaidFor);
+        console.log('🏢 ALL LOCATIONS FROM PROFILE:', JSON.stringify(response.data.profile.locations, null, 2));
         
-        // Fetch pricing for each location
+        // Filter locations that need payment:
+        // 1. Not paid for (!isPaidFor)
+        // 2. OR rejected but not yet re-paid (verificationStatus === 'rejected' && !isPaidFor)
+        const unpaidLocations = response.data.profile.locations
+          .filter(location => {
+            const needsPayment = !location.isPaidFor;
+            console.log(`📍 ${location.brandName}: isPaidFor=${location.isPaidFor}, verificationStatus=${location.verificationStatus}, needsPayment=${needsPayment}`);
+            return needsPayment;
+          });
+        
+        console.log('💰 UNPAID LOCATIONS COUNT:', unpaidLocations.length);
+        
+        if (unpaidLocations.length === 0) {
+          console.log('✅ All locations are paid for - no locations to show');
+          setSavedLocations([]);
+          return;
+        }
+        
+        // Fetch pricing for each unpaid location
         const locationsWithPricing = await Promise.all(
           unpaidLocations.map(async (location) => {
             try {
@@ -165,6 +181,7 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
           })
         );
         
+        console.log('💰 LOCATIONS WITH PRICING:', locationsWithPricing.length);
         setSavedLocations(locationsWithPricing);
       }
     } catch (error) {
@@ -349,13 +366,17 @@ const CombinedPaymentScreen = ({ route, navigation }) => {
   const calculateTotalFees = () => {
     // Let backend handle subscription pricing
     const subscriptionAmount = 0; // Backend will calculate this
-    // Only include locations that are not paid for and not rejected+paid
-    const eligibleLocations = savedLocations.filter(location => 
-      !location.isPaidFor || location.verificationStatus !== 'rejected'
-    );
+    // Only include locations that are NOT paid for
+    const eligibleLocations = savedLocations.filter(location => !location.isPaidFor);
     const verifiedBadgeAmount = eligibleLocations.reduce((sum, location) => 
       sum + (location.fee || 0), 0
     );
+    
+    console.log('💰 CALCULATE TOTAL FEES:');
+    console.log('  Total saved locations:', savedLocations.length);
+    console.log('  Eligible (unpaid) locations:', eligibleLocations.length);
+    console.log('  Verified badge amount:', verifiedBadgeAmount);
+    
     return {
       subscriptionAmount,
       verifiedBadgeAmount,

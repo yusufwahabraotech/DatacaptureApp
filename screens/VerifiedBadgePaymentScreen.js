@@ -48,40 +48,40 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
 
   const fetchPricing = async () => {
     try {
-      // First get organization profile to compare pricing
       const profileResponse = await ApiService.getOrganizationProfile();
-      console.log('🏢 ORGANIZATION PROFILE FOR PRICING COMPARISON:', JSON.stringify(profileResponse, null, 2));
+      console.log('🏢 ORGANIZATION PROFILE FOR PRICING:', JSON.stringify(profileResponse, null, 2));
       
       if (profileResponse.success && profileResponse.data.profile) {
         const locations = profileResponse.data.profile.locations || [];
-        const unpaidLocations = locations.filter(loc => {
-          // Only exclude locations that are rejected AND paid for
-          const isRejectedAndPaid = loc.verificationStatus === 'rejected' && loc.isPaidFor;
-          return !isRejectedAndPaid;
+        const unpaidLocations = locations.filter(loc => !loc.isPaidFor);
+        
+        console.log('📍 LOCATION PAYMENT STATUS:');
+        locations.forEach((loc, index) => {
+          console.log(`  ${index + 1}. ${loc.brandName}: isPaidFor=${loc.isPaidFor}, status=${loc.verificationStatus}`);
         });
-        console.log('💰 UNPAID LOCATIONS FROM PROFILE:');
-        unpaidLocations.forEach((loc, index) => {
-          console.log(`  ${index + 1}. ${loc.brandName} - ${loc.cityRegion}: ₦${loc.cityRegionFee || 0}`);
-        });
+        console.log('💰 UNPAID LOCATIONS:', unpaidLocations.length);
+        
+        if (unpaidLocations.length === 0) {
+          console.log('✅ All locations are paid - no payment required');
+          setPricing({ amount: 0, displayAmount: '0', noPaymentRequired: true });
+          setLoadingPricing(false);
+          return;
+        }
+        
         const profileTotal = unpaidLocations.reduce((sum, loc) => sum + (loc.cityRegionFee || 0), 0);
         console.log('💰 PROFILE CALCULATED TOTAL:', profileTotal);
       }
       
-      // Now get pricing from the verified badge pricing API
       const response = await ApiService.getVerifiedBadgePricing();
-      console.log('🚨 PRICING API FULL RESPONSE:', JSON.stringify(response, null, 2));
+      console.log('🚀 PRICING API RESPONSE:', JSON.stringify(response, null, 2));
       
       if (response.success && response.data) {
-        console.log('✅ API Success - Response data:', response.data);
-        
-        // Check if there are any unpaid locations that need payment
         if (response.data.totalAmount === 0 || response.data.unpaidLocations === 0) {
           console.log('✅ No payment required - all locations are paid');
           setPricing({ amount: 0, displayAmount: '0', noPaymentRequired: true });
           return;
         }
         
-        // Check different possible response structures
         let amount;
         if (response.data.amount) {
           amount = Number(response.data.amount);
@@ -93,7 +93,7 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
         
         console.log('💰 Extracted amount:', amount);
         
-        if (amount && !isNaN(amount)) {
+        if (amount && !isNaN(amount) && amount > 0) {
           setPricing({
             amount: amount,
             displayAmount: amount.toString(),
@@ -101,13 +101,11 @@ const VerifiedBadgePaymentScreen = ({ navigation }) => {
           });
           console.log('✅ Set pricing:', { amount, displayAmount: amount.toString() });
         } else {
-          console.log('❌ Invalid amount, no payment required');
+          console.log('✅ Amount is 0 or invalid - no payment required');
           setPricing({ amount: 0, displayAmount: '0', noPaymentRequired: true });
         }
       } else {
-        console.log('❌ API failed or no data, no payment required');
-        console.log('Response success:', response.success);
-        console.log('Response message:', response.message);
+        console.log('❌ API failed or no data - no payment required');
         setPricing({ amount: 0, displayAmount: '0', noPaymentRequired: true });
       }
     } catch (error) {
