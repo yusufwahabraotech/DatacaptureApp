@@ -1,0 +1,12 @@
+node_modules/**/*
+.expo/**/*
+.expo-shared/**/*
+dist/**/*
+*.log
+.git/**/*
+.vscode/**/*
+*.apk
+*.aab
+*.ipa
+android/**/*
+ios/**/*

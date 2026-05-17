@@ -45,6 +45,7 @@ const SignUpScreen = ({ navigation, route }) => {
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
   const [organizationNameFocused, setOrganizationNameFocused] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingIndustries, setLoadingIndustries] = useState(false);
 
   const userRole = route?.params?.userRole || 'CUSTOMER';
   const isAdmin = userRole === 'ORGANIZATION';
@@ -58,13 +59,46 @@ const SignUpScreen = ({ navigation, route }) => {
 
   const fetchIndustries = async () => {
     try {
-      const response = await ApiService.apiCall('/auth/industries');
+      setLoadingIndustries(true);
+      console.log('🚨 FETCHING INDUSTRIES 🚨');
+      console.log('Making API call to: /auth/industries');
+      
+      // Try the auth endpoint first
+      let response = await ApiService.apiCall('/auth/industries');
+      console.log('🚨 INDUSTRIES API RESPONSE (auth endpoint) 🚨');
+      console.log('Response success:', response.success);
+      console.log('Response message:', response.message);
+      console.log('Full response:', JSON.stringify(response, null, 2));
+      
+      // If auth endpoint fails or returns no data, try the public endpoint
+      if (!response.success || !response.data || !response.data.industries || response.data.industries.length === 0) {
+        console.log('🔄 Trying alternative endpoint: /super-admin/industries');
+        response = await ApiService.apiCall('/super-admin/industries');
+        console.log('🚨 INDUSTRIES API RESPONSE (super-admin endpoint) 🚨');
+        console.log('Response success:', response.success);
+        console.log('Full response:', JSON.stringify(response, null, 2));
+      }
+      
       if (response.success) {
-        setIndustries(response.data.industries);
+        if (response.data && response.data.industries) {
+          console.log('✅ Industries fetched successfully:', response.data.industries.length);
+          console.log('Industries array:', JSON.stringify(response.data.industries, null, 2));
+          setIndustries(response.data.industries);
+        } else {
+          console.log('❌ No industries in response data');
+          console.log('Response data structure:', response.data);
+          Alert.alert('Error', 'No industries available. Please contact support.');
+        }
+      } else {
+        console.log('❌ Failed to fetch industries:', response.message);
+        Alert.alert('Error', response.message || 'Failed to load industries');
       }
     } catch (error) {
-      console.error('Failed to fetch industries:', error);
-      Alert.alert('Error', 'Failed to load industries');
+      console.error('❌ Failed to fetch industries - exception:', error);
+      console.error('Error details:', error.message, error.stack);
+      Alert.alert('Error', 'Failed to load industries. Please try again.');
+    } finally {
+      setLoadingIndustries(false);
     }
   };
 
@@ -84,7 +118,21 @@ const SignUpScreen = ({ navigation, route }) => {
       requiredFields.push(organizationName, selectedCountry, selectedIndustry);
     }
 
+    console.log('🚨 SIGNUP VALIDATION DEBUG 🚨');
+    console.log('Full Name:', fullName);
+    console.log('Email:', email);
+    console.log('Phone:', phoneNumber);
+    console.log('Password:', password ? '***' : 'empty');
+    console.log('Confirm Password:', confirmPassword ? '***' : 'empty');
+    if (isAdmin) {
+      console.log('Organization Name:', organizationName);
+      console.log('Country:', selectedCountry);
+      console.log('Industry ID:', selectedIndustry);
+      console.log('Industry Name:', selectedIndustryName);
+    }
+
     if (requiredFields.some(field => !field)) {
+      console.log('❌ VALIDATION FAILED - Missing fields');
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -168,6 +216,9 @@ const SignUpScreen = ({ navigation, route }) => {
     <TouchableOpacity
       style={styles.countryItem}
       onPress={() => {
+        console.log('🚨 INDUSTRY SELECTED 🚨');
+        console.log('Industry ID:', item.id);
+        console.log('Industry Name:', item.name);
         setSelectedIndustry(item.id);
         setSelectedIndustryName(item.name);
         setShowIndustryModal(false);
@@ -300,13 +351,37 @@ const SignUpScreen = ({ navigation, route }) => {
                     <View style={styles.inputWrapper}>
                       <Text style={styles.floatingLabel}>Industry</Text>
                       <TouchableOpacity
-                        style={[styles.input, styles.countrySelector]}
-                        onPress={() => setShowIndustryModal(true)}
+                        style={[styles.input, styles.countrySelector, loadingIndustries && styles.inputDisabled]}
+                        onPress={() => {
+                          if (loadingIndustries) {
+                            Alert.alert('Please wait', 'Industries are still loading...');
+                            return;
+                          }
+                          if (industries.length === 0) {
+                            Alert.alert('No Industries', 'No industries available. Please try again later.');
+                            return;
+                          }
+                          console.log('🚨 OPENING INDUSTRY MODAL 🚨');
+                          console.log('Current selectedIndustry:', selectedIndustry);
+                          console.log('Current selectedIndustryName:', selectedIndustryName);
+                          console.log('Available industries count:', industries.length);
+                          setShowIndustryModal(true);
+                        }}
+                        disabled={loadingIndustries}
                       >
-                        <Text style={[styles.countryText, !selectedIndustryName && styles.placeholderText]}>
-                          {selectedIndustryName || 'Select your industry'}
-                        </Text>
-                        <Ionicons name="chevron-down" size={20} color="#999" />
+                        {loadingIndustries ? (
+                          <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="small" color="#7C3AED" />
+                            <Text style={[styles.countryText, styles.loadingText]}>Loading industries...</Text>
+                          </View>
+                        ) : (
+                          <>
+                            <Text style={[styles.countryText, !selectedIndustryName && styles.placeholderText]}>
+                              {selectedIndustryName || 'Select your industry'}
+                            </Text>
+                            <Ionicons name="chevron-down" size={20} color="#999" />
+                          </>
+                        )}
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -475,13 +550,36 @@ const SignUpScreen = ({ navigation, route }) => {
                 onChangeText={setIndustrySearchText}
               />
             </View>
-            <FlatList
-              data={filteredIndustries}
-              renderItem={renderIndustryItem}
-              keyExtractor={(item) => item.id}
-              style={styles.countryList}
-              showsVerticalScrollIndicator={true}
-            />
+            {loadingIndustries ? (
+              <View style={styles.modalLoadingContainer}>
+                <ActivityIndicator size="large" color="#7C3AED" />
+                <Text style={styles.modalLoadingText}>Loading industries...</Text>
+              </View>
+            ) : filteredIndustries.length === 0 ? (
+              <View style={styles.modalEmptyContainer}>
+                <Ionicons name="business-outline" size={48} color="#9CA3AF" />
+                <Text style={styles.modalEmptyText}>
+                  {industrySearchText ? 'No industries found' : 'No industries available'}
+                </Text>
+                {!industrySearchText && (
+                  <TouchableOpacity 
+                    style={styles.retryButton}
+                    onPress={fetchIndustries}
+                  >
+                    <Ionicons name="refresh" size={20} color="#7C3AED" />
+                    <Text style={styles.retryButtonText}>Retry</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <FlatList
+                data={filteredIndustries}
+                renderItem={renderIndustryItem}
+                keyExtractor={(item) => item.id}
+                style={styles.countryList}
+                showsVerticalScrollIndicator={true}
+              />
+            )}
           </View>
         </View>
       </Modal>
@@ -711,6 +809,59 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 4,
     fontStyle: 'italic',
+  },
+  inputDisabled: {
+    backgroundColor: '#F9FAFB',
+    opacity: 0.7,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  loadingText: {
+    color: '#7C3AED',
+    marginLeft: 10,
+  },
+  modalLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  modalLoadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  modalEmptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  modalEmptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#F5F3FF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#7C3AED',
+  },
+  retryButtonText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#7C3AED',
+    fontWeight: '600',
   },
 });
 

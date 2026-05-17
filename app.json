@@ -4,7 +4,7 @@
     "slug": "DataCapturingApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Vestradat_logo.png",
+    "icon": "./assets/Vestradat_logo_new.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "vestradat",
@@ -19,24 +19,12 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/Vestradat_logo.png",
+        "foregroundImage": "./assets/Vestradat_logo_new.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.yusufwahabraotech.Vestradat",
       "intentFilters": [
-        {
-          "action": "VIEW",
-          "data": [
-            {
-              "scheme": "vestradat"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        },
         {
           "action": "VIEW",
           "data": [
