@@ -171,6 +171,21 @@ const AdminGalleryItemDetailsScreen = ({ navigation, route }) => {
                 {renderDetailRow('Timezone', item.bookingAvailability.timezone || 'Africa/Lagos', 'globe')}
               </>
             )}
+            {item.availabilityQuickInfo?.bookingWindowType && (
+              <View style={styles.bookingPeriodCard}>
+                <View style={styles.bookingPeriodHeader}>
+                  <Ionicons name="calendar-outline" size={20} color="#7B2CBF" />
+                  <Text style={styles.bookingPeriodTitle}>Booking Period</Text>
+                </View>
+                <Text style={styles.bookingPeriodText}>
+                  {item.availabilityQuickInfo.bookingWindowType === 'rollingWeeks' && 
+                    (item.availabilityQuickInfo.bookingAheadMessage || `Book up to ${item.availabilityQuickInfo.bookingAheadWeeks} weeks in advance`)}
+                  {item.availabilityQuickInfo.bookingWindowType === 'dateRange' && 
+                    (item.availabilityQuickInfo.bookingDateRangeMessage || `Available from ${new Date(item.availabilityQuickInfo.bookingStartDate).toLocaleDateString()} to ${new Date(item.availabilityQuickInfo.bookingEndDate).toLocaleDateString()}`)}
+                  {item.availabilityQuickInfo.bookingWindowType === 'unlimited' && 'Available indefinitely'}
+                </Text>
+              </View>
+            )}
           </>
         ))}
 
@@ -438,6 +453,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: 'white',
+  },
+  bookingPeriodCard: {
+    backgroundColor: '#FFF9E6',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#7B2CBF',
+  },
+  bookingPeriodHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  bookingPeriodTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  bookingPeriodText: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 18,
   },
   footer: {
     flexDirection: 'row',
