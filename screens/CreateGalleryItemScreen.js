@@ -74,6 +74,8 @@ const CreateGalleryItemScreen = ({ navigation }) => {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [showBookingStartDatePicker, setShowBookingStartDatePicker] = useState(false);
+  const [showBookingEndDatePicker, setShowBookingEndDatePicker] = useState(false);
 
   useEffect(() => {
     fetchLocations();
@@ -697,13 +699,26 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                   style={styles.input}
                   placeholder="90"
                   value={formData.bookingAvailability?.slotDurationMinutes?.toString() || ''}
-                  onChangeText={(text) => setFormData({
-                    ...formData, 
-                    bookingAvailability: {
-                      ...formData.bookingAvailability,
-                      slotDurationMinutes: parseInt(text) || 90
+                  onChangeText={(text) => {
+                    // Allow empty string for backspace
+                    if (text === '') {
+                      setFormData({
+                        ...formData, 
+                        bookingAvailability: {
+                          ...formData.bookingAvailability,
+                          slotDurationMinutes: ''
+                        }
+                      });
+                    } else {
+                      setFormData({
+                        ...formData, 
+                        bookingAvailability: {
+                          ...formData.bookingAvailability,
+                          slotDurationMinutes: parseInt(text) || ''
+                        }
+                      });
                     }
-                  })}
+                  }}
                   keyboardType="numeric"
                 />
                 <Text style={styles.inputDescription}>Duration of each booking slot (15-480 minutes)</Text>
@@ -973,16 +988,32 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                       style={styles.input}
                       placeholder="8"
                       value={formData.bookingAvailability?.availabilityPeriod?.weeksAhead?.toString() || ''}
-                      onChangeText={(text) => setFormData({
-                        ...formData,
-                        bookingAvailability: {
-                          ...formData.bookingAvailability,
-                          availabilityPeriod: {
-                            ...formData.bookingAvailability.availabilityPeriod,
-                            weeksAhead: parseInt(text) || 8
-                          }
+                      onChangeText={(text) => {
+                        // Allow empty string for backspace
+                        if (text === '') {
+                          setFormData({
+                            ...formData,
+                            bookingAvailability: {
+                              ...formData.bookingAvailability,
+                              availabilityPeriod: {
+                                ...formData.bookingAvailability.availabilityPeriod,
+                                weeksAhead: ''
+                              }
+                            }
+                          });
+                        } else {
+                          setFormData({
+                            ...formData,
+                            bookingAvailability: {
+                              ...formData.bookingAvailability,
+                              availabilityPeriod: {
+                                ...formData.bookingAvailability.availabilityPeriod,
+                                weeksAhead: parseInt(text) || ''
+                              }
+                            }
+                          });
                         }
-                      })}
+                      }}
                       keyboardType="numeric"
                     />
                     <Text style={styles.inputDescription}>How many weeks ahead customers can book</Text>
@@ -995,42 +1026,28 @@ const CreateGalleryItemScreen = ({ navigation }) => {
                     <View style={styles.dateRangeRow}>
                       <View style={styles.dateRangeInput}>
                         <Text style={styles.inputLabel}>Start Date</Text>
-                        <TextInput
-                          style={styles.input}
-                          placeholder="2024-01-01"
-                          value={formData.bookingAvailability?.availabilityPeriod?.startDate || ''}
-                          onChangeText={(text) => setFormData({
-                            ...formData,
-                            bookingAvailability: {
-                              ...formData.bookingAvailability,
-                              availabilityPeriod: {
-                                ...formData.bookingAvailability.availabilityPeriod,
-                                startDate: text
-                              }
-                            }
-                          })}
-                        />
+                        <TouchableOpacity 
+                          style={styles.input} 
+                          onPress={() => setShowBookingStartDatePicker(true)}
+                        >
+                          <Text style={formData.bookingAvailability?.availabilityPeriod?.startDate ? styles.inputText : styles.placeholderText}>
+                            {formData.bookingAvailability?.availabilityPeriod?.startDate || 'Select start date'}
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                       <View style={styles.dateRangeInput}>
                         <Text style={styles.inputLabel}>End Date</Text>
-                        <TextInput
-                          style={styles.input}
-                          placeholder="2024-12-31"
-                          value={formData.bookingAvailability?.availabilityPeriod?.endDate || ''}
-                          onChangeText={(text) => setFormData({
-                            ...formData,
-                            bookingAvailability: {
-                              ...formData.bookingAvailability,
-                              availabilityPeriod: {
-                                ...formData.bookingAvailability.availabilityPeriod,
-                                endDate: text
-                              }
-                            }
-                          })}
-                        />
+                        <TouchableOpacity 
+                          style={styles.input} 
+                          onPress={() => setShowBookingEndDatePicker(true)}
+                        >
+                          <Text style={formData.bookingAvailability?.availabilityPeriod?.endDate ? styles.inputText : styles.placeholderText}>
+                            {formData.bookingAvailability?.availabilityPeriod?.endDate || 'Select end date'}
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
-                    <Text style={styles.inputDescription}>Format: YYYY-MM-DD</Text>
+                    <Text style={styles.inputDescription}>Select the date range for bookings</Text>
                   </View>
                 )}
               </View>
@@ -1437,6 +1454,60 @@ const CreateGalleryItemScreen = ({ navigation }) => {
             if (selectedTime) {
               setEndTime(selectedTime);
               setFormData({...formData, endTime: selectedTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})});
+            }
+          }}
+        />
+      )}
+
+      {/* Booking Availability Date Pickers */}
+      {showBookingStartDatePicker && (
+        <DateTimePicker
+          value={formData.bookingAvailability?.availabilityPeriod?.startDate ? 
+            new Date(formData.bookingAvailability.availabilityPeriod.startDate) : new Date()}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          minimumDate={new Date()}
+          onChange={(event, selectedDate) => {
+            setShowBookingStartDatePicker(false);
+            if (selectedDate && event.type === 'set') {
+              const dateString = selectedDate.toISOString().split('T')[0];
+              setFormData({
+                ...formData,
+                bookingAvailability: {
+                  ...formData.bookingAvailability,
+                  availabilityPeriod: {
+                    ...formData.bookingAvailability.availabilityPeriod,
+                    startDate: dateString
+                  }
+                }
+              });
+            }
+          }}
+        />
+      )}
+
+      {showBookingEndDatePicker && (
+        <DateTimePicker
+          value={formData.bookingAvailability?.availabilityPeriod?.endDate ? 
+            new Date(formData.bookingAvailability.availabilityPeriod.endDate) : new Date()}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          minimumDate={formData.bookingAvailability?.availabilityPeriod?.startDate ? 
+            new Date(formData.bookingAvailability.availabilityPeriod.startDate) : new Date()}
+          onChange={(event, selectedDate) => {
+            setShowBookingEndDatePicker(false);
+            if (selectedDate && event.type === 'set') {
+              const dateString = selectedDate.toISOString().split('T')[0];
+              setFormData({
+                ...formData,
+                bookingAvailability: {
+                  ...formData.bookingAvailability,
+                  availabilityPeriod: {
+                    ...formData.bookingAvailability.availabilityPeriod,
+                    endDate: dateString
+                  }
+                }
+              });
             }
           }}
         />

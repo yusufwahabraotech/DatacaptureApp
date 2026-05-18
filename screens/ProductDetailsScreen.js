@@ -324,6 +324,20 @@ const ProductDetailsScreen = ({ navigation, route }) => {
                           {product.availabilityQuickInfo.earliestTime} - {product.availabilityQuickInfo.latestTime}
                         </Text>
                       </View>
+                      
+                      {/* Booking Period Information */}
+                      {product.availabilityQuickInfo.bookingWindowType && (
+                        <View style={styles.bookingPeriodContainer}>
+                          <Ionicons name="calendar-outline" size={16} color="#7B2CBF" />
+                          <Text style={styles.bookingPeriodText}>
+                            {product.availabilityQuickInfo.bookingWindowType === 'rollingWeeks' && 
+                              (product.availabilityQuickInfo.bookingAheadMessage || `Book up to ${product.availabilityQuickInfo.bookingAheadWeeks} weeks in advance`)}
+                            {product.availabilityQuickInfo.bookingWindowType === 'dateRange' && 
+                              (product.availabilityQuickInfo.bookingDateRangeMessage || `Available from ${new Date(product.availabilityQuickInfo.bookingStartDate).toLocaleDateString()} to ${new Date(product.availabilityQuickInfo.bookingEndDate).toLocaleDateString()}`)}
+                            {product.availabilityQuickInfo.bookingWindowType === 'unlimited' && 'Available indefinitely'}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   )}
 
@@ -1090,6 +1104,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     fontWeight: 'bold',
+  },
+  bookingPeriodContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF9E6',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    gap: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#7B2CBF',
+  },
+  bookingPeriodText: {
+    fontSize: 13,
+    color: '#333',
+    fontWeight: '600',
+    flex: 1,
   },
   availableDaysSection: {
     marginTop: 12,
