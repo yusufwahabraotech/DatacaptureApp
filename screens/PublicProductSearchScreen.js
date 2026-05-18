@@ -287,9 +287,11 @@ const PublicProductSearchScreen = ({ navigation }) => {
             {item.discount > 0 && (
               <Text style={styles.originalPrice}>₦{item.originalPrice?.toLocaleString()}</Text>
             )}
-            <Text style={styles.currentPrice}>₦{item.discountedPrice?.toLocaleString()}</Text>
+            <Text style={styles.currentPrice}>
+              ₦{(item.discount > 0 ? item.discountedPrice : item.originalPrice)?.toLocaleString()}
+            </Text>
           </View>
-          {item.youSave > 0 && (
+          {item.discount > 0 && item.youSave > 0 && (
             <View style={styles.savingsContainer}>
               <Text style={styles.savings}>Save ₦{item.youSave?.toLocaleString()}</Text>
             </View>

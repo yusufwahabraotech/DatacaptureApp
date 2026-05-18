@@ -131,23 +131,43 @@ const MyOrdersScreen = ({ navigation }) => {
   };
 
   const handlePayRemaining = (order) => {
+    console.log('🚨 COMPLETE PAYMENT DEBUG 🚨');
+    console.log('Order ID:', order._id);
+    console.log('Product Name:', order.productName);
+    console.log('Product Price:', order.productPrice);
+    console.log('Total Amount Paid:', order.totalAmountPaid);
+    console.log('Upfront Remaining Balance:', order.upfrontRemainingBalance);
+    console.log('Order Status:', order.orderStatus);
+    
     if (order.upfrontRemainingBalance > 0) {
+      const productData = {
+        id: order.productId,
+        name: order.productName,
+        pricing: {
+          discountedPrice: order.upfrontRemainingBalance, // This IS the remaining balance
+          upfrontPaymentPercentage: 0, // No upfront for remaining payment
+        },
+        location: {
+          brandName: order.organizationName,
+        },
+        organizationId: order.organizationId,
+      };
+      
+      console.log('✅ Navigating to ProductPayment with:');
+      console.log('Product data:', JSON.stringify(productData, null, 2));
+      console.log('Payment type: remaining');
+      console.log('Existing Order ID:', order._id); // ✅ ADD THIS LOG
+      
       // Navigate to payment screen for remaining balance
       navigation.navigate('ProductPayment', {
-        product: {
-          id: order.productId,
-          name: order.productName,
-          pricing: {
-            discountedPrice: order.upfrontRemainingBalance,
-            upfrontPaymentPercentage: 0, // No upfront for remaining payment
-          },
-          location: {
-            brandName: order.organizationName,
-          },
-          organizationId: order.organizationId,
-        },
+        product: productData,
         paymentType: 'remaining',
+        existingOrderId: order._id, // ✅ ADD THIS - Pass the order ID for backend to fetch correct balance
+        originalOrder: order, // ✅ ADD THIS - Pass full order object for reference
       });
+    } else {
+      console.log('❌ No remaining balance to pay');
+      Alert.alert('Error', 'No remaining balance to pay');
     }
   };
 

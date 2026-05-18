@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Linking } from 'react-native';
+import { Linking, Alert, View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { navigationRef } from './services/NavigationService';
+import * as Updates from 'expo-updates';
 
 import SplashScreen from './screens/SplashScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
@@ -172,6 +173,68 @@ const linking = {
 };
 
 export default function App() {
+  const [isCheckingForUpdate, setIsCheckingForUpdate] = useState(true);
+  const [updateError, setUpdateError] = useState(null);
+
+  useEffect(() => {
+    // Check for updates on app start
+    async function checkForUpdates() {
+      try {
+        console.log('🔄 Checking for EAS updates...');
+        console.log('Update channel:', Updates.channel);
+        console.log('Runtime version:', Updates.runtimeVersion);
+        console.log('Update ID:', Updates.updateId);
+        
+        // Check if running in development mode
+        if (__DEV__) {
+          console.log('⚠️ Running in development mode - skipping update check');
+          setIsCheckingForUpdate(false);
+          return;
+        }
+
+        // Fetch the latest update
+        const update = await Updates.checkForUpdateAsync();
+        
+        if (update.isAvailable) {
+          console.log('✅ New update available! Downloading...');
+          
+          // Download the update
+          await Updates.fetchUpdateAsync();
+          
+          console.log('✅ Update downloaded! Reloading app...');
+          
+          // Show alert and reload
+          Alert.alert(
+            'Update Available',
+            'A new version has been downloaded. The app will now restart.',
+            [
+              {
+                text: 'Restart Now',
+                onPress: async () => {
+                  await Updates.reloadAsync();
+                },
+              },
+            ],
+            { cancelable: false }
+          );
+        } else {
+          console.log('✅ App is up to date');
+          setIsCheckingForUpdate(false);
+        }
+      } catch (error) {
+        console.error('❌ Error checking for updates:', error);
+        console.error('Error details:', error.message);
+        setUpdateError(error.message);
+        setIsCheckingForUpdate(false);
+        
+        // Don't block the app if update check fails
+        // Just log the error and continue
+      }
+    }
+
+    checkForUpdates();
+  }, []);
+
   useEffect(() => {
     // Handle deep links when app is already running
     const handleDeepLink = (url) => {
@@ -219,6 +282,21 @@ export default function App() {
       subscription?.remove();
     };
   }, []);
+
+  // Show loading screen while checking for updates
+  if (isCheckingForUpdate) {
+    return (
+      <SafeAreaProvider>
+        <View style={styles.updateCheckContainer}>
+          <ActivityIndicator size="large" color="#7C3AED" />
+          <Text style={styles.updateCheckText}>Checking for updates...</Text>
+          {updateError && (
+            <Text style={styles.updateErrorText}>Update check failed. Continuing with current version.</Text>
+          )}
+        </View>
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <SafeAreaProvider>
@@ -411,3 +489,24 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  updateCheckContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  updateCheckText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  updateErrorText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#EF4444',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+});

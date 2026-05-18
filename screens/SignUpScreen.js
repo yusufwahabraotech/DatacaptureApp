@@ -53,9 +53,19 @@ const SignUpScreen = ({ navigation, route }) => {
   // Fetch industries when component mounts and user is admin
   React.useEffect(() => {
     if (isAdmin) {
+      console.log('🚨 ADMIN SIGNUP - FETCHING INDUSTRIES ON MOUNT 🚨');
+      console.log('Current timestamp:', new Date().toISOString());
       fetchIndustries();
     }
   }, [isAdmin]);
+
+  // Add a retry mechanism if industries fail to load
+  React.useEffect(() => {
+    if (isAdmin && !loadingIndustries && industries.length === 0) {
+      console.log('⚠️ WARNING: No industries loaded after initial fetch');
+      console.log('This might indicate a backend issue or network problem');
+    }
+  }, [isAdmin, loadingIndustries, industries]);
 
   const fetchIndustries = async () => {
     try {
@@ -358,7 +368,14 @@ const SignUpScreen = ({ navigation, route }) => {
                             return;
                           }
                           if (industries.length === 0) {
-                            Alert.alert('No Industries', 'No industries available. Please try again later.');
+                            Alert.alert(
+                              'No Industries Available', 
+                              'Unable to load industries. This might be due to a network issue or the backend is still starting up. Would you like to retry?',
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                { text: 'Retry', onPress: fetchIndustries }
+                              ]
+                            );
                             return;
                           }
                           console.log('🚨 OPENING INDUSTRY MODAL 🚨');
@@ -377,12 +394,15 @@ const SignUpScreen = ({ navigation, route }) => {
                         ) : (
                           <>
                             <Text style={[styles.countryText, !selectedIndustryName && styles.placeholderText]}>
-                              {selectedIndustryName || 'Select your industry'}
+                              {selectedIndustryName || (industries.length === 0 ? 'Tap to load industries' : 'Select your industry')}
                             </Text>
                             <Ionicons name="chevron-down" size={20} color="#999" />
                           </>
                         )}
                       </TouchableOpacity>
+                      {!loadingIndustries && industries.length === 0 && (
+                        <Text style={styles.errorText}>Unable to load industries. Tap to retry.</Text>
+                      )}
                     </View>
                   </View>
                 </>

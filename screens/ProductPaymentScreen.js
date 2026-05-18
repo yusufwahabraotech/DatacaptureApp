@@ -17,9 +17,9 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import ApiService from '../services/api';
 
 const ProductPaymentScreen = ({ navigation, route }) => {
-  const { product } = route.params;
+  const { product, paymentType: routePaymentType, existingOrderId, originalOrder } = route.params;
   const [loading, setLoading] = useState(false);
-  const [paymentType, setPaymentType] = useState('full');
+  const [paymentType, setPaymentType] = useState(routePaymentType || 'full');
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
     email: '',
@@ -34,6 +34,25 @@ const ProductPaymentScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     fetchUserProfile();
+    
+    // COMPREHENSIVE DEBUG LOGGING
+    console.log('🚨🚨🚨 PRODUCT PAYMENT SCREEN MOUNTED 🚨🚨🚨');
+    console.log('Route params received:', JSON.stringify(route.params, null, 2));
+    console.log('existingOrderId value:', existingOrderId);
+    console.log('existingOrderId type:', typeof existingOrderId);
+    console.log('existingOrderId is undefined?', existingOrderId === undefined);
+    console.log('existingOrderId is null?', existingOrderId === null);
+    console.log('originalOrder:', originalOrder);
+    console.log('paymentType:', routePaymentType);
+    
+    // Log the existingOrderId for debugging
+    if (existingOrderId) {
+      console.log('✅ EXISTING ORDER ID RECEIVED ✅');
+      console.log('Existing Order ID:', existingOrderId);
+      console.log('Original Order:', JSON.stringify(originalOrder, null, 2));
+    } else {
+      console.log('❌ NO EXISTING ORDER ID - This is a NEW order');
+    }
   }, []);
 
   const fetchUserProfile = async () => {
@@ -57,20 +76,33 @@ const ProductPaymentScreen = ({ navigation, route }) => {
     const upfrontPercentage = product.pricing?.upfrontPaymentPercentage || 50;
     const subServicesTotal = selectedSubServices.reduce((sum, service) => sum + (service.price || 0), 0);
     
+    console.log('🚨 PAYMENT CALCULATION DEBUG 🚨');
+    console.log('paymentType:', paymentType);
+    console.log('routePaymentType:', routePaymentType);
+    console.log('basePrice:', basePrice);
+    console.log('upfrontPercentage:', upfrontPercentage);
+    console.log('subServicesTotal:', subServicesTotal);
+    
     let mainAmount;
-    switch (paymentType) {
-      case 'upfront':
-        mainAmount = Math.round(basePrice * (upfrontPercentage / 100));
-        break;
-      case 'remaining':
-        mainAmount = Math.round(basePrice * ((100 - upfrontPercentage) / 100));
-        break;
-      case 'full':
-      default:
-        mainAmount = basePrice;
+    
+    // For remaining payments, use the exact price passed from MyOrdersScreen
+    // which is already the remaining balance (order.upfrontRemainingBalance)
+    if (paymentType === 'remaining') {
+      mainAmount = basePrice; // basePrice IS the remaining balance for 'remaining' type
+      console.log('✅ REMAINING PAYMENT - Using exact remaining balance:', mainAmount);
+    } else if (paymentType === 'upfront') {
+      mainAmount = Math.round(basePrice * (upfrontPercentage / 100));
+      console.log('✅ UPFRONT PAYMENT - Calculated:', mainAmount);
+    } else {
+      // Full payment
+      mainAmount = basePrice;
+      console.log('✅ FULL PAYMENT - Using base price:', mainAmount);
     }
     
-    return mainAmount + subServicesTotal;
+    const totalAmount = mainAmount + subServicesTotal;
+    console.log('✅ TOTAL AMOUNT TO PAY:', totalAmount);
+    
+    return totalAmount;
   };
 
   const handlePayment = async () => {
@@ -104,6 +136,11 @@ const ProductPaymentScreen = ({ navigation, route }) => {
       console.log('🚨 ORGANIZATION ID DEBUG 🚨');
       console.log('Found organizationId:', organizationId);
 
+      console.log('🚨 PAYMENT DATA CONSTRUCTION 🚨');
+      console.log('existingOrderId from state:', existingOrderId);
+      console.log('existingOrderId type:', typeof existingOrderId);
+      console.log('Will include existingOrderId?', !!existingOrderId);
+
       const paymentData = {
         productId: product.id || product._id,
         productName: product.name || product.title,
@@ -118,6 +155,7 @@ const ProductPaymentScreen = ({ navigation, route }) => {
         paymentType: paymentType,
         itemType: product.itemType,
         platform: 'mobile', // Add platform parameter for mobile payments
+        ...(existingOrderId && { existingOrderId: existingOrderId }), // ✅ Include existingOrderId for partial payments
         ...(selectedSubServices.length > 0 && { subServices: selectedSubServices }),
         ...(product.itemType === 'service' && {
           bookingDate: bookingDate,
@@ -125,8 +163,17 @@ const ProductPaymentScreen = ({ navigation, route }) => {
         }),
       };
 
-      console.log('🚨 PAYMENT DATA 🚨');
+      console.log('🚨 FINAL PAYMENT DATA 🚨');
       console.log('Payment data:', JSON.stringify(paymentData, null, 2));
+      console.log('Payment data keys:', Object.keys(paymentData));
+      console.log('existingOrderId in paymentData?', 'existingOrderId' in paymentData);
+      console.log('paymentData.existingOrderId value:', paymentData.existingOrderId);
+      
+      if (existingOrderId) {
+        console.log('✅✅✅ COMPLETING PARTIAL PAYMENT - existingOrderId included:', existingOrderId);
+      } else {
+        console.log('❌❌❌ NO existingOrderId - This will be treated as NEW order');
+      }
 
       const response = await ApiService.initiateProductPayment(paymentData);
       
@@ -241,44 +288,64 @@ const ProductPaymentScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Payment Type Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Options</Text>
-          
-          <TouchableOpacity
-            style={[styles.paymentOption, paymentType === 'full' && styles.selectedOption]}
-            onPress={() => setPaymentType('full')}
-          >
-            <View style={styles.optionContent}>
-              <View style={styles.optionHeader}>
-                <Text style={styles.optionTitle}>Full Payment</Text>
-                <Text style={styles.optionAmount}>₦{(product.pricing?.discountedPrice || product.pricing?.originalPrice || 0).toLocaleString()}</Text>
-              </View>
-              <Text style={styles.optionDescription}>Pay the full amount now</Text>
-            </View>
-            <View style={[styles.radioButton, paymentType === 'full' && styles.radioSelected]}>
-              {paymentType === 'full' && <View style={styles.radioInner} />}
-            </View>
-          </TouchableOpacity>
-
-          {product.pricing?.upfrontPaymentPercentage > 0 && (
+        {/* Payment Type Selection - Only show if NOT completing remaining payment */}
+        {routePaymentType !== 'remaining' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Payment Options</Text>
+            
             <TouchableOpacity
-              style={[styles.paymentOption, paymentType === 'upfront' && styles.selectedOption]}
-              onPress={() => setPaymentType('upfront')}
+              style={[styles.paymentOption, paymentType === 'full' && styles.selectedOption]}
+              onPress={() => setPaymentType('full')}
             >
               <View style={styles.optionContent}>
                 <View style={styles.optionHeader}>
-                  <Text style={styles.optionTitle}>Upfront Payment ({upfrontPercentage}%)</Text>
-                  <Text style={styles.optionAmount}>₦{Math.round((product.pricing?.discountedPrice || product.pricing?.originalPrice || 0) * (upfrontPercentage / 100)).toLocaleString()}</Text>
+                  <Text style={styles.optionTitle}>Full Payment</Text>
+                  <Text style={styles.optionAmount}>₦{(product.pricing?.discountedPrice || product.pricing?.originalPrice || 0).toLocaleString()}</Text>
                 </View>
-                <Text style={styles.optionDescription}>Pay {upfrontPercentage}% now, remaining later</Text>
+                <Text style={styles.optionDescription}>Pay the full amount now</Text>
               </View>
-              <View style={[styles.radioButton, paymentType === 'upfront' && styles.radioSelected]}>
-                {paymentType === 'upfront' && <View style={styles.radioInner} />}
+              <View style={[styles.radioButton, paymentType === 'full' && styles.radioSelected]}>
+                {paymentType === 'full' && <View style={styles.radioInner} />}
               </View>
             </TouchableOpacity>
-          )}
-        </View>
+
+            {product.pricing?.upfrontPaymentPercentage > 0 && (
+              <TouchableOpacity
+                style={[styles.paymentOption, paymentType === 'upfront' && styles.selectedOption]}
+                onPress={() => setPaymentType('upfront')}
+              >
+                <View style={styles.optionContent}>
+                  <View style={styles.optionHeader}>
+                    <Text style={styles.optionTitle}>Upfront Payment ({upfrontPercentage}%)</Text>
+                    <Text style={styles.optionAmount}>₦{Math.round((product.pricing?.discountedPrice || product.pricing?.originalPrice || 0) * (upfrontPercentage / 100)).toLocaleString()}</Text>
+                  </View>
+                  <Text style={styles.optionDescription}>Pay {upfrontPercentage}% now, remaining later</Text>
+                </View>
+                <View style={[styles.radioButton, paymentType === 'upfront' && styles.radioSelected]}>
+                  {paymentType === 'upfront' && <View style={styles.radioInner} />}
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {/* Remaining Payment Notice - Show when completing partial payment */}
+        {routePaymentType === 'remaining' && (
+          <View style={styles.section}>
+            <View style={styles.remainingPaymentNotice}>
+              <Ionicons name="information-circle" size={24} color="#7B2CBF" />
+              <View style={styles.noticeContent}>
+                <Text style={styles.noticeTitle}>Completing Remaining Payment</Text>
+                <Text style={styles.noticeText}>
+                  You are paying the remaining balance for this order.
+                </Text>
+                <Text style={styles.noticeAmount}>
+                  Amount: ₦{(product.pricing?.discountedPrice || 0).toLocaleString()}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Service Booking Details */}
         {product.itemType === 'service' && (
@@ -407,12 +474,21 @@ const ProductPaymentScreen = ({ navigation, route }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Summary</Text>
           
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Payment Type:</Text>
-            <Text style={styles.summaryValue}>
-              {paymentType === 'full' ? 'Full Payment' : `Upfront (${upfrontPercentage}%)`}
-            </Text>
-          </View>
+          {routePaymentType !== 'remaining' && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Payment Type:</Text>
+              <Text style={styles.summaryValue}>
+                {paymentType === 'full' ? 'Full Payment' : paymentType === 'upfront' ? `Upfront (${upfrontPercentage}%)` : 'Remaining Balance'}
+              </Text>
+            </View>
+          )}
+          
+          {routePaymentType === 'remaining' && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Payment Type:</Text>
+              <Text style={styles.summaryValue}>Remaining Balance Payment</Text>
+            </View>
+          )}
           
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Amount to Pay:</Text>
@@ -426,7 +502,7 @@ const ProductPaymentScreen = ({ navigation, route }) => {
             </View>
           )}
           
-          {paymentType === 'upfront' && (
+          {paymentType === 'upfront' && routePaymentType !== 'remaining' && (
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Remaining Balance:</Text>
               <Text style={styles.summaryValue}>₦{Math.round((product.pricing?.discountedPrice || product.pricing?.originalPrice || 0) * ((100 - upfrontPercentage) / 100)).toLocaleString()}</Text>
@@ -447,7 +523,12 @@ const ProductPaymentScreen = ({ navigation, route }) => {
           ) : (
             <>
               <Ionicons name="card" size={20} color="white" />
-              <Text style={styles.payButtonText}>Pay ₦{paymentAmount.toLocaleString()}</Text>
+              <Text style={styles.payButtonText}>
+                {routePaymentType === 'remaining' 
+                  ? `Pay Remaining Balance: ₦${paymentAmount.toLocaleString()}`
+                  : `Pay ₦${paymentAmount.toLocaleString()}`
+                }
+              </Text>
             </>
           )}
         </TouchableOpacity>
@@ -751,6 +832,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#856404',
     flex: 1,
+  },
+  remainingPaymentNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F3E5F5',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#7B2CBF',
+  },
+  noticeContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  noticeTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#7B2CBF',
+    marginBottom: 4,
+  },
+  noticeText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  noticeAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#7B2CBF',
   },
 });
 

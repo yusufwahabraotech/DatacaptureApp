@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Country, State, City } from 'country-state-city';
 
-// Single base URL configuration - Render Production
-const BASE_URL = 'https://datacapture-backend.onrender.com/api';
+// Single base URL configuration - Local Development
+const BASE_URL = 'http://192.168.0.183:3000/api';
 
 // FORCE COMPLETE RELOAD - BREAKING CACHE v17 - RENDER PRODUCTION
 const FORCE_RELOAD_NOW = 'RENDER_PRODUCTION_LIVE_' + Date.now();
@@ -3443,11 +3443,17 @@ class ApiService {
       console.log('User ID:', userId);
     }
     
-    // Add userId to payment data
+    // Add userId to payment data and preserve existingOrderId if present
     const enhancedPaymentData = {
       ...paymentData,
-      ...(userId && { userId }) // Include userId if available
+      ...(userId && { userId }), // Include userId if available
+      ...(paymentData.existingOrderId && { existingOrderId: paymentData.existingOrderId }) // Preserve existingOrderId for partial payments
     };
+    
+    if (paymentData.existingOrderId) {
+      console.log('🚨 COMPLETING PARTIAL PAYMENT 🚨');
+      console.log('Existing Order ID:', paymentData.existingOrderId);
+    }
     
     return this.apiCall('/orders/public/initiate', {
       method: 'POST',
