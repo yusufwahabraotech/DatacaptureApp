@@ -164,26 +164,86 @@ const AdminGalleryItemDetailsScreen = ({ navigation, route }) => {
             {renderDetailRow('Producer', item.producer, 'business')}
             {renderDetailRow('Service Providers', item.totalAvailableServiceProviders?.toString() || '0', 'people')}
             {item.hasSubServices && renderDetailRow('Sub-Services', item.subServiceCount?.toString() || '0', 'list')}
-            {item.bookingAvailability && (
-              <>
-                {renderDetailRow('Slot Duration', `${item.bookingAvailability.slotDurationMinutes || 60} minutes`, 'time')}
-                {renderDetailRow('Concurrent Providers', item.bookingAvailability.concurrentProviders?.toString() || '1', 'people-circle')}
-                {renderDetailRow('Timezone', item.bookingAvailability.timezone || 'Africa/Lagos', 'globe')}
-              </>
-            )}
-            {item.availabilityQuickInfo?.bookingWindowType && (
-              <View style={styles.bookingPeriodCard}>
-                <View style={styles.bookingPeriodHeader}>
+          </>
+        ))}
+
+        {/* Booking Availability Configuration */}
+        {isService && item.bookingAvailability && renderSection('Booking Configuration', (
+          <>
+            {renderDetailRow('Slot Duration', `${item.bookingAvailability.slotDurationMinutes || 60} minutes`, 'time')}
+            {renderDetailRow('Concurrent Providers', item.bookingAvailability.concurrentProviders?.toString() || '1', 'people-circle')}
+            {renderDetailRow('Timezone', item.bookingAvailability.timezone || 'Africa/Lagos', 'globe')}
+            {renderDetailRow('Status', item.bookingAvailability.isActive ? 'Active' : 'Inactive', item.bookingAvailability.isActive ? 'checkmark-circle' : 'close-circle')}
+            
+            {/* Availability Period */}
+            {item.bookingAvailability.availabilityPeriod && (
+              <View style={styles.availabilityPeriodCard}>
+                <View style={styles.cardHeader}>
                   <Ionicons name="calendar-outline" size={20} color="#7B2CBF" />
-                  <Text style={styles.bookingPeriodTitle}>Booking Period</Text>
+                  <Text style={styles.cardTitle}>Availability Period</Text>
                 </View>
-                <Text style={styles.bookingPeriodText}>
-                  {item.availabilityQuickInfo.bookingWindowType === 'rollingWeeks' && 
-                    (item.availabilityQuickInfo.bookingAheadMessage || `Book up to ${item.availabilityQuickInfo.bookingAheadWeeks} weeks in advance`)}
-                  {item.availabilityQuickInfo.bookingWindowType === 'dateRange' && 
-                    (item.availabilityQuickInfo.bookingDateRangeMessage || `Available from ${new Date(item.availabilityQuickInfo.bookingStartDate).toLocaleDateString()} to ${new Date(item.availabilityQuickInfo.bookingEndDate).toLocaleDateString()}`)}
-                  {item.availabilityQuickInfo.bookingWindowType === 'unlimited' && 'Available indefinitely'}
-                </Text>
+                <View style={styles.periodContent}>
+                  <View style={styles.periodBadge}>
+                    <Text style={styles.periodBadgeText}>
+                      {item.bookingAvailability.availabilityPeriod.type === 'unlimited' && 'Unlimited'}
+                      {item.bookingAvailability.availabilityPeriod.type === 'dateRange' && 'Date Range'}
+                      {item.bookingAvailability.availabilityPeriod.type === 'rollingWeeks' && 'Rolling Weeks'}
+                    </Text>
+                  </View>
+                  {item.bookingAvailability.availabilityPeriod.type === 'dateRange' && (
+                    <View style={styles.dateRangeInfo}>
+                      <Text style={styles.dateRangeText}>
+                        {new Date(item.bookingAvailability.availabilityPeriod.startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        {' → '}
+                        {new Date(item.bookingAvailability.availabilityPeriod.endDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </Text>
+                    </View>
+                  )}
+                  {item.bookingAvailability.availabilityPeriod.type === 'rollingWeeks' && (
+                    <Text style={styles.rollingWeeksText}>
+                      Bookable up to {item.bookingAvailability.availabilityPeriod.weeksAhead} weeks in advance
+                    </Text>
+                  )}
+                  {item.bookingAvailability.availabilityPeriod.type === 'unlimited' && (
+                    <Text style={styles.unlimitedText}>Available indefinitely</Text>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* Days Available with Time Windows */}
+            {item.bookingAvailability.daysAvailable && item.bookingAvailability.daysAvailable.length > 0 && (
+              <View style={styles.daysAvailableCard}>
+                <View style={styles.cardHeader}>
+                  <Ionicons name="time-outline" size={20} color="#7B2CBF" />
+                  <Text style={styles.cardTitle}>Weekly Schedule</Text>
+                </View>
+                {item.bookingAvailability.daysAvailable.map((day, index) => (
+                  <View key={index} style={styles.dayRow}>
+                    <View style={styles.dayHeader}>
+                      <Text style={[styles.dayName, !day.isAvailable && styles.dayNameInactive]}>
+                        {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day.dayOfWeek]}
+                      </Text>
+                      {!day.isAvailable && (
+                        <View style={styles.unavailableBadge}>
+                          <Text style={styles.unavailableBadgeText}>Unavailable</Text>
+                        </View>
+                      )}
+                    </View>
+                    {day.isAvailable && day.timeWindows && day.timeWindows.length > 0 && (
+                      <View style={styles.timeWindowsContainer}>
+                        {day.timeWindows.map((window, wIndex) => (
+                          <View key={wIndex} style={styles.timeWindowChip}>
+                            <Ionicons name="time" size={14} color="#7B2CBF" />
+                            <Text style={styles.timeWindowText}>
+                              {window.startTime} - {window.endTime}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ))}
               </View>
             )}
           </>
@@ -454,29 +514,109 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
   },
-  bookingPeriodCard: {
-    backgroundColor: '#FFF9E6',
+  availabilityPeriodCard: {
+    backgroundColor: '#F3F4F6',
     borderRadius: 8,
     padding: 12,
     marginTop: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#7B2CBF',
   },
-  bookingPeriodHeader: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  bookingPeriodTitle: {
+  cardTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1F2937',
   },
-  bookingPeriodText: {
+  periodContent: {
+    gap: 8,
+  },
+  periodBadge: {
+    backgroundColor: '#7B2CBF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  periodBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+  },
+  dateRangeInfo: {
+    marginTop: 4,
+  },
+  dateRangeText: {
     fontSize: 13,
-    color: '#374151',
-    lineHeight: 18,
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  rollingWeeksText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  unlimitedText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  daysAvailableCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+  },
+  dayRow: {
+    marginBottom: 12,
+  },
+  dayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  dayName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  dayNameInactive: {
+    color: '#9CA3AF',
+  },
+  unavailableBadge: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  unavailableBadgeText: {
+    fontSize: 11,
+    color: '#DC2626',
+    fontWeight: '500',
+  },
+  timeWindowsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timeWindowChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  timeWindowText: {
+    fontSize: 12,
+    color: '#1F2937',
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
