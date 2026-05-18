@@ -299,9 +299,25 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                       </Text>
                     </View>
                     
+                    {/* Show merchant location name if available */}
+                    {(order.serviceBooking.location.type === 'merchant_location' || 
+                      order.serviceBooking.location.type === 'merchantLocation') && 
+                     order.serviceBooking.location.merchantLocationName && (
+                      <View style={styles.merchantLocationDetails}>
+                        <View style={styles.infoRow}>
+                          <Text style={styles.infoLabel}>Merchant Name:</Text>
+                          <Text style={styles.infoValue}>{order.serviceBooking.location.merchantLocationName}</Text>
+                        </View>
+                      </View>
+                    )}
+                    
                     {order.serviceBooking.location.address && (
                       <View style={styles.addressContainer}>
-                        <Text style={styles.addressLabel}>Address:</Text>
+                        <Text style={styles.addressLabel}>
+                          {(order.serviceBooking.location.type === 'merchant_location' || 
+                            order.serviceBooking.location.type === 'merchantLocation') ? 
+                            'Merchant Address:' : 'Address:'}
+                        </Text>
                         <Text style={styles.addressText}>{order.serviceBooking.location.address}</Text>
                       </View>
                     )}
@@ -1045,6 +1061,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#25D366',
     fontWeight: '500',
+  },
+  merchantLocationDetails: {
+    backgroundColor: '#F3E8FF',
+    borderRadius: 6,
+    padding: 12,
+    marginTop: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#7B2CBF',
   },
   personsSection: {
     marginTop: 16,
