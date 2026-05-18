@@ -54,7 +54,7 @@ const [sendingReminder, setSendingReminder] = useState(false);
       const response = await ApiService.getAdminOrders(params);
       
       if (response.success) {
-        setOrders(response.data.orders || []);
+        setOrders(response.data.orders?.orders || []);
       } else {
         Alert.alert('Error', response.message || 'Failed to fetch orders');
       }

@@ -3572,6 +3572,26 @@ class ApiService {
   static async getAdminOrders(params = {}) {
     console.log('🚨 FETCHING ADMIN ORDERS 🚨');
     
+    // Debug token to see organizationId
+    const token = await this.getToken();
+    if (token) {
+      try {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        console.log('=== ADMIN ORDERS TOKEN DEBUG ===');
+        console.log('User role:', tokenPayload.role);
+        console.log('Organization ID in token:', tokenPayload.organizationId);
+        console.log('User ID:', tokenPayload.userId || tokenPayload.id);
+        console.log('Token exp:', new Date(tokenPayload.exp * 1000).toISOString());
+        console.log('Token expired?', Date.now() > tokenPayload.exp * 1000);
+        console.log('Full token payload:', JSON.stringify(tokenPayload, null, 2));
+        console.log('==========================================');
+      } catch (error) {
+        console.log('❌ Error decoding token:', error);
+      }
+    } else {
+      console.log('❌ NO TOKEN FOUND');
+    }
+    
     const queryParams = new URLSearchParams();
     if (params.page) queryParams.append('page', params.page.toString());
     if (params.limit) queryParams.append('limit', params.limit.toString());
@@ -3581,7 +3601,22 @@ class ApiService {
     const queryString = queryParams.toString();
     const endpoint = `/orders/admin/all${queryString ? '?' + queryString : ''}`;
     
-    return this.apiCall(endpoint);
+    console.log('🚨 CALLING ENDPOINT:', endpoint);
+    const response = await this.apiCall(endpoint);
+    
+    console.log('🚨 ADMIN ORDERS RESPONSE 🚨');
+    console.log('Success:', response.success);
+    console.log('Message:', response.message);
+    if (response.success && response.data) {
+      console.log('Orders count:', response.data.orders?.length || 0);
+      console.log('Total:', response.data.total);
+      if (response.data.orders && response.data.orders.length > 0) {
+        console.log('Sample order organizationId:', response.data.orders[0].organizationId);
+      }
+    }
+    console.log('Full response:', JSON.stringify(response, null, 2));
+    
+    return response;
   }
 
   static async getAdminOrderById(orderId) {
