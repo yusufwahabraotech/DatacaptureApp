@@ -10,9 +10,11 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import ApiService from '../services/api';
 
 const CreateVerificationScreen = ({ navigation }) => {
@@ -22,6 +24,7 @@ const CreateVerificationScreen = ({ navigation }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
+  const [showTimePicker, setShowTimePicker] = useState({ visible: false, field: '', index: null });
   const [formData, setFormData] = useState({
     // Assignment data
     assignmentId: '',
@@ -912,12 +915,15 @@ const CreateVerificationScreen = ({ navigation }) => {
                 
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Departure Time</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g., 08:00 AM"
-                    value={step.time || ''}
-                    onChangeText={(text) => updateTransportationStep(index, 'time', text)}
-                  />
+                  <TouchableOpacity
+                    style={styles.timePickerButton}
+                    onPress={() => setShowTimePicker({ visible: true, field: 'time', index })}
+                  >
+                    <Ionicons name="time-outline" size={20} color="#7C3AED" />
+                    <Text style={styles.timePickerText}>
+                      {step.time || 'Select time'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
                 
                 <View style={styles.inputGroup}>
@@ -943,12 +949,15 @@ const CreateVerificationScreen = ({ navigation }) => {
                 
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Time Spent</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g., 30 minutes, 1 hour"
-                    value={step.timeSpent || ''}
-                    onChangeText={(text) => updateTransportationStep(index, 'timeSpent', text)}
-                  />
+                  <TouchableOpacity
+                    style={styles.timePickerButton}
+                    onPress={() => setShowTimePicker({ visible: true, field: 'timeSpent', index })}
+                  >
+                    <Ionicons name="timer-outline" size={20} color="#7C3AED" />
+                    <Text style={styles.timePickerText}>
+                      {step.timeSpent || 'Select duration'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             ))}}
@@ -983,22 +992,28 @@ const CreateVerificationScreen = ({ navigation }) => {
             
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Final Arrival Time</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 09:15 AM"
-                value={formData.finalTime || ''}
-                onChangeText={(text) => setFormData({...formData, finalTime: text})}
-              />
+              <TouchableOpacity
+                style={styles.timePickerButton}
+                onPress={() => setShowTimePicker({ visible: true, field: 'finalTime', index: null })}
+              >
+                <Ionicons name="time-outline" size={20} color="#7C3AED" />
+                <Text style={styles.timePickerText}>
+                  {formData.finalTime || 'Select time'}
+                </Text>
+              </TouchableOpacity>
             </View>
             
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Total Journey Time</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 1 hour 15 minutes"
-                value={formData.totalJourneyTime || ''}
-                onChangeText={(text) => setFormData({...formData, totalJourneyTime: text})}
-              />
+              <TouchableOpacity
+                style={styles.timePickerButton}
+                onPress={() => setShowTimePicker({ visible: true, field: 'totalJourneyTime', index: null })}
+              >
+                <Ionicons name="timer-outline" size={20} color="#7C3AED" />
+                <Text style={styles.timePickerText}>
+                  {formData.totalJourneyTime || 'Select duration'}
+                </Text>
+              </TouchableOpacity>
             </View>
             
             <Text style={styles.subTitle}>Return Costs</Text>
@@ -1075,6 +1090,64 @@ const CreateVerificationScreen = ({ navigation }) => {
         {renderStepContent()}
       </ScrollView>
 
+      {/* Time Picker Modal */}
+      {showTimePicker.visible && (
+        <DateTimePicker
+          value={new Date()}
+          mode="time"
+          is24Hour={false}
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
+            if (Platform.OS === 'android') {
+              setShowTimePicker({ visible: false, field: '', index: null });
+            }
+            
+            if (event.type === 'set' && selectedDate) {
+              const field = showTimePicker.field;
+              const index = showTimePicker.index;
+              
+              if (field === 'time' || field === 'finalTime') {
+                // Format time as HH:MM AM/PM
+                const hours = selectedDate.getHours();
+                const minutes = selectedDate.getMinutes();
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                const displayHours = hours % 12 || 12;
+                const timeString = `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+                
+                if (field === 'time' && index !== null) {
+                  updateTransportationStep(index, 'time', timeString);
+                } else if (field === 'finalTime') {
+                  setFormData({...formData, finalTime: timeString});
+                }
+              } else if (field === 'timeSpent' || field === 'totalJourneyTime') {
+                // For duration, use hours and minutes from time picker
+                const hours = selectedDate.getHours();
+                const minutes = selectedDate.getMinutes();
+                let durationString = '';
+                if (hours > 0) durationString += `${hours} hour${hours > 1 ? 's' : ''}`;
+                if (minutes > 0) {
+                  if (durationString) durationString += ' ';
+                  durationString += `${minutes} minute${minutes > 1 ? 's' : ''}`;
+                }
+                if (!durationString) durationString = '0 minutes';
+                
+                if (field === 'timeSpent' && index !== null) {
+                  updateTransportationStep(index, 'timeSpent', durationString);
+                } else if (field === 'totalJourneyTime') {
+                  setFormData({...formData, totalJourneyTime: durationString});
+                }
+              }
+              
+              if (Platform.OS === 'ios') {
+                setShowTimePicker({ visible: false, field: '', index: null });
+              }
+            } else if (event.type === 'dismissed') {
+              setShowTimePicker({ visible: false, field: '', index: null });
+            }
+          }}
+        />
+      )}
+
       {/* Navigation Buttons */}
       <View style={styles.footer}>
         {currentStep > 1 && (
@@ -1106,9 +1179,11 @@ const CreateVerificationScreen = ({ navigation }) => {
             onPress={createVerification}
             disabled={isUploading}
           >
-            <Text style={styles.createButtonText}>
-              {isUploading ? uploadProgress : 'Submit Verification'}
-            </Text>
+            {isUploading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.createButtonText}>Submit Verification</Text>
+            )}
           </TouchableOpacity>
         )}
       </View>
@@ -1629,6 +1704,22 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontStyle: 'italic',
     textAlign: 'right',
+  },
+  timePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  timePickerText: {
+    fontSize: 16,
+    color: '#1F2937',
+    marginLeft: 8,
+    flex: 1,
   },
 });
 
