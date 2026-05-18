@@ -299,6 +299,14 @@ const OrderDetailsScreen = ({ navigation, route }) => {
                       </Text>
                     </View>
                     
+                    {/* DEBUG: Log location data */}
+                    {console.log('🚨 BOOKING LOCATION DEBUG 🚨')}
+                    {console.log('Location type:', order.serviceBooking.location.type)}
+                    {console.log('Location keys:', Object.keys(order.serviceBooking.location))}
+                    {console.log('merchantLocationName:', order.serviceBooking.location.merchantLocationName)}
+                    {console.log('address:', order.serviceBooking.location.address)}
+                    {console.log('Full location object:', JSON.stringify(order.serviceBooking.location, null, 2))}
+                    
                     {/* Show merchant location name if available */}
                     {(order.serviceBooking.location.type === 'merchant_location' || 
                       order.serviceBooking.location.type === 'merchantLocation') && 
